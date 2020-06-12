@@ -3,8 +3,8 @@ data{
 }
 parameters{
   vector<lower=0,upper=1>[12] x;
-  real<lower=0,upper=1> c;
-  real<lower=0,upper=1> beta;
+  real<lower=0> c;
+  real<lower=0> beta;
 }
 model{
   for(i in 1:12){
