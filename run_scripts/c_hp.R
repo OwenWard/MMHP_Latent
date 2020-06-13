@@ -159,18 +159,30 @@ for(i in 1:mice_number){
       names(par_est) <- c("lambda0","alpha","beta")
       current_window_vec <- unique_pairs_df$observe[[pair]]
       all_residual <- 0
-      for(cur in c(1:length(current_window_vec))){ ## check length > 2
+      for(cur in c(1:num_winds)){ ## check length > 2
         # this is currently just windows which have events
-        cur_win <- current_window_vec[cur]
-        current_event_time <- return_df[return_df$initiator==i&
+        if(cur %in% current_window_vec) {
+          cur_win <- current_window_vec[cur]
+          current_event_time <- return_df[return_df$initiator==i&
+                                            return_df$recipient==j&
+                                            return_df$observe.id==cur_win,"event.times"][[1]]
+          current_obs_time <- return_df[return_df$initiator==i&
                                           return_df$recipient==j&
-                                          return_df$observe.id==cur_win,"event.times"][[1]]
-        current_obs_time <- return_df[return_df$initiator==i&
-                                        return_df$recipient==j&
-                                        return_df$observe.id==cur_win,"observe.time"]
-        all_residual <- all_residual + uniHawkesPearsonResidual(object=par_est,
-                                                                events=current_event_time,
-                                                                termination = current_obs_time)
+                                          return_df$observe.id==cur_win,"observe.time"]
+          all_residual <- all_residual + uniHawkesPearsonResidual(object=par_est,
+                                                                  events=current_event_time,
+                                                                  termination = current_obs_time)
+        }
+        else {
+          # compute the intensity over empty window
+          current_obs_time <- return_df[return_df$observe.id==cur,"observe.times"][1]
+          # these are all the same now
+          all_residual <- all_residual + uniHawkesPearsonResidual(object = par_est,
+                                                                  events = NULL,
+                                                                  termination = current_obs_time )
+        }
+        
+        
       }
       m1_residual_matrix[i,j] <- all_residual
     }
