@@ -13,6 +13,9 @@ cohort_id <- 1
 ####
 save_data_path <- "output/"
 
+### specify the number of segments here
+no_segments <- 500
+
 library(rstan)
 options(mc.cores = parallel::detectCores())
 
@@ -119,7 +122,7 @@ state_array_list <- list()
 initial_state_list <- list()
 termination_state_list <- list()
 interpolation_array_list <- list()
-no_segments <- 5000 # changed this from 5000
+#no_segments <- 5000 # changed this from 5000
 
 param <- rep(list(),1000)
 for(s in 1:1000){
