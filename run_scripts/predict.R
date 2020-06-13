@@ -10,7 +10,7 @@
 # cohort_id <- jobid
 cohort_id <- 1
 ####
-save_data_path <- "output/"
+data_path <- "output/"
 
 
 library(rstan)
