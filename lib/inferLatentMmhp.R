@@ -169,6 +169,90 @@ myViterbiWithInitial <- function(events, param, initial.p = 0.5, termination = N
   N <- length(events)
   if( N == 0 ) {
     # what we should do if there are no events in a window
+    win_len <- termination
+    
+    ## the indices of these will now need to be updated
+    ## just copied from below
+    ## need to initialize m, probs_1_matrix and int_1,2?
+    int_1 <- rep(NA,2)
+    int_2 <- rep(NA,2)
+    probs_1_matrix <- rep(NA,2)
+    probs_2_matrix <- rep(NA,2)
+    probs_1_matrix[1] <- log(param$q2/(param$q1+param$q2)+param$q1/(param$q1+param$q2)*exp(-(param$q1+param$q2)*interevent[n])) # 1->1
+    probs_2_matrix[2] <- log(param$q1/(param$q1+param$q2)+param$q2/(param$q1+param$q2)*exp(-(param$q1+param$q2)*interevent[n])) # 2->2
+    probs_1_matrix[2] <- log(1-exp(probs_2_matrix[2])) # 2->1
+    probs_2_matrix[1] <- log(1-exp(probs_1_matrix[1])) # 1->2
+    m_termination <- rep(NA,2)
+    b_termination <- rep(NA,2)
+    
+    
+    K0 = exp(-(param$q1+param$q2)*win_len)
+    K1 = (1-exp(-(param$q1+param$q2)*win_len))/(param$q1+param$q2)
+    K2 = (1-exp(-(param$q1+param$q2)*win_len))/(param$q1+param$q2)
+    # as R is 0 the following 3 are zero
+    K3 = 0
+    K4 = 0
+    K5 = 0
+    int_1[1] = ((param$q2^2*param$lambda1+param$q2*param$q1*param$lambda0)*win_len +
+                    (param$q1^2*param$lambda1+param$q2*param$q1*param$lambda0)*K0*win_len +
+                    (param$lambda1-param$lambda0)*param$q2*param$q1*K1 + (param$lambda1-param$lambda0)*param$q2*param$q1*K2 +
+                    param$alpha*K3*(param$q2^2+param$q1^2*K0) +
+                    param$alpha*param$q1*param$q2*K4 + param$alpha*param$q1*param$q2*K5)/(param$q1+param$q2)^2/exp(probs_1_matrix[n,1])  #1->1
+    int_1[2] = ((param$q2^2*param$lambda1+param$lambda0*param$q1*param$q2)*win_len -
+                    (param$lambda1*param$q1*param$q2+param$lambda0*param$q2^2)*K0*win_len +
+                    (param$lambda0-param$lambda1)*param$q2^2*K1 + (param$lambda1-param$lambda0)*param$q1*param$q2*K2 +
+                    param$alpha*param$q2*K3*(param$q2-param$q1*K0) -
+                    param$alpha*param$q2^2*K4 + param$alpha*param$q1*param$q2*K5)/(param$q1+param$q2)^2/exp(probs_1_matrix[n,2]) #2->1
+    int_2[1] = ((param$q1*param$q2*param$lambda1+param$q1^2*param$lambda0)*win_len -
+                    (param$q1^2*param$lambda1+param$q1*param$q2*param$lambda0)*K0*win_len +
+                    (param$lambda1-param$lambda0)*param$q1^2*K1 + param$q1*param$q2*(param$lambda0-param$lambda1)*K2 +
+                    param$alpha*param$q1*K3*(param$q2-param$q1*K0) +
+                    param$alpha*param$q1^2*K4 - param$alpha*param$q2*param$q1*K5)/(param$q1+param$q2)^2/exp(probs_2_matrix[n,1])  #1->2
+    int_2[2] = ((param$q1*param$q2*param$lambda1+param$lambda0*param$q1^2)*win_len +
+                    (param$q1*param$q2*param$lambda1+param$lambda0*param$q2^2)*K0*win_len +
+                    (param$lambda0-param$lambda1)*param$q1*param$q2*K1 + (param$lambda0-param$lambda1)*param$q1*param$q2*K2 +
+                    param$alpha*param$q1*param$q2*K3*(1+K0) -
+                    param$alpha*param$q1*param$q2*K4 - param$alpha*param$q1*param$q2*K5)/(param$q1+param$q2)^2/exp(probs_2_matrix[n,2])
+    
+    
+    ## code for n=0 
+    #---------- transit to z(term)=1
+    logp1_1 <- log(initial.p) + probs_1_matrix[1] - int_1[1] # 1->1
+    logp2_1 <- log(1-initial.p) + probs_1_matrix[2] - int_1[2] # 2->1
+    if(logp1_1>logp2_1){
+      m_termination[1] <- logp1_1
+      b_termination[1] <- 1
+    }else{
+      m_termination[1] <- logp2_1
+      b_termination[1] <- 2
+    }
+    
+    #------------ transit to z(term) = 2
+    logp1_2 <- log(initial.p) + probs_2_matrix[1] - int_2[1] # 1->2
+    logp2_2 <- log(1-initial.p) + probs_2_matrix[2] - int_2[2] # 2->2
+    if(logp1_2>logp2_2){
+      m_termination[2] <- logp1_2
+      b_termination[2] <- 1
+    }else{
+      m_termination[2] <- logp2_2
+      b_termination[2] <- 2
+    }
+    
+    
+    
+    
+    # ----calulate zt_v for global decoding
+    if(m_termination[1]>m_termination[2]){
+      termination_state <- 1
+    }else{
+      termination_state <- 2
+    }
+    
+    zt_v <-  b_termination[termination_state]
+    
+    return(list(zt_v=zt_v, initial_state=b_termination[termination_state],
+                termination_state=termination_state))
+    # I'm not certain about initial state for this currently
     
   }
   else {
