@@ -128,6 +128,9 @@ unique_pairs_df <- return_df %>% group_by(initiator, recipient) %>%
             no.events=list(no.events))
 unique_observe_win <- unique(return_df[,c("observe.id","observe.time")])
 
+
+num_winds <- nrow(unique_observe_win)
+
 load(paste(save_data_path,cohort_names[current_cohort],
            "/cohort_hp_stan_result_",cohort_names[current_cohort],
            ".RData",sep=''))
@@ -157,6 +160,7 @@ for(i in 1:mice_number){
       current_window_vec <- unique_pairs_df$observe[[pair]]
       all_residual <- 0
       for(cur in c(1:length(current_window_vec))){ ## check length > 2
+        # this is currently just windows which have events
         cur_win <- current_window_vec[cur]
         current_event_time <- return_df[return_df$initiator==i&
                                           return_df$recipient==j&

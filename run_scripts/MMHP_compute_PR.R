@@ -1,13 +1,20 @@
-# given c-mmhp stan fits this constructs the corresponding PR matrix
-#.libPaths("/rigel/stats/users/ogw2103/rpackages")
-setwd("/rigel/stats/users/ogw2103/code/MMHP/Latent_Sims/")
-#setwd("C:/Users/owenw/Dropbox/with Owen/code/part2/")
+# file to work on estimating the Pearson residuals 
+# for windows with no events
+
+# this file refits the complete C-MMHP model
+# including prediction and Pearson residuals for each cohort
+#
 
 ### code ###
-### set cohort_id based on job num
-#jobid <- Sys.getenv("SLURM_ARRAY_TASK_ID")
-#jobid <- as.numeric(jobid)
-#cohort_id <- jobid
+## run this if running on the cluster
+#source("/rigel/stats/users/ogw2103/code/MMHP/MMHP_Latent/run_scripts/cluster_setup.R")
+# ### set cohort_id based on job num
+# jobid <- Sys.getenv("SLURM_ARRAY_TASK_ID")
+# jobid <- as.numeric(jobid)
+# cohort_id <- jobid
+cohort_id <- 1
+####
+save_data_path <- "output/"
 
 library(rstan)
 options(mc.cores = parallel::detectCores())
