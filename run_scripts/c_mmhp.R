@@ -123,6 +123,7 @@ initial_state_list <- list()
 termination_state_list <- list()
 interpolation_array_list <- list()
 #no_segments <- 5000 # changed this from 5000
+# specify this above
 
 param <- rep(list(),1000)
 for(s in 1:1000){
@@ -180,6 +181,8 @@ for(pair in 1:nrow(unique_pairs_df)){
         
         viterbi_result <- myViterbiWithInitial(events = time_vec, param = param_pair,
                                                termination = observe_period)
+        # this needs to be updated for windows with no events
+        
         state_array_list[[pair]][[current_win]][,current_sim] <- viterbi_result$zt_v
         initial_state_list[[pair]][[current_win]][1,current_sim] <- viterbi_result$initial_state
         termination_state_list[[pair]][[current_win]][1,current_sim] <- viterbi_result$termination_state
@@ -189,6 +192,8 @@ for(pair in 1:nrow(unique_pairs_df)){
                                                     initial.state = viterbi_result$initial_state,
                                                     termination.time=observe_period,
                                                     termination.state = viterbi_result$termination_state)
+        ## as does this
+        
         step_fun_est <- stepfun(latent_inter$x.hat,2-latent_inter$z.hat)
         interpolation_array_list[[pair]][[current_win]][,current_sim] <- step_fun_est(time_segment)
       }
