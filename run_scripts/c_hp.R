@@ -78,10 +78,9 @@ print(paste("Cohort",current_cohort))
 
 
 # then fit C-HP here for each cohort
-#######
-#######
 
 
+#### fit stan model ####
 print(paste("Cohort",current_cohort))
 stan_input_lst <- prepareDataStan(current_cohort)
 stan_input_lst$alpha_id <- expert_rank_10[[current_cohort]][1]
@@ -99,7 +98,7 @@ save(sim_cohort_hp, fit_cohort_hp,
                   ".RData",sep=''))
 
 
-### Predictions for this model
+### Predictions for this stan model ####
 print(current_cohort)
 stan_train_input_lst <- prepareDataStanTrain(current_cohort)
 stan_train_input_lst$alpha_id <- expert_rank_10[[current_cohort]][1]
@@ -116,7 +115,7 @@ save(sim_cohort_hp, fit_cohort_hp,
                   "/cohort_hp_predict_stan_result_",cohort_names[current_cohort],
                   ".RData",sep=''))
 
-# then the pearson residuals for this fit will also be computed here
+##### pearson residuals for stan fit ####
 mice_number <- 12
 
 print(current_cohort)
@@ -129,7 +128,6 @@ unique_pairs_df <- return_df %>% group_by(initiator, recipient) %>%
             no.events=list(no.events))
 unique_observe_win <- unique(return_df[,c("observe.id","observe.time")])
 
-# M1
 load(paste(save_data_path,cohort_names[current_cohort],
            "/cohort_hp_stan_result_",cohort_names[current_cohort],
            ".RData",sep=''))
@@ -175,7 +173,7 @@ for(i in 1:mice_number){
   }
 }
 
-# then save this mmhp_residual_matrix
+##### save this mmhp_residual_matrix ####
 saveRDS(m1_residual_matrix,
         file = paste(save_data_path,cohort_names[current_cohort],
                      "/chp_pr_matrix_",cohort_names[current_cohort],
