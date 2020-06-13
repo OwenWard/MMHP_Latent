@@ -118,6 +118,8 @@ unique_pairs_df <- return_df %>% group_by(initiator, recipient) %>%
             no.events=list(no.events))
 unique_observe_win <- unique(return_df[,c("observe.id","observe.time")])
 
+num_winds <- nrow(unique_observe_win)
+
 state_array_list <- list() 
 initial_state_list <- list()
 termination_state_list <- list()
@@ -163,6 +165,7 @@ for(pair in 1:nrow(unique_pairs_df)){
   
   if(current_initiator!=current_recipient){
     for(current_win in current_window_vec){
+    #for(current_win in 1:num_winds){
       row_indicator <- return_df$initiator==current_initiator&return_df$recipient==current_recipient&return_df$observe.id==current_win
       
       time_vec <- return_df[row_indicator,"event.times"][[1]]
