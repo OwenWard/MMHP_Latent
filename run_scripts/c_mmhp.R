@@ -243,7 +243,7 @@ model3_par_matrix <- list(lambda0_matrix=matrix(model3_par_est$lambda0,
                           q2_matrix=formMatrix(function(x,y) model3_fn$q0.fun(x,y,model3_par_est$eta_3),
                                                model3_par_est$f))
 m3_residual_matrix <- matrix(0,ncol=mice_number,nrow=mice_number)
-no_segments <- 5000 # changed from 5000
+no_segments <- 500 # changed from 5000
 window_pr <- c()
 for(i in 1:mice_number){
   print(i)
