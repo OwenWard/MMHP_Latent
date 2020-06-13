@@ -80,7 +80,7 @@ for(current_cohort in fit_cohorts){
 current_cohort <- cohort_id
 print(paste("Cohort",current_cohort))
 
-
+#### fit the stan model ####
 clean_data <- cleanData(raw_data = full_data[[cohort_names[current_cohort]]], 
                         cut_off = 1, N = 12)
 # changed the cut off here from 0 to 1
@@ -95,11 +95,13 @@ save(fit_agg_rank, sim_agg_rank,
                   "/agg_rank_stan_result_",cohort_names[current_cohort],
                   ".RData",sep=''))
 
+#### predictions for this model ####
+
 no_days <- length(unique(full_data[[cohort_names[current_cohort]]]$day))
 N_count_train <- cleanDataForTraining(all_raw_data = full_data[[cohort_names[current_cohort]]], 
                                       cut_off = cut_off, N = 12, train_period = 15)$N_count
 
-fit_predict_agg_rank <- stan("lib/latent_rank_agg_unbounded.stan",
+fit_predict_agg_rank <- stan("lib/latent_rank_agg.stan",
                              data=list(n_matrix=N_count_train),
                              iter=1000, chains=4, control=list(adapt_delta=0.99))
 sim_predict_agg_rank <- rstan::extract(fit_predict_agg_rank)

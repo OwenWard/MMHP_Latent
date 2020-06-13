@@ -41,7 +41,7 @@ source('lib/residualStructureScore.R')
 
 
 
-#### then load in the data here ###
+#### then load in the data here ####
 
 full_data <- readRDS("data/mice.RData")
 # A=c9, B=c10, C=c12, D=c15, E=c16, F=c17, G=c18, H=c37, I=c38. J=c45
@@ -74,10 +74,9 @@ print(paste("Cohort",current_cohort))
 
 
 # then fit DC C-HP here for each cohort
-#######
-#######
 
 
+#### fit the stan model ####
 print(current_cohort)
 stan_input_lst <- prepareDataStan(current_cohort)
 stan_input_lst$scale <- 0.1
@@ -92,7 +91,7 @@ save(sim_cohort_dchp, fit_cohort_dchp,
                   "/cohort_dchp_stan_result_",cohort_names[current_cohort],
                   ".RData",sep=''))
 
-### Predictions for this model
+### Predictions for this model ####
 print(current_cohort)
 stan_train_input_lst <- prepareDataStanTrain(current_cohort)
 stan_train_input_lst$scale <- 0.1
@@ -106,7 +105,8 @@ save(sim_cohort_dchp, fit_cohort_dchp,
      file = paste(save_data_path,cohort_names[current_cohort],
                   "/cohort_dchp_predict_stan_result_",cohort_names[current_cohort],
                   ".RData",sep=''))
-# then the pearson residuals for this fit will also be computed here
+
+#### then the pearson residuals for this fit ####
 mice_number <- 12
 
 print(current_cohort)
@@ -167,7 +167,7 @@ for(i in 1:mice_number){
   }
 }
 
-# then save this mmhp_residual_matrix
+### then save this dchp_residual_matrix ####
 saveRDS(m2_residual_matrix,
         file = paste(save_data_path,cohort_names[current_cohort],
                      "/dchp_pr_matrix_",cohort_names[current_cohort],
