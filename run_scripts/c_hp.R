@@ -160,7 +160,7 @@ for(i in 1:mice_number){
       current_window_vec <- unique_pairs_df$observe[[pair]]
       all_residual <- 0
       for(cur in c(1:num_winds)){ ## check length > 2
-        # this is currently just windows which have events
+        # consider all windows which may or may not have events
         if(cur %in% current_window_vec) {
           cur_win <- current_window_vec[cur]
           current_event_time <- return_df[return_df$initiator==i&
