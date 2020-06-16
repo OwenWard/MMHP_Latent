@@ -198,7 +198,7 @@ for(pair in 1:nrow(unique_pairs_df)){
         
         viterbi_result <- myViterbiWithInitial(events = time_vec, param = param_pair,
                                                termination = observe_period)
-        # this needs to be updated for windows with no events
+        # this needs to be updated for windows with no events - done
         
         state_array_list[[pair]][[current_win]][,current_sim] <- viterbi_result$zt_v
         initial_state_list[[pair]][[current_win]][1,current_sim] <- viterbi_result$initial_state
