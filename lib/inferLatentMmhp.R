@@ -487,7 +487,7 @@ interpolateLatentTrajectory <- function(params=list(lambda0,lambda1,alpha,beta,q
       x.hat <- termination.time
     }
     else {
-      print("Not expecting this case!")
+      stop("Not expecting this behaviour!")
     }
     
   }
