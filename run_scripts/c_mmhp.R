@@ -240,6 +240,10 @@ save(sim_cohort_mmhp, fit_cohort_mmhp,
                   ".RData",sep=''))
 
 #### pearson residuals for this fit ####
+
+### this hasn't been updated below here yet
+### working on MMHP_compute_PR first
+
 mice_number <- 12
 
 load(paste(save_data_path,cohort_names[current_cohort],

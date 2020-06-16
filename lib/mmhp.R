@@ -191,6 +191,18 @@ mmhpIntensityNumeric <-function(params=list(lambda0,lambda1,alpha,beta,q1,q2), t
   return(lambda.t)
 }
 
+
+mmhpIntensityNumeric_win <-function(params=list(lambda0,lambda1,alpha,beta,q1,q2), t, time.vec, latent.vec){
+  ## latent.vec is vector with same length as time.vec, each entry is the probability at state 1
+  lambda1.t <- hawkesIntensityNumeric_win(params=list(lambda1=params$lambda1,
+                                                      alpha=params$alpha,
+                                                      beta=params$beta), t, time.vec)
+  lambda.t <- lambda1.t*latent.vec + params$lambda0*(1-latent.vec)
+  return(lambda.t)
+}
+
+
+
 ##Compute numerical value of intensity function
 mmhpTrueIntensityNumeric <- function(params=list(lambda0,lambda1,alpha,beta,q1,q2), t, 
                                      latent, time.vec=NULL){
