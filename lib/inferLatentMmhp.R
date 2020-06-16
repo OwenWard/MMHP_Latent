@@ -178,8 +178,8 @@ myViterbiWithInitial <- function(events, param, initial.p = 0.5, termination = N
     int_2 <- rep(NA,2)
     probs_1_matrix <- rep(NA,2)
     probs_2_matrix <- rep(NA,2)
-    probs_1_matrix[1] <- log(param$q2/(param$q1+param$q2)+param$q1/(param$q1+param$q2)*exp(-(param$q1+param$q2)*interevent[n])) # 1->1
-    probs_2_matrix[2] <- log(param$q1/(param$q1+param$q2)+param$q2/(param$q1+param$q2)*exp(-(param$q1+param$q2)*interevent[n])) # 2->2
+    probs_1_matrix[1] <- log(param$q2/(param$q1+param$q2)+param$q1/(param$q1+param$q2)*exp(-(param$q1+param$q2)*win_len)) # 1->1
+    probs_2_matrix[2] <- log(param$q1/(param$q1+param$q2)+param$q2/(param$q1+param$q2)*exp(-(param$q1+param$q2)*win_len)) # 2->2
     probs_1_matrix[2] <- log(1-exp(probs_2_matrix[2])) # 2->1
     probs_2_matrix[1] <- log(1-exp(probs_1_matrix[1])) # 1->2
     m_termination <- rep(NA,2)
@@ -197,22 +197,22 @@ myViterbiWithInitial <- function(events, param, initial.p = 0.5, termination = N
                     (param$q1^2*param$lambda1+param$q2*param$q1*param$lambda0)*K0*win_len +
                     (param$lambda1-param$lambda0)*param$q2*param$q1*K1 + (param$lambda1-param$lambda0)*param$q2*param$q1*K2 +
                     param$alpha*K3*(param$q2^2+param$q1^2*K0) +
-                    param$alpha*param$q1*param$q2*K4 + param$alpha*param$q1*param$q2*K5)/(param$q1+param$q2)^2/exp(probs_1_matrix[n,1])  #1->1
+                    param$alpha*param$q1*param$q2*K4 + param$alpha*param$q1*param$q2*K5)/(param$q1+param$q2)^2/exp(probs_1_matrix[1])  #1->1
     int_1[2] = ((param$q2^2*param$lambda1+param$lambda0*param$q1*param$q2)*win_len -
                     (param$lambda1*param$q1*param$q2+param$lambda0*param$q2^2)*K0*win_len +
                     (param$lambda0-param$lambda1)*param$q2^2*K1 + (param$lambda1-param$lambda0)*param$q1*param$q2*K2 +
                     param$alpha*param$q2*K3*(param$q2-param$q1*K0) -
-                    param$alpha*param$q2^2*K4 + param$alpha*param$q1*param$q2*K5)/(param$q1+param$q2)^2/exp(probs_1_matrix[n,2]) #2->1
+                    param$alpha*param$q2^2*K4 + param$alpha*param$q1*param$q2*K5)/(param$q1+param$q2)^2/exp(probs_1_matrix[2]) #2->1
     int_2[1] = ((param$q1*param$q2*param$lambda1+param$q1^2*param$lambda0)*win_len -
                     (param$q1^2*param$lambda1+param$q1*param$q2*param$lambda0)*K0*win_len +
                     (param$lambda1-param$lambda0)*param$q1^2*K1 + param$q1*param$q2*(param$lambda0-param$lambda1)*K2 +
                     param$alpha*param$q1*K3*(param$q2-param$q1*K0) +
-                    param$alpha*param$q1^2*K4 - param$alpha*param$q2*param$q1*K5)/(param$q1+param$q2)^2/exp(probs_2_matrix[n,1])  #1->2
+                    param$alpha*param$q1^2*K4 - param$alpha*param$q2*param$q1*K5)/(param$q1+param$q2)^2/exp(probs_2_matrix[1])  #1->2
     int_2[2] = ((param$q1*param$q2*param$lambda1+param$lambda0*param$q1^2)*win_len +
                     (param$q1*param$q2*param$lambda1+param$lambda0*param$q2^2)*K0*win_len +
                     (param$lambda0-param$lambda1)*param$q1*param$q2*K1 + (param$lambda0-param$lambda1)*param$q1*param$q2*K2 +
                     param$alpha*param$q1*param$q2*K3*(1+K0) -
-                    param$alpha*param$q1*param$q2*K4 - param$alpha*param$q1*param$q2*K5)/(param$q1+param$q2)^2/exp(probs_2_matrix[n,2])
+                    param$alpha*param$q1*param$q2*K4 - param$alpha*param$q1*param$q2*K5)/(param$q1+param$q2)^2/exp(probs_2_matrix[2])
     
     
     ## code for n=0 

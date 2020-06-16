@@ -164,8 +164,8 @@ for(pair in 1:nrow(unique_pairs_df)){
   interpolation_array_list[[pair]] <- list()
   
   if(current_initiator!=current_recipient){
-    for(current_win in current_window_vec){
-    #for(current_win in 1:num_winds){
+    #for(current_win in current_window_vec){
+    for(current_win in 1:num_winds){
       row_indicator <- return_df$initiator==current_initiator&return_df$recipient==current_recipient&return_df$observe.id==current_win
       
       
@@ -217,10 +217,10 @@ for(pair in 1:nrow(unique_pairs_df)){
     }
   }
 }
-save(state_array_list,initial_state_list,termination_state_list,
-     interpolation_array_list,no_segments,
-     file=paste(save_data_path,cohort_names[current_cohort],
-                "/cmmhp_est_zt_",cohort_names[current_cohort],".RData",sep=''))
+# save(state_array_list,initial_state_list,termination_state_list,
+#      interpolation_array_list,no_segments,
+#      file=paste(save_data_path,cohort_names[current_cohort],
+#                 "/cmmhp_est_zt_",cohort_names[current_cohort],".RData",sep=''))
 
 ### Predictions for this model ####
 print(current_cohort)
