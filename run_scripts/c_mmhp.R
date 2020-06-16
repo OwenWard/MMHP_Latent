@@ -204,15 +204,15 @@ for(pair in 1:nrow(unique_pairs_df)){
         initial_state_list[[pair]][[current_win]][1,current_sim] <- viterbi_result$initial_state
         termination_state_list[[pair]][[current_win]][1,current_sim] <- viterbi_result$termination_state
         
-        ## interpolation
-        latent_inter <- interpolateLatentTrajectory(param_pair, time_vec, viterbi_result$zt_v,
-                                                    initial.state = viterbi_result$initial_state,
-                                                    termination.time=observe_period,
-                                                    termination.state = viterbi_result$termination_state)
-        ## as does this
-        
-        step_fun_est <- stepfun(latent_inter$x.hat,2-latent_inter$z.hat)
-        interpolation_array_list[[pair]][[current_win]][,current_sim] <- step_fun_est(time_segment)
+        # ## interpolation
+        # latent_inter <- interpolateLatentTrajectory(param_pair, time_vec, viterbi_result$zt_v,
+        #                                             initial.state = viterbi_result$initial_state,
+        #                                             termination.time=observe_period,
+        #                                             termination.state = viterbi_result$termination_state)
+        # ## as does this
+        # 
+        # step_fun_est <- stepfun(latent_inter$x.hat,2-latent_inter$z.hat)
+        # interpolation_array_list[[pair]][[current_win]][,current_sim] <- step_fun_est(time_segment)
       }
     }
   }
