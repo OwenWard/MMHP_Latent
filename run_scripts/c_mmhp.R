@@ -284,25 +284,47 @@ for(i in 1:mice_number){
       names(par_est) <- c("lambda0","lambda1","alpha","beta","q1","q2")
       current_window_vec <- unique_pairs_df$observe[[pair]]
       all_residual <- 0
-      for(cur in c(1:length(current_window_vec))){ ## check length > 2
-        cur_win <- current_window_vec[cur]
-        current_event_time <- return_df[return_df$initiator==i&
+      for(cur in c(1:num_windows)) { ## check length > 2
+        if(cur %in% current_window_vec) {
+          cur_win <- cur#current_window_vec[cur]
+          current_event_time <- return_df[return_df$initiator==i&
+                                            return_df$recipient==j&
+                                            return_df$observe.id==cur_win,"event.times"][[1]]
+          # I think this just returns the windows where there are events
+          
+          current_obs_time <- return_df[return_df$initiator==i&
                                           return_df$recipient==j&
-                                          return_df$observe.id==cur_win,"event.times"][[1]]
-        current_obs_time <- return_df[return_df$initiator==i&
-                                        return_df$recipient==j&
-                                        return_df$observe.id==cur_win,"observe.time"]
-        time_segment <- seq(0,current_obs_time,length.out=no_segments)
-        latent_mean <- apply(interpolation_array_list[[pair]][[cur_win]],1,mean)
-        latent_event <- as.numeric(apply(2-state_array_list[[pair]][[cur_win]],1,mean) > 0.5) 
-        est.intensity <- mmhpIntensityNumeric(params=par_est,
-                                              t=current_event_time,
-                                              time.vec=time_segment,
-                                              latent.vec=latent_mean)
-        est.intensity.events <- mmhpIntensityAtEvents(params=par_est, t=current_event_time,
-                                                      latent_z=latent_event)
-        all_residual <- all_residual + sum(1/sqrt(est.intensity.events))-
-          sum(sqrt(est.intensity))*(time_segment[2]-time_segment[1])
+                                          return_df$observe.id==cur_win,"observe.time"]
+          time_segment <- seq(0,current_obs_time,length.out=no_segments)
+          latent_mean <- apply(interpolation_array_list[[pair]][[cur_win]],1,mean)
+          latent_event <- as.numeric(apply(2-state_array_list[[pair]][[cur_win]],1,mean) > 0.5) 
+          est.intensity <- mmhpIntensityNumeric(params=par_est,
+                                                t=current_event_time,
+                                                time.vec=time_segment,
+                                                latent.vec=latent_mean)
+          est.intensity.events <- mmhpIntensityAtEvents(params=par_est, t=current_event_time,
+                                                        latent_z=latent_event)
+          all_residual <- all_residual + sum(1/sqrt(est.intensity.events))-
+            sum(sqrt(est.intensity))*(time_segment[2]-time_segment[1])
+        }
+        else {
+          current_event_time <- NULL
+          # then need to get the current_obs_time
+          current_obs_time <- return_df[return_df$observe.id == cur,"observe.time"][1]
+          time_segment <- seq(0,current_obs_time,length.out=no_segments)
+          latent_mean <- apply(interpolation_array_list[[pair]][[cur]],1,mean)
+          latent_event <- as.numeric(apply(2-state_array_list[[pair]][[cur]],1,mean) > 0.5) 
+          est.intensity <- mmhpIntensityNumeric_win(params=par_est,
+                                                    t=current_event_time,
+                                                    time.vec=time_segment,
+                                                    latent.vec=latent_mean)
+          # est.intensity.events <- mmhpIntensityAtEvents(params=par_est, t=current_event_time,
+          #                                               latent_z=latent_event)
+          all_residual <- all_residual -
+            sum(sqrt(est.intensity))*(time_segment[2]-time_segment[1])
+          
+        }
+        
         # print(sum(1/sqrt(est.intensity.events))-
         #         sum(sqrt(est.intensity))*(time_segment[2]-time_segment[1]))
         # print(summary(latent_mean))
