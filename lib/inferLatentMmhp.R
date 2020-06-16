@@ -478,9 +478,17 @@ interpolateLatentTrajectory <- function(params=list(lambda0,lambda1,alpha,beta,q
   # if there are no events 
   if( length(events) == 0 ){
     # whatever we do then
-    
+    ## this should be easy, it should just be the same throughout,
+    ## whatever that corresponds to in x.hat and z.hat
     
     # return x.hat, z.hat
+    if(length(unique(zt))==1) {
+      z.hat <- rep(unique(zt),2)
+      x.hat <- termination.time
+    }
+    else {
+      print("Not expecting this case!")
+    }
     
   }
   else{
@@ -645,7 +653,8 @@ interpolateLatentTrajectory <- function(params=list(lambda0,lambda1,alpha,beta,q
         }
       }
     }
-    return(list(x.hat=x.hat,z.hat=z.hat))
+    
   }
+  return(list(x.hat=x.hat,z.hat=z.hat))
 }
 
