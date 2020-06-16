@@ -13,6 +13,8 @@ cohort_id <- jobid
 #cohort_id <- 1
 #####
 
+save_data_path <- "output/"
+
 no_segments <- 500
 
 library(rstan)
