@@ -155,7 +155,7 @@ for(i in 1:mice_number){
       all_residual <- 0
       for(cur in c(1:num_windows)) { ## check length > 2
         if(cur %in% current_window_vec) {
-          cur_win <- current_window_vec[cur]
+          cur_win <- cur#current_window_vec[cur]
           current_event_time <- return_df[return_df$initiator==i&
                                             return_df$recipient==j&
                                             return_df$observe.id==cur_win,"event.times"][[1]]
