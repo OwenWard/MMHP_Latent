@@ -182,6 +182,41 @@ hawkesIntensityNumeric <- function(params=list(lambda1,alpha,beta), t, time.vec)
   return(lambda1.t)
 }
 
+hawkesIntensityNumeric_win <- function(params=list(lambda1,alpha,beta), 
+                                       t, time.vec) {
+  if(is.null(t)) {
+    # if there are no events in the current time window
+    # then the intensity of the hawkes process will always be null
+    lambda1.t <- rep(params$lambda1,length(time.vec))
+    return(lambda1.t)
+  }
+  else {
+    
+    lambda1.t <- rep(0,length(time.vec))
+    event.idx <- 1
+    
+    r <- 0
+    for(i in c(1:length(time.vec))){
+      current.t <- time.vec[i]
+      if(event.idx < length(t)){
+        if(current.t>t[event.idx+1]){
+          event.idx <- event.idx + 1
+          r <- exp(-params$beta*(t[event.idx]-t[event.idx-1]))*(1+r)
+        }
+      }
+      
+      if(current.t<=t[1]){
+        lambda1.t[i]<-params$lambda1
+      }else{
+        lambda1.t[i]<-params$lambda1+params$alpha*exp(-params$beta*(current.t-t[event.idx]))*(1+r)
+      }
+    }
+    
+    return(lambda1.t)
+  }
+}
+
+
 mmhpIntensityNumeric <-function(params=list(lambda0,lambda1,alpha,beta,q1,q2), t, time.vec, latent.vec){
   ## latent.vec is vector with same length as time.vec, each entry is the probability at state 1
   lambda1.t <- hawkesIntensityNumeric(params=list(lambda1=params$lambda1,
@@ -192,7 +227,7 @@ mmhpIntensityNumeric <-function(params=list(lambda0,lambda1,alpha,beta,q1,q2), t
 }
 
 
-mmhpIntensityNumeric_win <-function(params=list(lambda0,lambda1,alpha,beta,q1,q2), t, time.vec, latent.vec){
+mmhpIntensityNumeric_win <- function(params=list(lambda0,lambda1,alpha,beta,q1,q2), t, time.vec, latent.vec){
   ## latent.vec is vector with same length as time.vec, each entry is the probability at state 1
   lambda1.t <- hawkesIntensityNumeric_win(params=list(lambda1=params$lambda1,
                                                       alpha=params$alpha,

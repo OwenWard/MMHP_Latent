@@ -110,40 +110,6 @@ uniHawkesIntensityNumeric<-function(object, events, time.vec=NULL){
   }
 }
 
-hawkesIntensityNumeric_win <- function(params=list(lambda1,alpha,beta), 
-                                       t, time.vec) {
-  if(is.null(t)) {
-    # if there are no events in the current time window
-    # then the intensity of the hawkes process will always be null
-    lambda1.t <- rep(lambda1,length(time.vec))
-    return(lambda1.t)
-  }
-  else {
-    
-    lambda1.t <- rep(0,length(time.vec))
-    event.idx <- 1
-    
-    r <- 0
-    for(i in c(1:length(time.vec))){
-      current.t <- time.vec[i]
-      if(event.idx < length(t)){
-        if(current.t>t[event.idx+1]){
-          event.idx <- event.idx + 1
-          r <- exp(-params$beta*(t[event.idx]-t[event.idx-1]))*(1+r)
-        }
-      }
-      
-      if(current.t<=t[1]){
-        lambda1.t[i]<-params$lambda1
-      }else{
-        lambda1.t[i]<-params$lambda1+params$alpha*exp(-params$beta*(current.t-t[event.idx]))*(1+r)
-      }
-    }
-    
-    return(lambda1.t)
-  }
-}
-
 
 #------------This function is used to compute \int_0^T \lambda(u) du
 uniHawkesIntegralIntensity <- function(object, events, termination){
