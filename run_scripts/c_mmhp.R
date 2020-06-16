@@ -168,11 +168,25 @@ for(pair in 1:nrow(unique_pairs_df)){
     #for(current_win in 1:num_winds){
       row_indicator <- return_df$initiator==current_initiator&return_df$recipient==current_recipient&return_df$observe.id==current_win
       
-      time_vec <- return_df[row_indicator,"event.times"][[1]]
-      observe_period <- unique_observe_win[unique_observe_win$observe.id==current_win,"observe.time"]
+      
+      ### need to adjust these for no events
+      # check if in current_window_vec
+      if(current_win %in% current_window_vec){
+        time_vec <- return_df[row_indicator,"event.times"][[1]]
+        observe_period <- unique_observe_win[unique_observe_win$observe.id==current_win,"observe.time"]
+        state_array_list[[pair]][[current_win]] <- matrix(0,nrow=length(time_vec),ncol=1000)
+      }
+      else {
+        time_vec <- NULL
+        observe_period <- return_df[return_df$observe.id == current_win,"observe.time"][1]
+        state_array_list[[pair]][[current_win]] <- matrix(0,nrow=1,ncol=1000)
+        # is this the right length for state_array_list?
+      }
+      
+      
       time_segment <- seq(0,observe_period,length.out=no_segments)
       
-      state_array_list[[pair]][[current_win]] <- matrix(0,nrow=length(time_vec),ncol=1000)
+      
       initial_state_list[[pair]][[current_win]] <- matrix(0,nrow=1,ncol=1000)
       termination_state_list[[pair]][[current_win]] <- matrix(0,nrow=1,ncol=1000)
       interpolation_array_list[[pair]][[current_win]] <- matrix(0,nrow=no_segments,ncol=1000)
