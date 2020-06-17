@@ -4,13 +4,18 @@
 
 ### code ###
 ## run this section if running on the cluster
-# source("run_scripts/cluster_setup.R")
-# ### set cohort_id based on job num
-# jobid <- Sys.getenv("SLURM_ARRAY_TASK_ID")
-# jobid <- as.numeric(jobid)
-# cohort_id <- jobid
-cohort_id <- 1
+source("/rigel/stats/users/ogw2103/code/MMHP/MMHP_Latent/run_scripts/cluster_setup.R")
+source("run_scripts/cluster_setup.R")
+### set cohort_id based on job num
+jobid <- Sys.getenv("SLURM_ARRAY_TASK_ID")
+jobid <- as.numeric(jobid)
+cohort_id <- jobid
+#cohort_id <- 1
 #####
+
+save_data_path <- "output/"
+
+no_segments <- 500
 
 library(rstan)
 options(mc.cores = parallel::detectCores())
@@ -77,7 +82,7 @@ current_cohort <- cohort_id
 print(paste("Cohort",current_cohort))
 
 
-# then fit I-MMHP here for each cohort
+# then fit I-MMHP here for each cohort ####
 
 print(current_cohort)
 stan_input_lst <- prepareDataStanIMMHP(current_cohort)
@@ -92,7 +97,7 @@ save(sim_mmhp_sep, fit_mmhp_sep,
                   "/sep_mmhp_stan_result_",cohort_names[current_cohort],
                   ".RData",sep=''))
 
-# Interpolate Latent States
+# Interpolate Latent States ####
 
 print(current_cohort)
 load(paste(save_data_path,cohort_names[current_cohort],
@@ -107,11 +112,13 @@ unique_pairs_df <- return_df %>% group_by(initiator, recipient) %>%
             no.events=list(no.events))
 unique_observe_win <- unique(return_df[,c("observe.id","observe.time")])
 
+num_winds <- nrow(unique_observe_win)
+
 state_array_list <- list() 
 initial_state_list <- list()
 termination_state_list <- list()
 interpolation_array_list <- list()
-no_segments <- 5000
+#no_segments <- 5000
 
 for(pair in 1:nrow(unique_pairs_df)){
   print(pair)
@@ -136,14 +143,28 @@ for(pair in 1:nrow(unique_pairs_df)){
   termination_state_list[[pair]] <- list()
   interpolation_array_list[[pair]] <- list()
   
-  for(current_win in current_window_vec){
+  for(current_win in 1:num_winds){
+    
     row_indicator <- return_df$initiator==current_initiator&return_df$recipient==current_recipient&return_df$observe.id==current_win
     
-    time_vec <- return_df[row_indicator,"event.times"][[1]]
-    observe_period <- unique_observe_win[unique_observe_win$observe.id==current_win,"observe.time"]
+    if(current_win %in% current_window_vec){
+      time_vec <- return_df[row_indicator,"event.times"][[1]]
+      observe_period <- unique_observe_win[unique_observe_win$observe.id==current_win,"observe.time"]
+      state_array_list[[pair]][[current_win]] <- matrix(0,nrow=length(time_vec),ncol=1000)
+    }
+    else {
+      time_vec <- NULL
+      observe_period <- return_df[return_df$observe.id == current_win,"observe.time"][1]
+      state_array_list[[pair]][[current_win]] <- matrix(0,nrow=1,ncol=1000)
+      # is this the right length for state_array_list?
+    }
+    
+    
+    #time_vec <- return_df[row_indicator,"event.times"][[1]]
+    #observe_period <- unique_observe_win[unique_observe_win$observe.id==current_win,"observe.time"]
     time_segment <- seq(0,observe_period,length.out=no_segments)
     
-    state_array_list[[pair]][[current_win]] <- matrix(0,nrow=length(time_vec),ncol=1000)
+    #state_array_list[[pair]][[current_win]] <- matrix(0,nrow=length(time_vec),ncol=1000)
     initial_state_list[[pair]][[current_win]] <- matrix(0,nrow=1,ncol=1000)
     termination_state_list[[pair]][[current_win]] <- matrix(0,nrow=1,ncol=1000)
     interpolation_array_list[[pair]][[current_win]] <- matrix(0,nrow=no_segments,ncol=1000)
@@ -172,6 +193,7 @@ save(state_array_list,initial_state_list,termination_state_list,
      file=paste(save_data_path,cohort_names[current_cohort],
                 "/mmhp_est_zt_",cohort_names[current_cohort],".RData",sep=''))
 
+#### predictions ####
 
 print(current_cohort)
 stan_train_input_lst <- prepareDataStanTrainIMMHP(current_cohort)
@@ -188,7 +210,7 @@ save(fit_mmhp_sep, sim_mmhp_sep,
                   ".RData",sep=''))
 
 
-# then the pearson residuals for this fit will also be computed here
+# then the pearson residuals for this fit ####
 mice_number <- 12
 
 clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
@@ -199,6 +221,8 @@ unique_pairs_df <- return_df %>% group_by(initiator, recipient) %>%
             observe.length=list(observe.time),
             no.events=list(no.events))
 unique_observe_win <- unique(return_df[,c("observe.id","observe.time")])
+
+num_winds <- nrow(unique_observe_win)
 
 
 load(paste(save_data_path, cohort_names[current_cohort], 

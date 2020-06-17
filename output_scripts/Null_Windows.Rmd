@@ -1,0 +1,193 @@
+---
+title: "Null Window Correction"
+author: "Owen Ward"
+date: "6/17/2020"
+output: html_document
+---
+
+This document briefly reviews the corrections for including empty time
+windows in both fitting and evaluating the Hawkes process type models.
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = "C:/Users/owenw/Documents/Github_Local/MMHP_Latent/")
+```
+
+
+
+```{r setup_data, include=FALSE,message=FALSE,echo=FALSE}
+
+# specify the path where the data is saved locally
+save_data_path <- "C:/Users/owenw/Google Drive/Tian/Current_Projects/MMHP_Latent/output_null_windows/"
+
+
+no_segments <- 500
+
+library(rstan)
+options(mc.cores = parallel::detectCores())
+
+
+library(compete)
+#library(RColorBrewer)
+#library(Hmisc)
+#library(wCorr)
+#library(tidyverse)
+library(dplyr)
+#library(R.utils)
+#library(fields)
+
+
+
+source('lib/naiveRankHierarchy.R')
+source('lib/expertRankHierarchy.R')
+source('lib/cleanData.R') 
+source('lib/prepareDataStan.R') 
+source('lib/inferLatentMmhp.R')
+source('lib/plotUtil.R') 
+source('lib/mmhp.R')
+source('lib/uniHawkes.R')
+source('lib/simulatePrediction.R')
+source('lib/myGlicko.R')
+source("https://gist.githubusercontent.com/jalapic/6ca3ece44bdcdc522bb735f183aa0ca0/raw/1a07f469eff08117121b6cbebcd22fb7569e3ee8/compete_extra.R")
+source('lib/matrixPlotParameter.R')
+source('lib/residualStructureScore.R')
+
+
+
+
+
+#### load the data ####
+full_data <- readRDS("data/mice.RData")
+# A=c9, B=c10, C=c12, D=c15, E=c16, F=c17, G=c18, H=c37, I=c38. J=c45
+cohort_names <- paste("cohort",c(9,10,12,15,16,17,18,37,38,45),sep='')
+cohort_short_names <- paste("C",c(9,10,12,15,16,17,18,37,38,45),sep='')
+cut_off <- 3
+mice_number <- 12
+
+
+model1_fn <- list(alpha.fun = function(x,y,eta1,eta2,eta3){return(eta1*x*y*exp(-eta2*abs(x-y))/(1+exp(-eta3*(x-y))))})
+
+model3_fn <- list(alpha.fun = function(x,y,eta1,eta2){return(eta1*x*y*exp(-eta2*abs(x-y)))},
+                  q1.fun = function(x,y,eta3){return(exp(-eta3*x))},
+                  q0.fun = function(x,y,eta3){return(exp(-eta3*y))})
+
+# Define the cohorts will be fitted
+fit_cohorts <- c(1:10)
+naive_rank_10 <- list()
+expert_rank_10 <- list()
+for(current_cohort in fit_cohorts){
+  naive_rank_10[[current_cohort]] <- naiveRankHierarchy(full_data[[cohort_names[current_cohort]]])
+  expert_rank_10[[current_cohort]] <- expertRankHierarchy(full_data[[cohort_names[current_cohort]]])
+}
+
+```
+
+
+
+## Compare Pearson residual matrices
+
+
+```{r,include=FALSE,echo=FALSE}
+current_cohort <- 9
+m1_pr <- readRDS(paste(save_data_path,cohort_names[current_cohort],
+                     "/chp_pr_matrix_",cohort_names[current_cohort],
+                     ".RDS",sep=''))
+
+m2_pr <- readRDS(paste(save_data_path,cohort_names[current_cohort],
+                     "/dchp_pr_matrix_",cohort_names[current_cohort],
+                     ".RDS",sep=''))
+
+m3_pr <- readRDS(paste(save_data_path,cohort_names[current_cohort],
+                     "/cmmhp_pr_matrix_",cohort_names[current_cohort],
+                     ".RDS",sep=''))
+
+indep_pr <- readRDS(paste(save_data_path,cohort_names[current_cohort],
+                     "/immhp_pr_matrix_",cohort_names[current_cohort],
+                     ".RDS",sep=''))
+
+```
+
+
+
+```{r, include=FALSE,echo=FALSE}
+range(m1_pr)
+range(m2_pr)
+range(m3_pr)
+range(indep_pr)
+```
+
+
+Then we can plot each of these, for each cohort.
+
+
+```{r}
+#current_cohort <- 1
+cohorts <- 1:10
+cohorts <- cohorts[-3]
+for(current_cohort in cohorts){
+  cat("Cohort",current_cohort,"\n",sep = " ")
+  m1_pr <- readRDS(paste(save_data_path,cohort_names[current_cohort],
+                     "/chp_pr_matrix_",cohort_names[current_cohort],
+                     ".RDS",sep=''))
+
+m2_pr <- readRDS(paste(save_data_path,cohort_names[current_cohort],
+                     "/dchp_pr_matrix_",cohort_names[current_cohort],
+                     ".RDS",sep=''))
+
+m3_pr <- readRDS(paste(save_data_path,cohort_names[current_cohort],
+                     "/cmmhp_pr_matrix_",cohort_names[current_cohort],
+                     ".RDS",sep=''))
+
+indep_pr <- readRDS(paste(save_data_path,cohort_names[current_cohort],
+                     "/immhp_pr_matrix_",cohort_names[current_cohort],
+                     ".RDS",sep=''))
+matrix_lst_plot <- list(
+                        indep_pr[rev(expert_rank_10[[current_cohort]]),
+                                                                   expert_rank_10[[current_cohort]]],
+                        m1_pr[rev(expert_rank_10[[current_cohort]]),
+                                                                 expert_rank_10[[current_cohort]]],
+                        m2_pr[rev(expert_rank_10[[current_cohort]]),
+                                                                 expert_rank_10[[current_cohort]]],
+                        m3_pr[rev(expert_rank_10[[current_cohort]]),
+                                                                 expert_rank_10[[current_cohort]]]) 
+myMultiMatrixPlot(X=matrix_lst_plot,no_matrix=4,n_row=2,
+                  xLabels=expert_rank_10[[current_cohort]],
+                  yLabels=rev(expert_rank_10[[current_cohort]]),
+                  min=-150,max=150,axis_cex=2,title_cex = 1.8,
+                  colorPalette="RdBu",if.emp=FALSE,
+                  #legend.mar=c(0.5,.5,0.5,0.5),
+                  title_lst=list("I-MMHP","C-HP","C-DCHP","C-MMHP"), 
+                  #title_lst = list("I-MMHP"),
+                  col_axis=c(-150,-75,0,75,150), fake_matrix=FALSE,
+                  matrix.mar=c(2.5,2.5,2.5,1)
+                  )
+
+  
+}
+
+
+
+```
+
+Here pairs with no colour (white squares)
+indicate values larger than the limits chosen. One cohort is
+missing due to not fitting on the cluster in time.
+The independent MMHP model now appears to be slightly better than the C-MMHP but the prediction
+results shouldn't change, so overall this appears reasonable.
+Also, this is using the old priors which can likely lead to a better fit.
+
+
+
+## Predictions
+
+For a single cohort now.
+
+```{r}
+current_cohort <- 1
+load(paste(data_path,cohort_names[current_cohort],
+                  "/predict_simulation_",cohort_names[current_cohort],
+                  ".RData",sep=''))
+```
+
+
