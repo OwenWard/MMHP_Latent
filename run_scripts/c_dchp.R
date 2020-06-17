@@ -2,11 +2,11 @@
 
 ### code ###
 # run this if running on the cluster
-# source("run_scripts/cluster_setup.R")
+source("/rigel/stats/users/ogw2103/code/MMHP/MMHP_Latent/run_scripts/cluster_setup.R")
 # ### set cohort_id based on job num
-# jobid <- Sys.getenv("SLURM_ARRAY_TASK_ID")
-# jobid <- as.numeric(jobid)
-# cohort_id <- jobid
+jobid <- Sys.getenv("SLURM_ARRAY_TASK_ID")
+jobid <- as.numeric(jobid)
+cohort_id <- jobid
 
 save_data_path <- "output/"
 library(rstan)
