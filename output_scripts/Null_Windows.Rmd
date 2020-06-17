@@ -29,7 +29,7 @@ options(mc.cores = parallel::detectCores())
 
 
 library(compete)
-#library(RColorBrewer)
+library(RColorBrewer)
 #library(Hmisc)
 #library(wCorr)
 #library(tidyverse)
@@ -178,16 +178,5 @@ results shouldn't change, so overall this appears reasonable.
 Also, this is using the old priors which can likely lead to a better fit.
 
 
-
-## Predictions
-
-For a single cohort now.
-
-```{r}
-current_cohort <- 1
-load(paste(data_path,cohort_names[current_cohort],
-                  "/predict_simulation_",cohort_names[current_cohort],
-                  ".RData",sep=''))
-```
 
 
