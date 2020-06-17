@@ -119,6 +119,8 @@ unique_pairs_df <- return_df %>% group_by(initiator, recipient) %>%
             no.events=list(no.events))
 unique_observe_win <- unique(return_df[,c("observe.id","observe.time")])
 
+num_winds <- nrow(unique_observe_win)
+
 # M2
 load(paste(save_data_path,cohort_names[current_cohort],
            "/cohort_dchp_stan_result_",cohort_names[current_cohort],
