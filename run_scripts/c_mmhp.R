@@ -284,7 +284,7 @@ for(i in 1:mice_number){
       names(par_est) <- c("lambda0","lambda1","alpha","beta","q1","q2")
       current_window_vec <- unique_pairs_df$observe[[pair]]
       all_residual <- 0
-      for(cur in c(1:num_windows)) { ## check length > 2
+      for(cur in c(1:num_winds)) { ## check length > 2
         if(cur %in% current_window_vec) {
           cur_win <- cur#current_window_vec[cur]
           current_event_time <- return_df[return_df$initiator==i&
