@@ -7,6 +7,7 @@ output:
     df_print: paged
     toc_float: yes
     code_folding: hide
+    number_sections: true
 ---
 
 <!-- The aim of this notebook is to explore some properties of the current -->
@@ -158,6 +159,11 @@ for(current_cohort in 1:10){
 }
 ```
 
+This does not appear to indicate any clear relationship between these degree
+corrected estimates for the out/in baseline rates and the expert
+ranking.
+
+
 # The Limiting State
 
 
@@ -173,7 +179,12 @@ $$
 q_1^{i,j} = \exp(-\eta_3 f_i)\hspace{1cm}   \ q_{0}^{i,j} = \exp(-\eta_3 f_j),
 $$
 and the limiting proportion of 
-time spent in the active state is $logistic(\eta_3 (f_i-f_j))$.
+time spent in the active state is $logistic(\eta_3 (f_i-f_j))$,
+i.e
+
+$$
+\frac{q_{0}^{i,j}}{q_{0}^{i,j}+q_1^{i,j}}  \equiv \frac{\exp(-\eta_3 f_j)}{\exp(-\eta_3 f_j)+\exp(-\eta_3 f_i)}.
+$$
 
 To illustrate this, lets look at the this for a $f_i$.
 
@@ -310,10 +321,10 @@ as is currently in the paper.
 f_alpha <- function(f_i,f_j,eta_1,eta_2) {
   eta_1*f_i*f_j * exp(-eta_2*abs(f_i-f_j))
 }
-plot_alpha <- function(f_alpha, grid_size = 0.1,eta_1 = 1,eta_2 = 1) {
+plot_alpha <- function(fun = f_alpha, grid_size = 0.1,eta_1 = 1,eta_2 = 1, ...) {
   plt <- tibble(x = seq(0,1,by = grid_size),y = seq(0,1,by = grid_size)) %>%
     expand(x,y) %>%
-    mutate(value = map2_dbl(x,y,f_alpha,eta_1,eta_2)) %>%
+    mutate(value = map2_dbl(x,y,fun,eta_1,eta_2,...)) %>%
     ggplot(aes(y,x)) + geom_contour_filled(aes(z = value))  +
     scale_x_reverse()+ 
     xlab("f_j (Receive)") + ylab("f_i (Send)") + geom_abline(slope = -1, intercept = 0,
@@ -328,7 +339,48 @@ plot_alpha(f_alpha,eta_1 = 3, eta_2 = 1,grid_size = 0.01)
 This appears to capture desirable properties present in animal interactions.
 
 We want this to take larger values when $f_i>f_j$ than when $f_i < f_j$ although it is 
-hard to claim it is not symmetric currently.
+hard to claim it is not symmetric currently. This could be due to using a different
+plot function than originally used by Jing.
 
+## Incorporate the latent state
 
+We can also plot $\alpha Z(t)$, which will capture the overall structure
+which will be seen.
 
+```{r}
+
+latent_state <- function(f_i,f_j,eta_3) {
+  exp(-eta_3*f_j)/(exp(-eta_3*f_j) + exp(-eta_3*f_i)  )
+}
+
+f_alpha_z <- function(f_i,f_j,eta_1,eta_2,eta_3) {
+  eta_1*f_i*f_j * exp(-eta_2*abs(f_i-f_j)) * latent_state(f_i,f_j,eta_3)
+}
+
+plot_alpha(fun = f_alpha_z,eta_1 = 3, eta_2 = 1,grid_size = 0.01,eta_3 = 4)
+
+```
+
+This much more clearly captures the upper triangular structure we wish to have.
+
+## With modified latent state
+
+We can repeat this with the second proposed modification above, which seemed 
+to capture the dynamics well.
+
+```{r}
+
+latent_state_2 <- function(f_i,f_j,eta_3) {
+  f_i*exp(-eta_3*f_j)/(f_i*exp(-eta_3*f_j) + f_j*exp(-eta_3*f_i)  )
+}
+
+f_alpha_z <- function(f_i,f_j,eta_1,eta_2,eta_3) {
+  eta_1*f_i*f_j * exp(-eta_2*abs(f_i-f_j)) * latent_state_2(f_i,f_j,eta_3)
+}
+
+plot_alpha(fun = f_alpha_z,eta_1 = 3, eta_2 = 1,grid_size = 0.01,eta_3 = 4)
+
+```
+
+This is almost identical to the previous plot, with perhaps a slight shift when
+both $f_i$ and $f_j$ are large.
