@@ -13,7 +13,7 @@ data{
   vector<lower=0,upper=1>[N_til] delta_1;
 }
 parameters{
-  real<lower=0> lambda0; //baseline rate for each pair
+  real<lower=0.01> lambda0; //baseline rate for each pair
   real<lower=0> w_lambda;
   vector<lower=0,upper=1>[12] f;
   real<lower=0> eta_1;

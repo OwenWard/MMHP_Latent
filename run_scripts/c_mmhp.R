@@ -9,7 +9,7 @@ source("/rigel/stats/users/ogw2103/code/MMHP/MMHP_Latent/run_scripts/cluster_set
 jobid <- Sys.getenv("SLURM_ARRAY_TASK_ID")
 jobid <- as.numeric(jobid)
 cohort_id <- jobid
-cohort_id <- 1
+## cohort_id <- 1
 ####
 save_data_path <- "output/"
 
