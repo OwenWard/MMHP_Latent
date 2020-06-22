@@ -13,7 +13,10 @@ data{
   vector<lower=0,upper=1>[N_til] delta_1;
 }
 parameters{
-  real<lower=0.01> lambda0; //baseline rate for each pair
+  //real<lower=0.01> lambda0; //baseline rate for each pair
+  vector<lower=0>[12] gamma;
+  vector<lower=0>[12] zeta;
+  //real<lower = 0> scale;
   real<lower=0> w_lambda;
   vector<lower=0,upper=1>[12] f;
   real<lower=0> eta_1;
@@ -26,14 +29,17 @@ parameters{
 }
 transformed parameters{
   real<lower=0> lambda1;
+  real<lower=0> lambda0;
   //vector<lower=0,upper=1>[N_til] delta_1; // P(initial state = 1)
   vector[N_til] q1; // P(initial state = 1)
   vector[N_til] q2; // P(initial state = 1)
   vector[N_til] alpha; // P(initial state = 1)
   row_vector[2] log_delta[N_til];
   
-  lambda1 = lambda0*(1+w_lambda);
+
   for(i in 1:N_til){
+    lambda0 = gamma[I_fit[i]]+zeta[J_fit[i]];  
+    lambda1 = lambda0*(1+w_lambda);
     alpha[i] = exp(-eta_2*fabs(f[I_fit[i]]-f[J_fit[i]]))*f[I_fit[i]]*f[J_fit[i]]*eta_1;///(1+exp(-eta_3*(f[I_fit[i]]-f[J_fit[i]])));//eta_1*f[I_fit[i]]*f[J_fit[i]];
     //f_max = (f[I_fit[i]]+f[J_fit[i]]+fabs(f[I_fit[i]]-f[J_fit[i]]))/2;
     //f_min = (f[I_fit[i]]+f[J_fit[i]]-fabs(f[I_fit[i]]-f[J_fit[i]]))/2;
@@ -69,7 +75,9 @@ model{
   row_vector[2] temp_log_delta;
   
   //priors
-  lambda0 ~ gamma(0.1,1); // prior has mean 0.1, var 0.1
+  //lambda0 ~ gamma(0.1,1); // prior has mean 0.1, var 0.1
+  gamma ~ gamma(0.1,1); // sigma smaller, sparser
+  zeta ~ gamma(0.1,1);
   w_lambda ~ lognormal(0,2);
   eta_1 ~ lognormal(0,1);
   eta_2 ~ lognormal(0,1);

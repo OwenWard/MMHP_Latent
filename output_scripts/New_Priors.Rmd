@@ -1,0 +1,231 @@
+---
+title: "Priors for Latent Hawkes"
+author: "Owen G. Ward"
+output:
+  html_document:
+    df_print: paged
+    toc: true
+    toc_float: true
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+data_path <- "C:/Users/owenw/Google Drive/Tian/Current_Projects/MMHP_Latent/output_prior/"
+
+library(rstan)
+```
+
+
+```{r mice_setup,include=FALSE,echo=FALSE}
+cohort_names <- paste("cohort",c(9,10,12,15,16,17,18,37,38,45),sep='')
+cohort_short_names <- paste("C",c(9,10,12,15,16,17,18,37,38,45),sep='')
+cut_off <- 3
+mice_number <- 12
+```
+
+# First Prior
+
+To remove some of the issues with the previously specified priors,
+we reparameterise `lambda1` and choose more appropriate priors
+for `w_lambda,lambda0` and `beta`.
+
+```{r eval=FALSE}
+
+lambda1 = lambda0*(1+w_lambda);
+// now w_lambda only has to be positive
+
+//priors
+lambda0 ~ gamma(0.1,1); // prior has mean 0.1, var 0.1
+w_lambda ~ lognormal(0,2);
+eta_1 ~ lognormal(0,1);
+eta_2 ~ lognormal(0,1);
+eta_3 ~ lognormal(0,1);
+beta ~ lognormal(0,2);
+
+```
+
+
+## Examine `stan` diagnostics
+
+```{r}
+fit_cohorts <- 1:10
+fit_cohorts <- fit_cohorts[-7]
+for(current_cohort in fit_cohorts){
+  print(current_cohort)
+  load(paste(data_path,cohort_names[current_cohort],
+           "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
+           ".RData",sep=''))
+  rstan::check_hmc_diagnostics(fit_cohort_mmhp)
+}
+
+
+
+```
+
+This leads to better results in terms of divergent transitions and
+max tree depth, which were both issues previously.
+
+
+## Param Histograms
+
+We can check the traceplots/posterior distributions
+based on these prior choices.
+
+
+
+
+```{r}
+current_cohort <- 2
+print(current_cohort)
+load(paste(data_path,cohort_names[current_cohort],
+         "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
+         ".RData",sep=''))
+rstan::stan_hist(fit_cohort_mmhp,
+               pars = c("lambda0","lambda1","w_lambda",
+                        "eta_1","eta_2","eta_3","beta")) +
+  ggtitle("New Priors")
+rstan::traceplot(fit_cohort_mmhp,
+               pars = c("lambda0","lambda1","w_lambda",
+                        "eta_1","eta_2","eta_3","beta")) + 
+  ggtitle("New Priors")
+
+```
+We can similarly look at the original fits (with and without considering the windows with 
+no events).
+
+
+```{r}
+
+orig_data_path <- "C:/Users/owenw/Google Drive/Tian/Research+JingWu/thesis_data/part2/real_data/"
+
+new_data_path <- "C:/Users/owenw/Google Drive/Tian/Current_Projects/MMHP_Latent/debug_copy/"
+
+load(paste(orig_data_path,cohort_names[current_cohort],
+         "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
+         ".RData",sep=''))
+
+rstan::stan_hist(fit_cohort_mmhp,
+               pars = c("lambda0","lambda1","w_lambda",
+                        "eta_1","eta_2","eta_3","beta")) +
+  ggtitle("Original, no null windows")
+rstan::traceplot(fit_cohort_mmhp,
+               pars = c("lambda0","lambda1","w_lambda",
+                        "eta_1","eta_2","eta_3","beta")) + 
+  ggtitle("Original, no null windows")
+
+
+
+fit_cohort_mmhp <- readRDS(paste(new_data_path,cohort_names[current_cohort],
+         "/cohort_mmhp_stan_fit_",cohort_names[current_cohort],
+         ".RDS",sep=''))
+
+rstan::stan_hist(fit_cohort_mmhp,
+               pars = c("lambda0","lambda1","w_lambda",
+                        "eta_1","eta_2","eta_3","beta")) +
+  ggtitle("Original, null windows")
+rstan::traceplot(fit_cohort_mmhp,
+               pars = c("lambda0","lambda1","w_lambda",
+                        "eta_1","eta_2","eta_3","beta")) + 
+  ggtitle("Original, null windows")
+
+```
+
+
+
+
+## Latent Rankings
+
+```{r}
+p1 <-rstan::traceplot(fit_cohort_mmhp,
+                 pars = c("f")) + 
+  ggtitle("New Priors")
+
+p1
+
+```
+
+We can compare this to the original priors (both with and excluding the null windows).
+
+
+```{r}
+load(paste(orig_data_path,cohort_names[current_cohort],
+         "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
+         ".RData",sep=''))
+p2 <- rstan::traceplot(fit_cohort_mmhp,
+                 pars = c("f")) + 
+  ggtitle("Original, no null windows")
+
+fit_cohort_mmhp <- readRDS(paste(new_data_path,cohort_names[current_cohort],
+         "/cohort_mmhp_stan_fit_",cohort_names[current_cohort],
+         ".RDS",sep=''))
+
+p3 <- rstan::traceplot(fit_cohort_mmhp,
+                 pars = c("f")) + 
+  ggtitle("Original, null windows")
+
+p2
+p3
+
+```
+
+
+```{r,fig.height=9}
+ggpubr::ggarrange(p1,p2,p3,nrow=3)
+```
+
+These seem similar either way, and maybe tighter with these new priors.
+
+
+# Lower bound on $\lambda_0$
+
+We run into some issues with this where `w_lambda` can explode,
+likely caused by extremely small draws for `lambda0`. To circumvent this
+we place a lower bound on `lambda0` of 0.01 and refit this model.
+
+```{r}
+data_path <- "C:/Users/owenw/Google Drive/Tian/Current_Projects/MMHP_Latent/output_p1/"
+
+current_cohort <- 2
+print(current_cohort)
+load(paste(data_path,cohort_names[current_cohort],
+         "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
+         ".RData",sep=''))
+rstan::stan_hist(fit_cohort_mmhp,
+               pars = c("lambda0","lambda1","w_lambda",
+                        "eta_1","eta_2","eta_3","beta")) +
+  ggtitle("New Priors")
+rstan::traceplot(fit_cohort_mmhp,
+               pars = c("lambda0","lambda1","w_lambda",
+                        "eta_1","eta_2","eta_3","beta")) + 
+  ggtitle("New Priors")
+
+```
+
+This avoids the previous issue with parameters blowing up however one chain
+seems to be stuck.
+
+```{r}
+  print(current_cohort)
+  load(paste(data_path,cohort_names[current_cohort],
+           "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
+           ".RData",sep=''))
+  rstan::check_hmc_diagnostics(fit_cohort_mmhp)
+```
+```{r}
+p1_new <-rstan::traceplot(fit_cohort_mmhp,
+                 pars = c("f")) + 
+  ggtitle("New Prior, lower bound on lambda")
+
+p1_new
+```
+We can compare this to the previous fit.
+
+These fits appear to be slightly tighter overall for some cohorts, but slightly
+larger for others.
+
+```{r, fig.height=10}
+ggpubr::ggarrange(p1,p1_new,nrow=2)
+```
+
