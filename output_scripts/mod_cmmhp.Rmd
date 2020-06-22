@@ -240,7 +240,7 @@ $$
 
 
 
-```{r,fig.show="hold", out.width="50%",include=FALSE}
+```{r,fig.show="hold", out.width="50%"}
 f_mod <- function(x,f_i,eta_3) {
   (x*exp(-eta_3*x))/( x*exp(-eta_3*x) + f_i*exp(-eta_3*f_i) )
 }
