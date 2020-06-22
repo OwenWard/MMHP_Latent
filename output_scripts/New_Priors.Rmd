@@ -77,7 +77,7 @@ based on these prior choices.
 
 
 ```{r}
-current_cohort <- 2
+current_cohort <- 1
 print(current_cohort)
 load(paste(data_path,cohort_names[current_cohort],
          "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
@@ -92,6 +92,7 @@ rstan::traceplot(fit_cohort_mmhp,
   ggtitle("New Priors")
 
 ```
+
 We can similarly look at the original fits (with and without considering the windows with 
 no events).
 
@@ -138,6 +139,10 @@ rstan::traceplot(fit_cohort_mmhp,
 ## Latent Rankings
 
 ```{r}
+load(paste(data_path,cohort_names[current_cohort],
+         "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
+         ".RData",sep=''))
+
 p1 <-rstan::traceplot(fit_cohort_mmhp,
                  pars = c("f")) + 
   ggtitle("New Priors")
@@ -187,7 +192,7 @@ we place a lower bound on `lambda0` of 0.01 and refit this model.
 ```{r}
 data_path <- "C:/Users/owenw/Google Drive/Tian/Current_Projects/MMHP_Latent/output_p1/"
 
-current_cohort <- 2
+
 print(current_cohort)
 load(paste(data_path,cohort_names[current_cohort],
          "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
@@ -220,12 +225,42 @@ p1_new <-rstan::traceplot(fit_cohort_mmhp,
 
 p1_new
 ```
+
 We can compare this to the previous fit.
 
 These fits appear to be slightly tighter overall for some cohorts, but slightly
 larger for others.
 
 ```{r, fig.height=10}
+print(current_cohort)
 ggpubr::ggarrange(p1,p1_new,nrow=2)
+```
+
+
+We can repeat this for another cohort.
+
+```{r, fig.height=10}
+current_cohort <- 2
+
+print(current_cohort)
+data_path <- "C:/Users/owenw/Google Drive/Tian/Current_Projects/MMHP_Latent/output_prior//"
+load(paste(data_path,cohort_names[current_cohort],
+           "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
+           ".RData",sep=''))
+p1 <-rstan::traceplot(fit_cohort_mmhp,
+                 pars = c("f")) + 
+  ggtitle("New Prior")
+
+data_path <- "C:/Users/owenw/Google Drive/Tian/Current_Projects/MMHP_Latent/output_p1/"
+load(paste(data_path,cohort_names[current_cohort],
+           "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
+           ".RData",sep=''))
+p1_new <-rstan::traceplot(fit_cohort_mmhp,
+                 pars = c("f")) + 
+  ggtitle("New Prior, lower bound lambda0")
+
+ggpubr::ggarrange(p1,p1_new,nrow=2) 
+
+
 ```
 
