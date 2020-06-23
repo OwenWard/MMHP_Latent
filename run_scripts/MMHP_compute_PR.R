@@ -1,13 +1,20 @@
-# given c-mmhp stan fits this constructs the corresponding PR matrix
-#.libPaths("/rigel/stats/users/ogw2103/rpackages")
-setwd("/rigel/stats/users/ogw2103/code/MMHP/Latent_Sims/")
-#setwd("C:/Users/owenw/Dropbox/with Owen/code/part2/")
+# file to work on estimating the Pearson residuals 
+# for windows with no events
+
+# this file refits the complete C-MMHP model
+# including prediction and Pearson residuals for each cohort
+#
 
 ### code ###
-### set cohort_id based on job num
-#jobid <- Sys.getenv("SLURM_ARRAY_TASK_ID")
-#jobid <- as.numeric(jobid)
-#cohort_id <- jobid
+## run this if running on the cluster
+#source("/rigel/stats/users/ogw2103/code/MMHP/MMHP_Latent/run_scripts/cluster_setup.R")
+# ### set cohort_id based on job num
+# jobid <- Sys.getenv("SLURM_ARRAY_TASK_ID")
+# jobid <- as.numeric(jobid)
+# cohort_id <- jobid
+cohort_id <- 1
+####
+save_data_path <- "output/"
 
 library(rstan)
 options(mc.cores = parallel::detectCores())
@@ -135,7 +142,7 @@ model3_par_matrix <- list(lambda0_matrix=matrix(model3_par_est$lambda0,
                           q2_matrix=formMatrix(function(x,y) model3_fn$q0.fun(x,y,model3_par_est$eta_3),
                                                model3_par_est$f))
 m3_residual_matrix <- matrix(0,ncol=mice_number,nrow=mice_number)
-no_segments <- 5000 # changed from 5000
+no_segments <- 500 # changed from 5000
 window_pr <- c()
 for(i in 1:mice_number){
   print(i)
@@ -148,7 +155,7 @@ for(i in 1:mice_number){
       all_residual <- 0
       for(cur in c(1:num_windows)) { ## check length > 2
         if(cur %in% current_window_vec) {
-          cur_win <- current_window_vec[cur]
+          cur_win <- cur#current_window_vec[cur]
           current_event_time <- return_df[return_df$initiator==i&
                                             return_df$recipient==j&
                                             return_df$observe.id==cur_win,"event.times"][[1]]

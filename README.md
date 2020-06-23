@@ -9,5 +9,6 @@ A repo describing the final code to run and analyse the entire latent space Hawk
 ## To Do's
 
 - [X] Correct the PR calculation for M1 and M2 to account for the windowed data
-- [ ] Same for C-MMHP
-- [ ] Same for I-MMHP
+- [X] Same for C-MMHP
+- [X] Same for I-MMHP
+- [ ] Choose better priors for MMHP

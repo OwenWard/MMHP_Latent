@@ -264,3 +264,36 @@ ggpubr::ggarrange(p1,p1_new,nrow=2)
 
 ```
 
+# Degree correction for C-MMHP
+
+
+```{r}
+current_cohort <- 1
+
+dc_data_path <- "C:/Users/owenw/Google Drive/Tian/Current_Projects/MMHP_Latent/output_dc_prior/"
+
+load(paste(dc_data_path,cohort_names[current_cohort],
+           "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
+           ".RData",sep=''))
+
+rstan::check_hmc_diagnostics(fit_cohort_mmhp)
+
+rstan::stan_hist(fit_cohort_mmhp,
+               pars = c("lambda0","lambda1","w_lambda",
+                        "eta_1","eta_2","eta_3","beta")) +
+  ggtitle("New Degree Corrected")
+
+rstan::traceplot(fit_cohort_mmhp,
+               pars = c("lambda0","lambda1","w_lambda",
+                        "eta_1","eta_2","eta_3","beta")) + 
+  ggtitle("New Degree Corrected")
+
+#bayesplot::rhat(fit_cohort_mmhp)
+
+
+rstan::traceplot(fit_cohort_mmhp,
+               pars = c("f")) + 
+  ggtitle("New Degree Corrected")
+
+```
+
