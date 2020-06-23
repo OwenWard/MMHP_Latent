@@ -241,8 +241,6 @@ save(sim_cohort_mmhp, fit_cohort_mmhp,
 
 #### pearson residuals for this fit ####
 
-### this hasn't been updated below here yet
-### working on MMHP_compute_PR first
 
 mice_number <- 12
 
