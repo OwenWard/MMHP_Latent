@@ -225,7 +225,7 @@ load(paste(save_data_path,cohort_names[current_cohort],
            "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
            ".RData",sep=''))
 load(paste(save_data_path,cohort_names[current_cohort],
-           "/cmmhp_est_zt_small_",cohort_names[current_cohort],".RData",sep=''))
+           "/cmmhp_est_zt_",cohort_names[current_cohort],".RData",sep=''))
 model3_par_est <- list(lambda0=mean(sim_cohort_mmhp$lambda0),
                        lambda1=mean(sim_cohort_mmhp$lambda1),
                        eta_1=mean(sim_cohort_mmhp$eta_1),
