@@ -5,7 +5,7 @@
 #SBATCH -c 8
 #SBATCH -t 720:00
 #SBATCH --mem-per-cpu 12gb
-##SBATCH -a 2-5
+#SBATCH -a 1-10
 
 module load R
 echo "Launching R"
