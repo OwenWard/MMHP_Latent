@@ -110,6 +110,7 @@ uniHawkesIntensityNumeric<-function(object, events, time.vec=NULL){
   }
 }
 
+
 #------------This function is used to compute \int_0^T \lambda(u) du
 uniHawkesIntegralIntensity <- function(object, events, termination){
   # input object: parameters for Hawkes process, include lambda0, alpha, beta 
@@ -183,6 +184,7 @@ uniHawkesPearsonResidual <- function(object, events, termination){
     PR <- PR + 1/sqrt(lambda0) - sqrt(lambda0)*events[1]
     integrand <- function(u) {sqrt(lambda0+alpha*exp(-beta*(u-events[1])))}
     PR <- PR - integrate(integrand, lower = 0, upper = termination)$value
+    return(PR)
   }else{
     # first event
     PR <- PR + 1/sqrt(lambda0) - sqrt(lambda0)*events[1]

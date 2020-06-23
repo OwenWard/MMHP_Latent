@@ -278,10 +278,10 @@ myMultiMatrixPlot <- function(X,xLabels,yLabels,min,max,colorPalette,no_matrix,n
     }else{
       if(reverse.col){
         ColorRamp <- viridis::viridis(length(xLabels_temp)*length(yLabels_temp))
-        #ColorRamp <- colorRampPalette(rev(brewer.pal(8,colorPalette)))(length(xLabels_temp)*length(yLabels_temp))
+        ColorRamp <- colorRampPalette(rev(brewer.pal(8,colorPalette)))(length(xLabels_temp)*length(yLabels_temp))
       }else{
         ColorRamp <- viridis::viridis(length(xLabels_temp)*length(yLabels_temp))
-        #ColorRamp <- colorRampPalette(brewer.pal(8,colorPalette))(length(xLabels_temp)*length(yLabels_temp))
+        ColorRamp <- colorRampPalette(brewer.pal(8,colorPalette))(length(xLabels_temp)*length(yLabels_temp))
       }
     }
     ColorLevels <- seq(min_temp, max_temp, length=length(ColorRamp)) 

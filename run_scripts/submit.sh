@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 #SBATCH -A tzsts
-#SBATCH -J cmmhp
+#SBATCH -J immhp
 #SBATCH -c 8
 #SBATCH -t 720:00
 #SBATCH --mem-per-cpu 12gb
@@ -11,7 +11,7 @@ module load R
 echo "Launching R"
 date
 
-R CMD BATCH --no-save --vanilla c_mmhp.R routput_cmmhp
+R CMD BATCH --no-save --vanilla i_mmhp.R routput_immhp
 echo "Completed"
 date
 
