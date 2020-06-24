@@ -24,6 +24,7 @@ library(R.utils)
 library(fields)
 library(bayesplot)
 library(compete)
+library(RColorBrewer)
 source(paste(func_dir,'naiveRankHierarchy.R',sep = ""))
 source(paste(func_dir,'expertRankHierarchy.R',sep = ""))
 source(paste(func_dir,'cleanData.R',sep = "")) 
@@ -445,3 +446,179 @@ certain mice in providing a more expressive fit.
 
 I'm running this through for the rest of the inference (predictions,
 redisuals) at the moment.
+
+
+# Plot ranks from DC model against I&SI
+
+
+```{r}
+cohorts <- 1:10
+#cohorts <- cohorts[c(-3,-6,-7)]
+for(current_cohort in cohorts){
+  #cat(paste("Cohort ",current_cohort,sep = ""))
+  load(paste(dc_data_path,cohort_names[current_cohort],
+         "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
+         ".RData",sep=''))
+
+
+  mean_rank <- apply(sim_cohort_mmhp$f,2,mean)
+  
+  mean_gamma <- apply(sim_cohort_mmhp$gamma,2,mean)
+  mean_zeta <- apply(sim_cohort_mmhp$zeta, 2, mean)
+  
+  mean_values <- tibble(mean_rank,mean_gamma,mean_zeta,
+                        isi = expert_rank_10[[current_cohort]])
+  p1 <- mean_values %>%
+    #rename(gamma_out = mean_gamma,zeta_in = mean_zeta) %>%
+    #pivot_longer(cols = c(gamma_out,zeta_in),names_to = "out_in" ) %>%
+    #mutate(out_in = as.factor(out_in)) %>%
+    ggplot(aes(isi,mean_rank))  + geom_point()  +
+    # theme(legend.title = element_blank()) + facet_wrap(~out_in,scales="free") +
+    scale_x_continuous(breaks = 1:12) + xlab("I&SI Ranking") +
+    ggtitle(paste("Cohort",current_cohort,sep=""))
+  print(p1)
+  
+}
+
+
+```
+
+## Compare these to ranks from original fit
+
+
+```{r}
+
+cohorts <- 1:10
+#cohorts <- cohorts[c(-3,-6,-7)]
+for(current_cohort in cohorts){
+  #cat(paste("Cohort ",current_cohort,sep = ""))
+  load(paste(dc_data_path,cohort_names[current_cohort],
+         "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
+         ".RData",sep=''))
+
+
+  mean_rank_dc <- apply(sim_cohort_mmhp$f,2,mean)
+  load(paste(orig_data_path,cohort_names[current_cohort],
+         "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
+         ".RData",sep=''))
+
+  mean_rank_orig <- apply(sim_cohort_mmhp$f, 2, mean)
+  mean_values <- tibble(mean_rank_dc, mean_rank_orig,
+                        isi = expert_rank_10[[current_cohort]])
+  p1 <- mean_values %>%
+    pivot_longer(cols = c(mean_rank_dc,mean_rank_orig),names_to = "model") %>%
+    mutate(model = as.factor(model)) %>%  
+    ggplot(aes(isi,value))  + 
+    geom_jitter(aes(color=model), alpha = 0.5,width = 0.1)  +
+    # theme(legend.title = element_blank()) + facet_wrap(~out_in,scales="free") +
+    scale_x_continuous(breaks = 1:12) + xlab("I&SI Ranking") +
+    ggtitle(paste("Cohort",current_cohort,sep=""))
+  print(p1)
+  
+}
+
+
+```
+
+# Pearson Residuals for DC C-MMHP
+
+We wish to examine the effect the degree correction has on model fit in 
+terms of Pearson residuals.
+
+```{r}
+save_data_path <- "C:/Users/owenw/Google Drive/Tian/Current_Projects/MMHP_Latent/output_null_windows/"
+# the path for the result with fixes to account for the null windows
+
+dc_data_path <- "C:/Users/owenw/Google Drive/Tian/Current_Projects/MMHP_Latent/output_dc_prior/"
+
+#cohorts 
+
+for(current_cohort in cohorts[-3]) {
+  m1_pr <- readRDS(paste(save_data_path,cohort_names[current_cohort],
+                     "/chp_pr_matrix_",cohort_names[current_cohort],
+                     ".RDS",sep=''))
+
+m2_pr <- readRDS(paste(save_data_path,cohort_names[current_cohort],
+                     "/dchp_pr_matrix_",cohort_names[current_cohort],
+                     ".RDS",sep=''))
+
+m3_pr <- readRDS(paste(dc_data_path,cohort_names[current_cohort],
+                     "/cmmhp_pr_matrix_",cohort_names[current_cohort],
+                     ".RDS",sep=''))
+
+indep_pr <- readRDS(paste(save_data_path,cohort_names[current_cohort],
+                     "/immhp_pr_matrix_",cohort_names[current_cohort],
+                     ".RDS",sep=''))
+
+matrix_lst_plot <- list(
+                        indep_pr[rev(expert_rank_10[[current_cohort]]),
+                                                                   expert_rank_10[[current_cohort]]],
+                        m1_pr[rev(expert_rank_10[[current_cohort]]),
+                                                                 expert_rank_10[[current_cohort]]],
+                        m2_pr[rev(expert_rank_10[[current_cohort]]),
+                                                                 expert_rank_10[[current_cohort]]],
+                        m3_pr[rev(expert_rank_10[[current_cohort]]),
+                                                                 expert_rank_10[[current_cohort]]]) 
+myMultiMatrixPlot(X=matrix_lst_plot,no_matrix=4,n_row=2,
+                  xLabels=expert_rank_10[[current_cohort]],
+                  yLabels=rev(expert_rank_10[[current_cohort]]),
+                  min=-150,max=150,axis_cex=2,title_cex = 1.8,
+                  colorPalette="RdBu",if.emp=FALSE,
+                  #legend.mar=c(0.5,.5,0.5,0.5),
+                  title_lst=list("I-MMHP","C-HP","C-DCHP","DC C-MMHP"), 
+                  #title_lst = list("I-MMHP"),
+                  col_axis=c(-150,-75,0,75,150), fake_matrix=FALSE,
+                  matrix.mar=c(2.5,2.5,2.5,1)
+                  )
+}
+
+
+  
+
+```
+
+This does not appear any better than the standard C-MMHP.
+
+```{r}
+save_data_path <- "C:/Users/owenw/Google Drive/Tian/Current_Projects/MMHP_Latent/output_null_windows/"
+
+
+for(current_cohort in cohorts[-3]) {
+  m2_pr <- readRDS(paste(save_data_path,cohort_names[current_cohort],
+                     "/dchp_pr_matrix_",cohort_names[current_cohort],
+                     ".RDS",sep=''))
+
+  m3_pr <- readRDS(paste(save_data_path,cohort_names[current_cohort],
+                       "/cmmhp_pr_matrix_",cohort_names[current_cohort],
+                       ".RDS",sep=''))
+  
+  m3_pr_dc <- readRDS(paste(dc_data_path,cohort_names[current_cohort],
+                     "/cmmhp_pr_matrix_",cohort_names[current_cohort],
+                     ".RDS",sep=''))
+  indep_pr <- readRDS(paste(save_data_path,cohort_names[current_cohort],
+                     "/immhp_pr_matrix_",cohort_names[current_cohort],
+                     ".RDS",sep=''))
+  
+  matrix_lst_plot <- list( indep_pr[rev(expert_rank_10[[current_cohort]]),
+                                              expert_rank_10[[current_cohort]]],
+                           m2_pr[rev(expert_rank_10[[current_cohort]]),
+                                              expert_rank_10[[current_cohort]]],
+    m3_pr[rev(expert_rank_10[[current_cohort]]),
+                                              expert_rank_10[[current_cohort]]],
+                          m3_pr_dc[rev(expert_rank_10[[current_cohort]]),
+                                              expert_rank_10[[current_cohort]]]
+                          ) 
+  myMultiMatrixPlot(X=matrix_lst_plot,no_matrix=4,n_row=2,
+                    xLabels=expert_rank_10[[current_cohort]],
+                    yLabels=rev(expert_rank_10[[current_cohort]]),
+                    min=-150,max=150,axis_cex=2,title_cex = 1.8,
+                    colorPalette="RdBu",if.emp=FALSE,
+                    #legend.mar=c(0.5,.5,0.5,0.5),
+                    title_lst=list("I-MMHP","DC-HP","C-MMHP","DC-C-MMHP"), 
+                    #title_lst = list("I-MMHP"),
+                    col_axis=c(-150,-75,0,75,150), fake_matrix=FALSE,
+                    matrix.mar=c(2.5,1.5,2.5,1)
+                    )
+}
+```
+

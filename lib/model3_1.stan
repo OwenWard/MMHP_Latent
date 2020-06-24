@@ -29,7 +29,7 @@ parameters{
 }
 transformed parameters{
   real<lower=0> lambda1;
-  real<lower=0> lambda0;
+  real<lower=0.01> lambda0;
   //vector<lower=0,upper=1>[N_til] delta_1; // P(initial state = 1)
   vector[N_til] q1; // P(initial state = 1)
   vector[N_til] q2; // P(initial state = 1)
