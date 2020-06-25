@@ -224,8 +224,6 @@ save(state_array_list,initial_state_list,termination_state_list,
 
 #### pearson residuals for this fit ####
 
-
-
 mice_number <- 12
 
 load(paste(save_data_path,cohort_names[current_cohort],
