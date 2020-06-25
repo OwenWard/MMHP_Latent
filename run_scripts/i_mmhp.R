@@ -231,6 +231,9 @@ load(paste(save_data_path,cohort_names[current_cohort],
            "/mmhp_est_zt_",cohort_names[current_cohort],".RData",sep=''))
 
 mmhp_residual_matrix <- matrix(0,ncol=mice_number,nrow=mice_number)
+
+mmhp_residual_array <- array(0,dim = c(mice_number,mice_number,num_winds))
+
 for(i in 1:mice_number){
   print(i)
   for(j in 1:mice_number){
@@ -244,25 +247,69 @@ for(i in 1:mice_number){
                       q2=mean(sim_mmhp_sep$q2[,pair]))
       current_window_vec <- unique_pairs_df$observe[[pair]]
       all_residual <- 0
-      for(cur in c(1:length(current_window_vec))){ ## check length > 2
-        cur_win <- current_window_vec[cur]
-        current_event_time <- return_df[return_df$initiator==i&
+      for(cur in c(1:num_winds)){ ## check length > 2
+        if(cur %in% current_window_vec) {
+          cur_win <- cur#current_window_vec[cur]
+          current_event_time <- return_df[return_df$initiator==i&
+                                            return_df$recipient==j&
+                                            return_df$observe.id==cur_win,"event.times"][[1]]
+          # I think this just returns the windows where there are events
+          
+          current_obs_time <- return_df[return_df$initiator==i&
                                           return_df$recipient==j&
-                                          return_df$observe.id==cur_win,"event.times"][[1]]
-        current_obs_time <- return_df[return_df$initiator==i&
-                                        return_df$recipient==j&
-                                        return_df$observe.id==cur_win,"observe.time"]
-        time_segment <- seq(0,current_obs_time,length.out=no_segments)
-        latent_mean <- apply(interpolation_array_list[[pair]][[cur_win]],1,mean)
-        latent_event <- as.numeric(apply(2-state_array_list[[pair]][[cur_win]],1,mean) > 0.5) 
-        est.intensity <- mmhpIntensityNumeric(params=par_est,
-                                              t=current_event_time,
-                                              time.vec=time_segment,
-                                              latent.vec=latent_mean)
-        est.intensity.events <- mmhpIntensityAtEvents(params=par_est, t=current_event_time,
-                                                      latent_z=latent_event)
-        all_residual <- all_residual + sum(1/sqrt(est.intensity.events))-
-          sum(sqrt(est.intensity))*(time_segment[2]-time_segment[1])
+                                          return_df$observe.id==cur_win,"observe.time"]
+          time_segment <- seq(0,current_obs_time,length.out=no_segments)
+          latent_mean <- apply(interpolation_array_list[[pair]][[cur_win]],1,mean)
+          latent_event <- as.numeric(apply(2-state_array_list[[pair]][[cur_win]],1,mean) > 0.5) 
+          est.intensity <- mmhpIntensityNumeric(params=par_est,
+                                                t=current_event_time,
+                                                time.vec=time_segment,
+                                                latent.vec=latent_mean)
+          est.intensity.events <- mmhpIntensityAtEvents(params=par_est, t=current_event_time,
+                                                        latent_z=latent_event)
+          all_residual <- all_residual + sum(1/sqrt(est.intensity.events))-
+            sum(sqrt(est.intensity))*(time_segment[2]-time_segment[1])
+          mmhp_residual_array[i,j,cur] <- sum(1/sqrt(est.intensity.events))-
+            sum(sqrt(est.intensity))*(time_segment[2]-time_segment[1])
+          
+        }
+        else {
+          current_event_time <- NULL
+          # then need to get the current_obs_time
+          current_obs_time <- return_df[return_df$observe.id == cur,"observe.time"][1]
+          time_segment <- seq(0,current_obs_time,length.out=no_segments)
+          latent_mean <- apply(interpolation_array_list[[pair]][[cur]],1,mean)
+          latent_event <- as.numeric(apply(2-state_array_list[[pair]][[cur]],1,mean) > 0.5) 
+          est.intensity <- mmhpIntensityNumeric_win(params=par_est,
+                                                    t=current_event_time,
+                                                    time.vec=time_segment,
+                                                    latent.vec=latent_mean)
+          # est.intensity.events <- mmhpIntensityAtEvents(params=par_est, t=current_event_time,
+          #                                               latent_z=latent_event)
+          all_residual <- all_residual -
+            sum(sqrt(est.intensity))*(time_segment[2]-time_segment[1])
+          mmhp_residual_array[i,j,cur] <- -1*sum(sqrt(est.intensity))*(time_segment[2]-time_segment[1])
+        }
+        # cur_win <- current_window_vec[cur]
+        # current_event_time <- return_df[return_df$initiator==i&
+        #                                   return_df$recipient==j&
+        #                                   return_df$observe.id==cur_win,"event.times"][[1]]
+        # current_obs_time <- return_df[return_df$initiator==i&
+        #                                 return_df$recipient==j&
+        #                                 return_df$observe.id==cur_win,"observe.time"]
+        # time_segment <- seq(0,current_obs_time,length.out=no_segments)
+        # latent_mean <- apply(interpolation_array_list[[pair]][[cur_win]],1,mean)
+        # latent_event <- as.numeric(apply(2-state_array_list[[pair]][[cur_win]],1,mean) > 0.5) 
+        # est.intensity <- mmhpIntensityNumeric(params=par_est,
+        #                                       t=current_event_time,
+        #                                       time.vec=time_segment,
+        #                                       latent.vec=latent_mean)
+        # est.intensity.events <- mmhpIntensityAtEvents(params=par_est, t=current_event_time,
+        #                                               latent_z=latent_event)
+        # all_residual <- all_residual + sum(1/sqrt(est.intensity.events))-
+        #   sum(sqrt(est.intensity))*(time_segment[2]-time_segment[1])
+        # 
+        # mmhp_residual_array[i,j,cur]
       }
       mmhp_residual_matrix[i,j] <- all_residual
     }
