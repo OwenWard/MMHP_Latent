@@ -222,27 +222,9 @@ save(state_array_list,initial_state_list,termination_state_list,
       file=paste(save_data_path,cohort_names[current_cohort],
                  "/cmmhp_est_zt_",cohort_names[current_cohort],".RData",sep=''))
 
-### Predictions for this model ####
-print(current_cohort)
-stan_train_input_lst <- prepareDataStanTrain(current_cohort)
-stan_train_input_lst$alpha_id <- expert_rank_10[[current_cohort]][1]
-stan_train_input_lst$delta_1 <- rep(0.5,stan_train_input_lst$N_til)
-
-fit_cohort_mmhp <- stan("lib/model3_1.stan",  ## this will need to be updated also
-                        data = stan_train_input_lst,
-                        warmup = 1000, iter = 2000, chains = 4,
-                        control=list(adapt_delta=0.99))
-sim_cohort_mmhp <- rstan::extract(fit_cohort_mmhp)
-dir.create(paste(save_data_path, cohort_names[current_cohort],sep=''), recursive = TRUE, showWarnings = FALSE)
-save(sim_cohort_mmhp, fit_cohort_mmhp,
-     file = paste(save_data_path,cohort_names[current_cohort],
-                  "/cohort_mmhp_predict_stan_result_",cohort_names[current_cohort],
-                  ".RData",sep=''))
-
 #### pearson residuals for this fit ####
 
-### this hasn't been updated below here yet
-### working on MMHP_compute_PR first
+
 
 mice_number <- 12
 
@@ -273,6 +255,9 @@ model3_par_matrix <- list(lambda0_matrix=matrix(model3_par_est$lambda0,
                           q2_matrix=formMatrix(function(x,y) model3_fn$q0.fun(x,y,model3_par_est$eta_3),
                                                model3_par_est$f))
 m3_residual_matrix <- matrix(0,ncol=mice_number,nrow=mice_number)
+
+cmmhp_residual_array <- array(0, dim =  c(mice_number,mice_number,num_winds))
+
 no_segments <- 500 # changed from 5000
 window_pr <- c()
 for(i in 1:mice_number){
@@ -306,6 +291,8 @@ for(i in 1:mice_number){
                                                         latent_z=latent_event)
           all_residual <- all_residual + sum(1/sqrt(est.intensity.events))-
             sum(sqrt(est.intensity))*(time_segment[2]-time_segment[1])
+          cmmhp_residual_array[i,j,cur] <- sum(1/sqrt(est.intensity.events))-
+            sum(sqrt(est.intensity))*(time_segment[2]-time_segment[1])
         }
         else {
           current_event_time <- NULL
@@ -322,6 +309,7 @@ for(i in 1:mice_number){
           #                                               latent_z=latent_event)
           all_residual <- all_residual -
             sum(sqrt(est.intensity))*(time_segment[2]-time_segment[1])
+          cmmhp_residual_array[i,j,cur] <- -1*sum(sqrt(est.intensity))*(time_segment[2]-time_segment[1])
           
         }
         
@@ -343,5 +331,26 @@ saveRDS(m3_residual_matrix,
         file = paste(save_data_path,cohort_names[current_cohort],
                      "/cmmhp_pr_matrix_",cohort_names[current_cohort],
                      ".RDS",sep=''))
+
+
+
+# ### Predictions for this model ####
+# print(current_cohort)
+# stan_train_input_lst <- prepareDataStanTrain(current_cohort)
+# stan_train_input_lst$alpha_id <- expert_rank_10[[current_cohort]][1]
+# stan_train_input_lst$delta_1 <- rep(0.5,stan_train_input_lst$N_til)
+# 
+# fit_cohort_mmhp <- stan("lib/model3_1.stan",  ## this will need to be updated also
+#                         data = stan_train_input_lst,
+#                         warmup = 1000, iter = 2000, chains = 4,
+#                         control=list(adapt_delta=0.99))
+# sim_cohort_mmhp <- rstan::extract(fit_cohort_mmhp)
+# dir.create(paste(save_data_path, cohort_names[current_cohort],sep=''), recursive = TRUE, showWarnings = FALSE)
+# save(sim_cohort_mmhp, fit_cohort_mmhp,
+#      file = paste(save_data_path,cohort_names[current_cohort],
+#                   "/cohort_mmhp_predict_stan_result_",cohort_names[current_cohort],
+#                   ".RData",sep=''))
+
+
 
 
