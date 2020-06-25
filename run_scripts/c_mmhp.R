@@ -331,7 +331,10 @@ saveRDS(m3_residual_matrix,
         file = paste(save_data_path,cohort_names[current_cohort],
                      "/cmmhp_pr_matrix_",cohort_names[current_cohort],
                      ".RDS",sep=''))
-
+saveRDS(m3_residual_array,
+	file = paste(save_data_path,cohort_names[current_cohort],
+		     "/cmmhp_pr_array_", cohort_names[current_cohort],
+		     ".RDS",sep=''))
 
 
 # ### Predictions for this model ####
