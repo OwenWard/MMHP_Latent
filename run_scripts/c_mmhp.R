@@ -88,20 +88,20 @@ print(paste("Cohort",current_cohort))
 
 #### fit the stan model ####
 print(paste("Cohort",current_cohort))
-stan_input_lst <- prepareDataStan(current_cohort)
-stan_input_lst$alpha_id <- expert_rank_10[[current_cohort]][1]
-stan_input_lst$delta_1 <- rep(0.5,stan_input_lst$N_til)
-
-fit_cohort_mmhp <- stan("lib/model3_1.stan",  ## this will need to be updated
-                        data = stan_input_lst,
-                        warmup = 1000, iter = 2000, chains = 4, thin=4,
-                        control=list(adapt_delta=0.98))
-sim_cohort_mmhp <- rstan::extract(fit_cohort_mmhp)
-dir.create(paste(save_data_path, cohort_names[current_cohort],sep=''), recursive = TRUE, showWarnings = FALSE)
-save(sim_cohort_mmhp, fit_cohort_mmhp,
-     file = paste(save_data_path,cohort_names[current_cohort],
-                  "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
-                  ".RData",sep=''))
+# stan_input_lst <- prepareDataStan(current_cohort)
+# stan_input_lst$alpha_id <- expert_rank_10[[current_cohort]][1]
+# stan_input_lst$delta_1 <- rep(0.5,stan_input_lst$N_til)
+# 
+# fit_cohort_mmhp <- stan("lib/model3_1.stan",  ## this will need to be updated
+#                         data = stan_input_lst,
+#                         warmup = 1000, iter = 2000, chains = 4, thin=4,
+#                         control=list(adapt_delta=0.98))
+# sim_cohort_mmhp <- rstan::extract(fit_cohort_mmhp)
+# dir.create(paste(save_data_path, cohort_names[current_cohort],sep=''), recursive = TRUE, showWarnings = FALSE)
+# save(sim_cohort_mmhp, fit_cohort_mmhp,
+#      file = paste(save_data_path,cohort_names[current_cohort],
+#                   "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
+#                   ".RData",sep=''))
 
 #### Interpolate Latent States ####
 
@@ -120,107 +120,107 @@ unique_observe_win <- unique(return_df[,c("observe.id","observe.time")])
 
 num_winds <- nrow(unique_observe_win)
 
-state_array_list <- list() 
-initial_state_list <- list()
-termination_state_list <- list()
-interpolation_array_list <- list()
-#no_segments <- 5000 # changed this from 5000
-# specify this above
-
-param <- rep(list(),1000)
-for(s in 1:1000){
-  model3_par_est <- list(lambda0=sim_cohort_mmhp$lambda0[s],
-                         lambda1=sim_cohort_mmhp$lambda1[s],
-                         eta_1=sim_cohort_mmhp$eta_1[s],
-                         eta_2=sim_cohort_mmhp$eta_2[s],
-                         eta_3=sim_cohort_mmhp$eta_3[s],
-                         beta=sim_cohort_mmhp$beta[s],
-                         f=sim_cohort_mmhp$f[s,])
-  param[[s]] <- list(lambda0_matrix=matrix(model3_par_est$lambda0,
-                                           nrow=mice_number,ncol=mice_number),
-                     lambda1_matrix=matrix(model3_par_est$lambda0,
-                                           nrow=mice_number,ncol=mice_number),
-                     alpha_matrix=formMatrix(function(x,y) model3_fn$alpha.fun(x,y,
-                                                                               model3_par_est$eta_1,
-                                                                               model3_par_est$eta_2),
-                                             model3_par_est$f),
-                     beta_matrix=matrix(model3_par_est$beta,
-                                        nrow=mice_number,ncol=mice_number),
-                     q1_matrix=formMatrix(function(x,y) model3_fn$q1.fun(x,y,model3_par_est$eta_3),
-                                          model3_par_est$f),
-                     q2_matrix=formMatrix(function(x,y) model3_fn$q0.fun(x,y,model3_par_est$eta_3),
-                                          model3_par_est$f))
-}
-
-for(pair in 1:nrow(unique_pairs_df)){
-  print(pair)
-  current_initiator <- as.numeric(unique_pairs_df[pair,"initiator"])
-  current_recipient <- as.numeric(unique_pairs_df[pair,"recipient"])
-  current_window_vec <- unique_pairs_df$observe[[pair]]
-  
-  state_array_list[[pair]] <- list()
-  initial_state_list[[pair]] <- list()
-  termination_state_list[[pair]] <- list()
-  interpolation_array_list[[pair]] <- list()
-  
-  if(current_initiator!=current_recipient){
-    #for(current_win in current_window_vec){
-    for(current_win in 1:num_winds){
-      row_indicator <- return_df$initiator==current_initiator&return_df$recipient==current_recipient&return_df$observe.id==current_win
-      
-      
-      ### need to adjust these for no events
-      # check if in current_window_vec
-      if(current_win %in% current_window_vec){
-        time_vec <- return_df[row_indicator,"event.times"][[1]]
-        observe_period <- unique_observe_win[unique_observe_win$observe.id==current_win,"observe.time"]
-        state_array_list[[pair]][[current_win]] <- matrix(0,nrow=length(time_vec),ncol=1000)
-      }
-      else {
-        time_vec <- NULL
-        observe_period <- return_df[return_df$observe.id == current_win,"observe.time"][1]
-        state_array_list[[pair]][[current_win]] <- matrix(0,nrow=1,ncol=1000)
-        # is this the right length for state_array_list?
-      }
-      
-      
-      time_segment <- seq(0,observe_period,length.out=no_segments)
-      
-      
-      initial_state_list[[pair]][[current_win]] <- matrix(0,nrow=1,ncol=1000)
-      termination_state_list[[pair]][[current_win]] <- matrix(0,nrow=1,ncol=1000)
-      interpolation_array_list[[pair]][[current_win]] <- matrix(0,nrow=no_segments,ncol=1000)
-      
-      for(current_sim in 1:1000){
-        ## latent states at event times
-        param_pair <- lapply(param[[current_sim]],function(x) x[current_initiator,current_recipient])
-        names(param_pair) <- c("lambda0","lambda1","alpha","beta","q1","q2")
-        
-        viterbi_result <- myViterbiWithInitial(events = time_vec, param = param_pair,
-                                               termination = observe_period)
-        # this needs to be updated for windows with no events - done
-        
-        state_array_list[[pair]][[current_win]][,current_sim] <- viterbi_result$zt_v
-        initial_state_list[[pair]][[current_win]][1,current_sim] <- viterbi_result$initial_state
-        termination_state_list[[pair]][[current_win]][1,current_sim] <- viterbi_result$termination_state
-        
-        ## interpolation
-        latent_inter <- interpolateLatentTrajectory(param_pair, time_vec, viterbi_result$zt_v,
-                                                    initial.state = viterbi_result$initial_state,
-                                                    termination.time=observe_period,
-                                                    termination.state = viterbi_result$termination_state)
-        ## as does this
-
-        step_fun_est <- stepfun(latent_inter$x.hat,2-latent_inter$z.hat)
-        interpolation_array_list[[pair]][[current_win]][,current_sim] <- step_fun_est(time_segment)
-      }
-    }
-  }
-}
-save(state_array_list,initial_state_list,termination_state_list,
-      interpolation_array_list,no_segments,
-      file=paste(save_data_path,cohort_names[current_cohort],
-                 "/cmmhp_est_zt_",cohort_names[current_cohort],".RData",sep=''))
+# state_array_list <- list() 
+# initial_state_list <- list()
+# termination_state_list <- list()
+# interpolation_array_list <- list()
+# #no_segments <- 5000 # changed this from 5000
+# # specify this above
+# 
+# param <- rep(list(),1000)
+# for(s in 1:1000){
+#   model3_par_est <- list(lambda0=sim_cohort_mmhp$lambda0[s],
+#                          lambda1=sim_cohort_mmhp$lambda1[s],
+#                          eta_1=sim_cohort_mmhp$eta_1[s],
+#                          eta_2=sim_cohort_mmhp$eta_2[s],
+#                          eta_3=sim_cohort_mmhp$eta_3[s],
+#                          beta=sim_cohort_mmhp$beta[s],
+#                          f=sim_cohort_mmhp$f[s,])
+#   param[[s]] <- list(lambda0_matrix=matrix(model3_par_est$lambda0,
+#                                            nrow=mice_number,ncol=mice_number),
+#                      lambda1_matrix=matrix(model3_par_est$lambda0,
+#                                            nrow=mice_number,ncol=mice_number),
+#                      alpha_matrix=formMatrix(function(x,y) model3_fn$alpha.fun(x,y,
+#                                                                                model3_par_est$eta_1,
+#                                                                                model3_par_est$eta_2),
+#                                              model3_par_est$f),
+#                      beta_matrix=matrix(model3_par_est$beta,
+#                                         nrow=mice_number,ncol=mice_number),
+#                      q1_matrix=formMatrix(function(x,y) model3_fn$q1.fun(x,y,model3_par_est$eta_3),
+#                                           model3_par_est$f),
+#                      q2_matrix=formMatrix(function(x,y) model3_fn$q0.fun(x,y,model3_par_est$eta_3),
+#                                           model3_par_est$f))
+# }
+# 
+# for(pair in 1:nrow(unique_pairs_df)){
+#   print(pair)
+#   current_initiator <- as.numeric(unique_pairs_df[pair,"initiator"])
+#   current_recipient <- as.numeric(unique_pairs_df[pair,"recipient"])
+#   current_window_vec <- unique_pairs_df$observe[[pair]]
+#   
+#   state_array_list[[pair]] <- list()
+#   initial_state_list[[pair]] <- list()
+#   termination_state_list[[pair]] <- list()
+#   interpolation_array_list[[pair]] <- list()
+#   
+#   if(current_initiator!=current_recipient){
+#     #for(current_win in current_window_vec){
+#     for(current_win in 1:num_winds){
+#       row_indicator <- return_df$initiator==current_initiator&return_df$recipient==current_recipient&return_df$observe.id==current_win
+#       
+#       
+#       ### need to adjust these for no events
+#       # check if in current_window_vec
+#       if(current_win %in% current_window_vec){
+#         time_vec <- return_df[row_indicator,"event.times"][[1]]
+#         observe_period <- unique_observe_win[unique_observe_win$observe.id==current_win,"observe.time"]
+#         state_array_list[[pair]][[current_win]] <- matrix(0,nrow=length(time_vec),ncol=1000)
+#       }
+#       else {
+#         time_vec <- NULL
+#         observe_period <- return_df[return_df$observe.id == current_win,"observe.time"][1]
+#         state_array_list[[pair]][[current_win]] <- matrix(0,nrow=1,ncol=1000)
+#         # is this the right length for state_array_list?
+#       }
+#       
+#       
+#       time_segment <- seq(0,observe_period,length.out=no_segments)
+#       
+#       
+#       initial_state_list[[pair]][[current_win]] <- matrix(0,nrow=1,ncol=1000)
+#       termination_state_list[[pair]][[current_win]] <- matrix(0,nrow=1,ncol=1000)
+#       interpolation_array_list[[pair]][[current_win]] <- matrix(0,nrow=no_segments,ncol=1000)
+#       
+#       for(current_sim in 1:1000){
+#         ## latent states at event times
+#         param_pair <- lapply(param[[current_sim]],function(x) x[current_initiator,current_recipient])
+#         names(param_pair) <- c("lambda0","lambda1","alpha","beta","q1","q2")
+#         
+#         viterbi_result <- myViterbiWithInitial(events = time_vec, param = param_pair,
+#                                                termination = observe_period)
+#         # this needs to be updated for windows with no events - done
+#         
+#         state_array_list[[pair]][[current_win]][,current_sim] <- viterbi_result$zt_v
+#         initial_state_list[[pair]][[current_win]][1,current_sim] <- viterbi_result$initial_state
+#         termination_state_list[[pair]][[current_win]][1,current_sim] <- viterbi_result$termination_state
+#         
+#         ## interpolation
+#         latent_inter <- interpolateLatentTrajectory(param_pair, time_vec, viterbi_result$zt_v,
+#                                                     initial.state = viterbi_result$initial_state,
+#                                                     termination.time=observe_period,
+#                                                     termination.state = viterbi_result$termination_state)
+#         ## as does this
+# 
+#         step_fun_est <- stepfun(latent_inter$x.hat,2-latent_inter$z.hat)
+#         interpolation_array_list[[pair]][[current_win]][,current_sim] <- step_fun_est(time_segment)
+#       }
+#     }
+#   }
+# }
+# save(state_array_list,initial_state_list,termination_state_list,
+#       interpolation_array_list,no_segments,
+#       file=paste(save_data_path,cohort_names[current_cohort],
+#                  "/cmmhp_est_zt_",cohort_names[current_cohort],".RData",sep=''))
 
 #### pearson residuals for this fit ####
 
