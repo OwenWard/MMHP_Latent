@@ -256,7 +256,7 @@ model3_par_matrix <- list(lambda0_matrix=matrix(model3_par_est$lambda0,
                                                model3_par_est$f))
 m3_residual_matrix <- matrix(0,ncol=mice_number,nrow=mice_number)
 
-cmmhp_residual_array <- array(0, dim =  c(mice_number,mice_number,num_winds))
+m3_residual_array <- array(0, dim =  c(mice_number,mice_number,num_winds))
 
 no_segments <- 500 # changed from 5000
 window_pr <- c()
@@ -291,7 +291,7 @@ for(i in 1:mice_number){
                                                         latent_z=latent_event)
           all_residual <- all_residual + sum(1/sqrt(est.intensity.events))-
             sum(sqrt(est.intensity))*(time_segment[2]-time_segment[1])
-          cmmhp_residual_array[i,j,cur] <- sum(1/sqrt(est.intensity.events))-
+          m3_residual_array[i,j,cur] <- sum(1/sqrt(est.intensity.events))-
             sum(sqrt(est.intensity))*(time_segment[2]-time_segment[1])
         }
         else {
@@ -309,7 +309,7 @@ for(i in 1:mice_number){
           #                                               latent_z=latent_event)
           all_residual <- all_residual -
             sum(sqrt(est.intensity))*(time_segment[2]-time_segment[1])
-          cmmhp_residual_array[i,j,cur] <- -1*sum(sqrt(est.intensity))*(time_segment[2]-time_segment[1])
+          m3_residual_array[i,j,cur] <- -1*sum(sqrt(est.intensity))*(time_segment[2]-time_segment[1])
           
         }
         

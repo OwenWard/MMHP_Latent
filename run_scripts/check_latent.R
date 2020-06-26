@@ -83,7 +83,7 @@ print(paste("Cohort",current_cohort))
 
 ### Look at the latent states for each cohort
 
-load_path <- "output_orig"
+load_path <- "output_orig/real_data/"
 
 
 
@@ -104,14 +104,17 @@ unique_observe_win <- unique(return_df[,c("observe.id","observe.time")])
 
 
 
-for(pair in 1:nrow(unique_pairs_df)) {
+##for(pair in 1:nrow(unique_pairs_df)) {
+  pair <- 69
+  num_winds <- unique_pairs_df$observe[pair]
   current <- interpolation_array_list[[pair]]
-  mean_state <- matrix(nrow = 27 , ncol = no_segments)
+  saveRDS(current,"single_inter_array.RDS")
+  #mean_state <- matrix(nrow = 25 , ncol = no_segments)
   
-  for(i in 1:length(window_lengths)) {
-    mean_state[i, ] <- apply(latent_pair[[i]], 1,var)
-  }
+  #for(i in 1:25) {
+  #  mean_state[i, ] <- apply(current[[i]], 1,var)
+  #}
   
-  head(as.data.frame(mean_state))
-  tail(as.data.frame(mean_state))
-}
+  ##print(head(as.data.frame(mean_state)))
+  ##print(tail(as.data.frame(mean_state)))
+##}
