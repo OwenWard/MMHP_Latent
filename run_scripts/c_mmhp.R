@@ -87,21 +87,21 @@ print(paste("Cohort",current_cohort))
 
 
 #### fit the stan model ####
-print(paste("Cohort",current_cohort))
-stan_input_lst <- prepareDataStan(current_cohort)
-stan_input_lst$alpha_id <- expert_rank_10[[current_cohort]][1]
-stan_input_lst$delta_1 <- rep(0.5,stan_input_lst$N_til)
-
-fit_cohort_mmhp <- stan("lib/model3_1.stan",  ## this will need to be updated
-                        data = stan_input_lst,
-                        warmup = 1000, iter = 2000, chains = 4, thin=4,
-                        control=list(adapt_delta=0.98))
-sim_cohort_mmhp <- rstan::extract(fit_cohort_mmhp)
-dir.create(paste(save_data_path, cohort_names[current_cohort],sep=''), recursive = TRUE, showWarnings = FALSE)
-save(sim_cohort_mmhp, fit_cohort_mmhp,
-     file = paste(save_data_path,cohort_names[current_cohort],
-                  "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
-                  ".RData",sep=''))
+# print(paste("Cohort",current_cohort))
+# stan_input_lst <- prepareDataStan(current_cohort)
+# stan_input_lst$alpha_id <- expert_rank_10[[current_cohort]][1]
+# stan_input_lst$delta_1 <- rep(0.5,stan_input_lst$N_til)
+# 
+# fit_cohort_mmhp <- stan("lib/model3_1.stan",  ## this will need to be updated
+#                         data = stan_input_lst,
+#                         warmup = 1000, iter = 2000, chains = 4, thin=4,
+#                         control=list(adapt_delta=0.98))
+# sim_cohort_mmhp <- rstan::extract(fit_cohort_mmhp)
+# dir.create(paste(save_data_path, cohort_names[current_cohort],sep=''), recursive = TRUE, showWarnings = FALSE)
+# save(sim_cohort_mmhp, fit_cohort_mmhp,
+#      file = paste(save_data_path,cohort_names[current_cohort],
+#                   "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
+#                   ".RData",sep=''))
 
 #### Interpolate Latent States ####
 
@@ -338,21 +338,21 @@ saveRDS(m3_residual_array,
 
 
 # ### Predictions for this model ####
-print(current_cohort)
-stan_train_input_lst <- prepareDataStanTrain(current_cohort)
-stan_train_input_lst$alpha_id <- expert_rank_10[[current_cohort]][1]
-stan_train_input_lst$delta_1 <- rep(0.5,stan_train_input_lst$N_til)
-
-fit_cohort_mmhp <- stan("lib/model3_1.stan",  ## this will need to be updated also
-                        data = stan_train_input_lst,
-                        warmup = 1000, iter = 2000, chains = 4,
-                        control=list(adapt_delta=0.99))
-sim_cohort_mmhp <- rstan::extract(fit_cohort_mmhp)
-dir.create(paste(save_data_path, cohort_names[current_cohort],sep=''), recursive = TRUE, showWarnings = FALSE)
-save(sim_cohort_mmhp, fit_cohort_mmhp,
-     file = paste(save_data_path,cohort_names[current_cohort],
-                  "/cohort_mmhp_predict_stan_result_",cohort_names[current_cohort],
-                  ".RData",sep=''))
+# print(current_cohort)
+# stan_train_input_lst <- prepareDataStanTrain(current_cohort)
+# stan_train_input_lst$alpha_id <- expert_rank_10[[current_cohort]][1]
+# stan_train_input_lst$delta_1 <- rep(0.5,stan_train_input_lst$N_til)
+# 
+# fit_cohort_mmhp <- stan("lib/model3_1.stan",  ## this will need to be updated also
+#                         data = stan_train_input_lst,
+#                         warmup = 1000, iter = 2000, chains = 4,
+#                         control=list(adapt_delta=0.99))
+# sim_cohort_mmhp <- rstan::extract(fit_cohort_mmhp)
+# dir.create(paste(save_data_path, cohort_names[current_cohort],sep=''), recursive = TRUE, showWarnings = FALSE)
+# save(sim_cohort_mmhp, fit_cohort_mmhp,
+#      file = paste(save_data_path,cohort_names[current_cohort],
+#                   "/cohort_mmhp_predict_stan_result_",cohort_names[current_cohort],
+#                   ".RData",sep=''))
 
 
 
