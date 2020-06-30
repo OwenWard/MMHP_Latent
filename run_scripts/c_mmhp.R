@@ -129,15 +129,17 @@ interpolation_array_list <- list()
 
 param <- rep(list(),1000)
 for(s in 1:1000){
-  model3_par_est <- list(lambda0=sim_cohort_mmhp$lambda0[s],
+  model3_par_est <- list(gamma=sim_cohort_mmhp$gamma[s],
+                         zeta=sim_cohort_mmhp$zeta[s],
                          lambda1=sim_cohort_mmhp$lambda1[s],
                          eta_1=sim_cohort_mmhp$eta_1[s],
                          eta_2=sim_cohort_mmhp$eta_2[s],
                          eta_3=sim_cohort_mmhp$eta_3[s],
                          beta=sim_cohort_mmhp$beta[s],
                          f=sim_cohort_mmhp$f[s,])
-  param[[s]] <- list(lambda0_matrix=matrix(model3_par_est$lambda0,
-                                           nrow=mice_number,ncol=mice_number),
+  param[[s]] <- list(lambda0_matrix = outer(model3_par_est$gamma, model3_par_est$zeta, FUN = "+"),
+                     # lambda0_matrix=matrix(model3_par_est$lambda0,
+                     #                       nrow=mice_number,ncol=mice_number),
                      lambda1_matrix=matrix(model3_par_est$lambda1,
                                            nrow=mice_number,ncol=mice_number),
                      alpha_matrix=formMatrix(function(x,y) model3_fn$alpha.fun(x,y,
