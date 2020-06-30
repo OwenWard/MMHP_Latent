@@ -138,7 +138,7 @@ for(s in 1:1000){
                          f=sim_cohort_mmhp$f[s,])
   param[[s]] <- list(lambda0_matrix=matrix(model3_par_est$lambda0,
                                            nrow=mice_number,ncol=mice_number),
-                     lambda1_matrix=matrix(model3_par_est$lambda0,
+                     lambda1_matrix=matrix(model3_par_est$lambda1,
                                            nrow=mice_number,ncol=mice_number),
                      alpha_matrix=formMatrix(function(x,y) model3_fn$alpha.fun(x,y,
                                                                                model3_par_est$eta_1,
