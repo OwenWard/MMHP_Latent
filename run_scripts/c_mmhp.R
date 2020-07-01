@@ -144,7 +144,7 @@ for(s in 1:1000){
                      # lambda1_matrix=matrix(model3_par_est$lambda1,
                      #                       nrow=mice_number,ncol=mice_number),
                      lambda1_matrix = outer(model3_par_est$gamma, 
-                                            model3_par_est$zeta, FUN = "+")*(1+model3_par_est$w_lambda)
+                                            model3_par_est$zeta, FUN = "+")*(1+model3_par_est$w_lambda),
                      alpha_matrix=formMatrix(function(x,y) model3_fn$alpha.fun(x,y,
                                                                                model3_par_est$eta_1,
                                                                                model3_par_est$eta_2),
