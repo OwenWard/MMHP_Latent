@@ -129,8 +129,8 @@ interpolation_array_list <- list()
 
 param <- rep(list(),1000)
 for(s in 1:1000){
-  model3_par_est <- list(gamma=sim_cohort_mmhp$gamma[s],
-                         zeta=sim_cohort_mmhp$zeta[s],
+  model3_par_est <- list(gamma=sim_cohort_mmhp$gamma[s,],
+                         zeta=sim_cohort_mmhp$zeta[s,],
                          lambda1=sim_cohort_mmhp$lambda1[s],
                          eta_1=sim_cohort_mmhp$eta_1[s],
                          eta_2=sim_cohort_mmhp$eta_2[s],
