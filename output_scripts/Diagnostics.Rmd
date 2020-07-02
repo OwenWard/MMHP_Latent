@@ -49,6 +49,15 @@ source("C:/Users/owenw/Dropbox/with Owen/code/part3/lib/intensityPlot.R")
 source("C:/Users/owenw/Dropbox/with Owen/code/part3/lib/uniHawkes.R")
 
 theme_set(theme_minimal())
+
+model1_fn <- list(alpha.fun = function(x,y,eta1,eta2,eta3){return(eta1*x*y*exp(-eta2*abs(x-y))/(1+exp(-eta3*(x-y))))})
+
+
+c_mmhp_path <- "C:/Users/owenw/Google Drive/Tian/Current_Projects/MMHP_Latent/output_folders/output_june30/"
+
+other_path  <- "C:/Users/owenw/Google Drive/Tian/Current_Projects/MMHP_Latent/output_null_windows/"
+old_data_path  <- "C:/Users/owenw/Google Drive/Tian/Current_Projects/MMHP_Latent/output_null_windows/"
+
 ```
 
 
@@ -245,8 +254,6 @@ pr_real_c_hawkes_vec <- numeric(0)
 Lambda_c_hawkes_matrix <- matrix(rep(list(),mice_number*mice_number),
                                nrow=mice_number, ncol=mice_number)
 
-model1_fn <- list(alpha.fun = function(x,y,eta1,eta2,eta3){return(eta1*x*y*exp(-eta2*abs(x-y))/(1+exp(-eta3*(x-y))))})
-
 
 load(paste(old_data_path, cohort_names[current_cohort],
            "/cohort_hp_stan_result_", cohort_names[current_cohort],".RData",sep=''))
@@ -365,8 +372,8 @@ for(i in 1:mice_number){
                                         return_df$recipient==j&
                                         return_df$observe.id==cur_win,"observe.time"]
         #### update this from the stan fit
-        hawkes.par <- c(model1_par_matrix$lambda0_matrix[i,j],model1_par_matrix$alpha[i,j],
-                        model1_par_matrix$beta[i,j])
+        hawkes.par <- c(model2_par_matrix$lambda0_matrix[i,j],model2_par_matrix$alpha[i,j],
+                        model2_par_matrix$beta[i,j])
         # hawkes.par <- optim(par=c(1,0,100), fn=uniHawkesNegLogLik, method="CG", 
         #                     t=current_event_time, termination = observe_period)
         all_Lambda <- uniHawkesIntegralIntensity(object=list(lambda0=hawkes.par[1],
@@ -406,13 +413,13 @@ for(i in 1:mice_number){
 This is for a specific pair in a single window, we want to plot these three models.
 
 
-```{r}
+```{r select cohort pair window}
 no_segments <- 500
 
-current_cohort <- 5
-current_i <- 8
-current_j <- 2
-current_win <- 13
+current_cohort <- 4#5
+current_i <- 2 #8
+current_j <- 8 #2
+current_win <- 42
 clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
 return_df <- cleanObservationPeriod(current_cohort, clean_data)
 unique_pairs_df <- return_df %>% group_by(initiator, recipient) %>%
@@ -437,9 +444,14 @@ Then we can plot some of these fits.
 
 
 ```{r plot_functions, include=FALSE}
-drawRealIntensityPaper<-function(t,object=NULL,simulation=NULL,yupper=10,add=FALSE,color=1,line.width=1,
-                                 title_name="",title.cex=9, y.ratio=0, min.y=0, min.x=0, max.x=NULL, 
-                                 annotate.time=FALSE, event.cex=1, box.type="l", box.col="gray40", title.line=1){
+drawRealIntensityPaper <- function(t,
+                                   object=NULL,simulation=NULL,
+                                   yupper=10,add=FALSE,color=1,line.width=1,
+                                 title_name="",title.cex=9, y.ratio=0,
+                                 min.y=0, min.x=0, max.x=NULL, 
+                                 annotate.time=FALSE,
+                                 event.cex=1, box.type="l",
+                                 box.col="gray40", title.line=1){
   # input object: the parameter list used for generating mmhp
   #       simulation: simulation result from simulate.mmhp 
   if(t[1]>0){
@@ -533,7 +545,8 @@ drawRealIntensityPaper<-function(t,object=NULL,simulation=NULL,yupper=10,add=FAL
 }
 
 
-drawHawkesIntensityPaper<-function(lambda0,alpha,beta,events,color=1,line.width=2, termination=NULL){
+drawHawkesIntensityPaper <- function(lambda0,alpha,beta,
+                                     events,color=1,line.width=2, termination=NULL){
   # input object: parameters for Hawkes process, include lambda0, alpha, beta 
   #       events: vector of event happening time
   horizon <- tail(events,1)
@@ -548,7 +561,7 @@ drawHawkesIntensityPaper<-function(lambda0,alpha,beta,events,color=1,line.width=
       new.lambda.n<-Vectorize(lambda.n)
       curve(new.lambda.n, from=tail(events,1), to=horizon, add=TRUE, col=color,lwd=line.width)
     }
-    if( !is.null(title) ) title(main=title)
+    #if( !is.null(title) ) title(main=title)
   }else{
     segments(x0=0, x1=events[1], y0=lambda0, col=color,lwd=line.width)
     segments(x0=events[1], y0=lambda0, y1=lambda0+alpha, col=color,lwd=line.width)
@@ -568,40 +581,99 @@ drawHawkesIntensityPaper<-function(lambda0,alpha,beta,events,color=1,line.width=
 }
 
 
+
 ```
 
 
-```{r, fig.width=10}
-#par(mfrow=c(2,5), oma=c(1,1,1,1), mar=c(2,3,2,1), mgp=c(0.8,0,0))
-#layout(matrix(1:10,nrow=2,byrow=TRUE),widths=rep(1,5),height=c(3,3))
-anno.cex <- 1.3
-title.cex <- 2.2
-title.line <- 0.5
+
+
+```{r plot intensity in a window, fig.width=10}
 y.upper <- 20
-## pp
-lambda.pp <- 1/mean(diff(c(0,current_event_time,observe_period)))
+title.line <- 1
+title.cex <- 1
+anno.cex <- 1
+
+## Cohort Hawkes ####
+# load the parameters for this pair
+load(paste(old_data_path, cohort_names[current_cohort],
+           "/cohort_hp_stan_result_", cohort_names[current_cohort],".RData",sep=''))
+
+# create a list to store the hawkes parameters for this
+model1_par_est <- list(lambda0=mean(sim_cohort_hp$lambda0),
+                       eta_1=mean(sim_cohort_hp$eta_1),
+                       eta_2=mean(sim_cohort_hp$eta_2),
+                       eta_3=mean(sim_cohort_hp$eta_3),
+                       beta=mean(sim_cohort_hp$beta),
+                       f=apply(sim_cohort_hp$f,2,mean))
+model1_par_matrix <- list(lambda0_matrix=matrix(model1_par_est$lambda0,
+                                                nrow=mice_number,ncol=mice_number),
+                          alpha_matrix=formMatrix(function(x,y) model1_fn$alpha.fun(x,y,
+                                                                                    model1_par_est$eta_1,
+                                                                                    model1_par_est$eta_2,
+                                                                                    model1_par_est$eta_3),
+                                                  model1_par_est$f),
+                          beta_matrix=matrix(model1_par_est$beta,
+                                             nrow=mice_number,ncol=mice_number))
+
+hawkes.par <- c(model1_par_matrix$lambda0_matrix[current_i,current_j],
+                model1_par_matrix$alpha[current_i,current_j],
+                        model1_par_matrix$beta[current_i,current_j])
+
 drawRealIntensityPaper(current_event_time,
                        yupper=y.upper, color="black",line.width=2,title.line=title.line,
-                       title_name="Poisson", title.cex=title.cex, max.x=observe_period, box.col="black")
-abline(h=lambda.pp,lwd=2)
-mtext(side=1, text="Time", line=1.6, cex=anno.cex)
-mtext(side=2, text="Intensity", line=1.2, cex=anno.cex)
-
-## Hawkes
-hawkes.par<-optim(par=rep(1,3), fn=uniHawkesNegLogLik, method="L-BFGS-B", 
-                  t=current_event_time, termination = observe_period, lower=c(0,1,0))
-
-drawRealIntensityPaper(current_event_time,
-                       yupper=y.upper, color="black",line.width=2,title.line=title.line,
-                       title_name="Hawkes", title.cex=title.cex, max.x=observe_period, box.col="black")
-drawHawkesIntensityPaper(lambda0=hawkes.par$par[1],
-                         alpha=hawkes.par$par[2],
-                         beta=hawkes.par$par[3],
+                       title_name="Cohort Hawkes",
+                       title.cex=title.cex, max.x=observe_period, box.col="black")
+drawHawkesIntensityPaper(lambda0=hawkes.par[1],
+                         alpha=hawkes.par[2],
+                         beta=hawkes.par[3],
                          events=current_event_time, termination=observe_period)
 mtext(side=1, text="Time", line=1.6, cex=anno.cex)
 mtext(side=2, text="Intensity", line=1.2, cex=anno.cex)
+
+
+#### Degree Corrected Hawkes ####
+load(paste(old_data_path, cohort_names[current_cohort],
+           "/cohort_dchp_stan_result_", cohort_names[current_cohort],".RData",sep=''))
+
+# create a list to store the hawkes parameters for this
+model2_par_est <- list(gamma = apply(sim_cohort_dchp$gamma,2,mean),
+                       zeta = apply(sim_cohort_dchp$zeta,2,mean),
+                       #lambda0=mean(sim_cohort_dchp$lambda0),
+                       eta_1=mean(sim_cohort_dchp$eta_1),
+                       eta_2=mean(sim_cohort_dchp$eta_2),
+                       eta_3=mean(sim_cohort_dchp$eta_3),
+                       beta=mean(sim_cohort_dchp$beta),
+                       f=apply(sim_cohort_dchp$f,2,mean))
+model2_par_matrix <- list(lambda0_matrix= outer(model2_par_est$gamma,
+                                                model2_par_est$zeta,FUN = "+"),
+                          alpha_matrix=formMatrix(function(x,y) model1_fn$alpha.fun(x,y,
+                                                                                    model2_par_est$eta_1,
+                                                                                  model2_par_est$eta_2,
+                                                                                    model2_par_est$eta_3),
+                                                  model2_par_est$f),
+                          beta_matrix=matrix(model2_par_est$beta,
+                                             nrow=mice_number,ncol=mice_number))
+
+hawkes.par <- c(model2_par_matrix$lambda0_matrix[current_i,current_j],
+                model2_par_matrix$alpha[current_i,current_j],
+                model2_par_matrix$beta[current_i,current_j])
+
+drawRealIntensityPaper(current_event_time,
+                       yupper=y.upper, color="black",line.width=2,title.line=title.line,
+                       title_name="Cohort DC-Hawkes",
+                       title.cex=title.cex, max.x=observe_period, box.col="black")
+drawHawkesIntensityPaper(lambda0=hawkes.par[1],
+                         alpha=hawkes.par[2],
+                         beta=hawkes.par[3],
+                         events=current_event_time, termination=observe_period)
 mtext(side=1, text="Time", line=1.6, cex=anno.cex)
 mtext(side=2, text="Intensity", line=1.2, cex=anno.cex)
+
+
+rm(fit_cohort_hp)
+rm(fit_cohort_dchp)
+rm(sim_cohort_hp)
+rm(sim_cohort_dchp)
 
 ```
 
@@ -609,19 +681,19 @@ mtext(side=2, text="Intensity", line=1.2, cex=anno.cex)
 This ouput is correctly dealing with the C-MMHP parameters now.
 
 
-```{r load_mmhp_data, cache=TRUE}
-data_path <- "C:/Users/owenw/Google Drive/Tian/Current_Projects/MMHP_Latent/output_june_26/output//"
-
-## MMHP
-load(paste(data_path,cohort_names[current_cohort],
+```{r draw_mmhp_fit}
+#current_cohort <- 2
+## Cohort MMHP
+load(paste(c_mmhp_path,cohort_names[current_cohort],
              "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
              ".RData",sep=''))
-load(paste(data_path,cohort_names[current_cohort],
+load(paste(c_mmhp_path,cohort_names[current_cohort],
              "/cmmhp_est_zt_",cohort_names[current_cohort],".RData",sep=''))
 
-mmhp_par <- list(lambda1=mean(sim_cohort_mmhp$lambda1),
-                 lambda0= (mean(sim_cohort_mmhp$gamma[,current_i])+
-                             mean(sim_cohort_mmhp$zeta[,current_j])),
+# then adjust the parameters for c-mmhp below here also
+
+mmhp_par <- list(lambda1=mean(sim_cohort_mmhp$lambda1[,pair]),
+                 lambda0=mean(sim_cohort_mmhp$lambda0[,pair]),
                  alpha=mean(sim_cohort_mmhp$alpha[,pair]),
                  beta=mean(sim_cohort_mmhp$beta),
                  q1=mean(sim_cohort_mmhp$q1[,pair]),
@@ -632,14 +704,23 @@ mmhp.est.latent <- interpolateLatentTrajectory(params=mmhp_par,events=current_ev
                                                initial.state=mean(initial_state_list[[pair]][[current_win]]),
                                                termination.time=observe_period,termination.state = 2)
 
+drawRealIntensityPaper(current_event_time, object=mmhp_par,title.line=title.line,
+                       simulation=list(x=c(0,mmhp.est.latent$x.hat),
+                                       z=mmhp.est.latent$z.hat),
+                       yupper=y.upper, color="black", line.width=2,
+                       title_name="Cohort MMHP", title.cex=title.cex, max.x=observe_period, box.col="black")
+mtext(side=1, text="Time", line=1.6, cex=anno.cex)
+mtext(side=2, text="Intensity", line=1.2, cex=anno.cex)
+
 rm(interpolation_array_list)
 rm(state_array_list)
-
+rm(initial_state_list)
+rm(termination_state_list)
 
 ```
 
 
-```{r}
+```{r, eval=FALSE}
 #y.upper <- 10
 #title.line <- 1
 #title.cex <- 0.1
@@ -655,7 +736,7 @@ mtext(side=2, text="Intensity", line=1.2, cex=anno.cex)
 
 The corresponding QQ plots also.
 
-```{r}
+```{r, eval=FALSE}
 anno.cex <- 1
 #### Hawkes
 Lambda.hawkes.test <- Lambda_hawkes_matrix[current_i,current_j][[1]]
