@@ -333,7 +333,70 @@ rm(initial_state_list)
 
 
 #### Diagnostics I-MMHP ####
-## tbc
+load(paste(data_path, cohort_names[current_cohort],
+           "/sep_mmhp_stan_result_", cohort_names[current_cohort],".RData",sep=''))
+load(paste(data_path,cohort_names[current_cohort],
+           "/mmhp_est_zt_",cohort_names[current_cohort],".RData",sep=''))
+
+## indep - mmhp
+raw_real_mmhp_vec  <- numeric(0)
+pr_real_mmhp_vec <- numeric(0)
+Lambda_mmhp_matrix <- matrix(rep(list(),mice_number*mice_number),
+                             nrow=mice_number, ncol=mice_number)
+
+real_N_vec <- numeric(0)
+for(i in 1:mice_number){
+  print(i)
+  for(j in 1:mice_number){
+    pair <- which(unique_pairs_df$initiator==i&unique_pairs_df$recipient==j)
+    if(length(pair)>0&(i!=j)){
+      par_est <- list(lambda0=mean(sim_mmhp_sep$lambda0[,pair]),
+                      lambda1=mean(sim_mmhp_sep$lambda1[,pair]),
+                      alpha=mean(sim_mmhp_sep$alpha[,pair]),
+                      beta=mean(sim_mmhp_sep$beta[,pair]),
+                      q1=mean(sim_mmhp_sep$q1[,pair]),
+                      q2=mean(sim_mmhp_sep$q2[,pair]))
+      current_window_vec <- unique_pairs_df$observe[[pair]]
+      all_rescaled_interevent <- numeric(0)
+      for(cur in c(1:length(current_window_vec))){ 
+        cur_win <- current_window_vec[cur]
+        current_event_time <- return_df[return_df$initiator==i&
+                                          return_df$recipient==j&
+                                          return_df$observe.id==cur_win,"event.times"][[1]]
+        current_obs_time <- return_df[return_df$initiator==i&
+                                        return_df$recipient==j&
+                                        return_df$observe.id==cur_win,"observe.time"]
+        time_segment <- seq(0,current_obs_time,length.out=no_segments)
+        latent_mean <- apply(interpolation_array_list[[pair]][[cur_win]],1,mean)
+        latent_event <- as.numeric(apply(2-state_array_list[[pair]][[cur_win]],1,mean) > 0.5) 
+        
+        ## Pearson
+        est.intensity <- mmhpIntensityNumeric(params=par_est,
+                                              t=current_event_time,
+                                              time.vec=time_segment,
+                                              latent.vec=latent_mean)
+        est.intensity.events <- mmhpIntensityAtEvents(params=par_est, t=current_event_time,
+                                                      latent_z=latent_event)
+        all_prresidual <- sum(1/sqrt(est.intensity.events))-
+          sum(sqrt(est.intensity))*(time_segment[2]-time_segment[1])
+        all_Lambda <- sum(est.intensity)*(time_segment[2]-time_segment[1])
+        
+        ## rescaled interevent time
+        Lambda_vec <- rep(0,length(current_event_time)+1)
+        temp_time_vec <- c(0,current_event_time,current_obs_time)
+        for(m in 1:(length(current_event_time)+1)){
+          interevent_idx <- (time_segment>=temp_time_vec[m]) & (time_segment<temp_time_vec[m+1])
+          Lambda_vec[m] <- sum(est.intensity[interevent_idx])*(time_segment[2]-time_segment[1])
+        }
+        real_N_vec <- c(real_N_vec, length(current_event_time))
+        raw_real_mmhp_vec <- c(raw_real_mmhp_vec,all_Lambda)
+        pr_real_mmhp_vec <- c(pr_real_mmhp_vec,all_prresidual)
+        all_rescaled_interevent <- c(all_rescaled_interevent,Lambda_vec)
+      }  
+      Lambda_mmhp_matrix[i,j][[1]] <- all_rescaled_interevent
+    }
+  }
+}
 
 #### Save Output ####
 ## tbc
