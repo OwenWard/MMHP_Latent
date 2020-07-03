@@ -93,7 +93,7 @@ num_winds <- nrow(unique_observe_win)
 
 
 
-#### M1 Diagnostics cohort Hawkes ####
+#### Diagnostics M1 Cohort Hawkes ####
 raw_real_c_hawkes_vec  <- numeric(0)
 pr_real_c_hawkes_vec <- numeric(0)
 Lambda_c_hawkes_matrix <- matrix(rep(list(),mice_number*mice_number),
@@ -399,4 +399,13 @@ for(i in 1:mice_number){
 }
 
 #### Save Output ####
-## tbc
+### save all these outputs in a nice format
+save(raw_real_c_hawkes_vec, pr_real_c_hawkes_vec,Lambda_c_hawkes_matrix,
+     raw_real_dc_hawkes_vec, pr_real_dc_hawkes_vec, Lambda_dc_hawkes_matrix,
+     raw_real_cmmhp_vec, pr_real_cmmhp_vec, Lambda_cmmhp_matrix,
+     raw_real_mmhp_vec, pr_real_mmhp_vec,Lambda_mmhp_matrix,real_N_vec,
+     file = paste(data_path, cohort_names[current_cohort],
+                  "/real_diag_four_models",
+                  cohort_names[current_cohort],".RData",sep='') )
+
+
