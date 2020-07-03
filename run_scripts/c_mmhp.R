@@ -266,7 +266,7 @@ m3_residual_matrix <- matrix(0,ncol=mice_number,nrow=mice_number)
 
 m3_residual_array <- array(0, dim =  c(mice_number,mice_number,num_winds))
 
-no_segments <- 500 # changed from 5000
+#no_segments <- 500 # changed from 5000
 window_pr <- c()
 for(i in 1:mice_number){
   print(i)
