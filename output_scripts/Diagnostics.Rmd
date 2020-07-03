@@ -103,7 +103,7 @@ c_mmhp_path <- "C:/Users/owenw/Google Drive/Tian/Current_Projects/MMHP_Latent/ou
 other_path  <- "C:/Users/owenw/Google Drive/Tian/Current_Projects/MMHP_Latent/output_null_windows/"
 
 cohorts <- 1:10
-cohorts <- cohorts[c(-1,-3,-5,-6,-7)] # these did not run on the cluster in time
+#cohorts <- cohorts[c(-1,-3,-5,-6,-7)] # these did not run on the cluster in time
 
 for(current_cohort in cohorts) {
   m1_pr <- readRDS(paste(other_path,cohort_names[current_cohort],
