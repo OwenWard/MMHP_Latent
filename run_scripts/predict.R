@@ -23,7 +23,7 @@ library(compete)
 #library(wCorr)
 #library(tidyverse)
 library(dplyr)
-#library(R.utils)
+library(R.utils)
 #library(fields)
 
 
