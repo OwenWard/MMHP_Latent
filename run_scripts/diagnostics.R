@@ -405,7 +405,7 @@ save(raw_real_c_hawkes_vec, pr_real_c_hawkes_vec,Lambda_c_hawkes_matrix,
      raw_real_cmmhp_vec, pr_real_cmmhp_vec, Lambda_cmmhp_matrix,
      raw_real_mmhp_vec, pr_real_mmhp_vec,Lambda_mmhp_matrix,real_N_vec,
      file = paste(data_path, cohort_names[current_cohort],
-                  "/real_diag_four_models",
+                  "/real_diag_four_models_",
                   cohort_names[current_cohort],".RData",sep='') )
 
 
