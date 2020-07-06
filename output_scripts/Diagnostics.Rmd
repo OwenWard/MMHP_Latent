@@ -735,6 +735,9 @@ mtext(side=2, text="Intensity", line=1.2, cex=anno.cex)
 ```
 
 The corresponding QQ plots also.
+These need to be updated to account for the full diagnostic output which now
+exists.
+
 
 ```{r, eval=FALSE}
 anno.cex <- 1
