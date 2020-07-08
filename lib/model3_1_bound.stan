@@ -29,7 +29,7 @@ parameters{
 }
 transformed parameters{
   vector<lower=0>[N_til] lambda1;
-  vector<lower=0.01>[N_til] lambda0;
+  vector<lower=0>[N_til] lambda0;
   //vector<lower=0,upper=1>[N_til] delta_1; // P(initial state = 1)
   vector[N_til] q1; // P(initial state = 1)
   vector[N_til] q2; // P(initial state = 1)
@@ -76,8 +76,8 @@ model{
   
   //priors
   //lambda0 ~ gamma(0.1,1); // prior has mean 0.1, var 0.1
-  gamma ~ double_exponential(0,0.1); // sigma smaller, sparser
-  zeta ~ double_exponential(0,0.1);
+  gamma ~ lognormal(0,1); // sigma smaller, sparser
+  zeta ~ lognormal(0,1);
   w_lambda ~ lognormal(0,2);
   eta_1 ~ lognormal(0,1);
   eta_2 ~ lognormal(0,1);
