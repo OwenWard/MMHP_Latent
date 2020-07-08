@@ -150,6 +150,77 @@ for(current_cohort in cohorts) {
 ```
 
 
+# Latent Ranks vs Expert Ranks
+
+```{r}
+for(current_cohort in 1:10) {
+  #cat("Cohort, ", current_cohort,"\n",sep="")
+  load(paste(data_path,cohort_names[current_cohort],
+             "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
+             ".RData",sep=''))
+  
+  mean_latent_rank <- apply(sim_cohort_mmhp$f,2,mean)
+  
+  ranks <- tibble(expert = expert_rank_10[[current_cohort]],
+                  latent = mean_latent_rank)
+  
+  p <- ggplot(ranks,aes(latent,expert)) + geom_point() + 
+    scale_y_continuous(breaks = c(12:1), trans = "reverse") + 
+    ggtitle(paste("Cohort ", current_cohort,sep=""))
+  print(p)
+}
+
+
+```
+
+# Ranks vs Degree
+
+```{r}
+
+for(current_cohort in 1:10) {
+  cat("Cohort, ", current_cohort,"\n",sep="")
+  load(paste(data_path,cohort_names[current_cohort],
+             "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
+             ".RData",sep=''))
+  
+  mean_latent_rank <- apply(sim_cohort_mmhp$f,2,mean)
+  
+  ranks <- tibble(expert = expert_rank_10[[current_cohort]],
+                  latent = mean_latent_rank)
+  out_degree <- apply(sim_cohort_mmhp$gamma,2,mean)
+  in_degree <- apply(sim_cohort_mmhp$zeta,2,mean)
+  
+  degs <- tibble(expert = expert_rank_10[[current_cohort]],
+                  latent = mean_latent_rank,
+                 out_deg = out_degree,
+                 in_deg = in_degree)
+  
+  p <- ggplot(degs,aes(latent,out_deg)) + geom_point() + 
+    #scale_y_continuous(breaks = c(12:1), trans = "reverse") + 
+    ggtitle(paste("Out Degree vs Latent Cohort ", current_cohort,sep="")) + 
+    ylab("Out Degree") + xlab("Latent Rank")
+  print(p)
+  
+  q <- ggplot(degs,aes(latent,in_deg)) + geom_point() +
+    ggtitle(paste("In Degree vs Latent Cohort ",current_cohort,sep="")) +
+    ylab("In Degree") + xlab("Latent Rank")
+  print(q)
+  
+  r <- ggplot(degs,aes(expert,out_deg)) + geom_point() +
+    ggtitle(paste("Out Degree vs Expert Cohort ", current_cohort,sep="")) + 
+    ylab("Out Degree") + xlab("Expert Rank")
+  print(r)
+  
+  s <- ggplot(degs,aes(expert,in_deg)) + geom_point() +
+    ggtitle(paste("In Degree vs Expert Cohort ", current_cohort,sep="")) + 
+    ylab("In Degree") + xlab("Expert Rank")
+  print(s)  
+  
+}
+
+
+```
+
 
 
 
