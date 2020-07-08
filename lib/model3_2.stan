@@ -28,8 +28,8 @@ parameters{
   //vector<lower=0,upper=1>[N_til] delta_1; // P(initial state = 1)
 }
 transformed parameters{
-  real<lower=0> lambda1;
-  real<lower=0> lambda0;
+  vector<lower=0>[N_til] lambda1;
+  vector<lower=0>[N_til] lambda0;
   //vector<lower=0,upper=1>[N_til] delta_1; // P(initial state = 1)
   vector[N_til] q1; // P(initial state = 1)
   vector[N_til] q2; // P(initial state = 1)
@@ -38,9 +38,9 @@ transformed parameters{
   
 
   for(i in 1:N_til){
-    lambda0 = gamma[I_fit[i]]+zeta[J_fit[i]];  
+    lambda0[i] = gamma[I_fit[i]]+zeta[J_fit[i]];  
     //lambda1 = lambda0*(1+w_lambda);
-    lambda1 = lambda0*(1 + exp(-eta_3*(f[I_fit[i]]-f[J_fit[i]])));
+    lambda1[i] = lambda0[i]*(1 + exp(-eta_3*(f[I_fit[i]]-f[J_fit[i]])));
     alpha[i] = exp(-eta_2*fabs(f[I_fit[i]]-f[J_fit[i]]))*f[I_fit[i]]*f[J_fit[i]]*eta_1;///(1+exp(-eta_3*(f[I_fit[i]]-f[J_fit[i]])));//eta_1*f[I_fit[i]]*f[J_fit[i]];
     //f_max = (f[I_fit[i]]+f[J_fit[i]]+fabs(f[I_fit[i]]-f[J_fit[i]]))/2;
     //f_min = (f[I_fit[i]]+f[J_fit[i]]-fabs(f[I_fit[i]]-f[J_fit[i]]))/2;
@@ -87,8 +87,8 @@ model{
   f[alpha_id] ~ normal(1,0.05);
   
   for(i in 1:N_til){ //for each pair
-    temp_lambda0 = lambda0;
-    temp_lambda1 = lambda1;
+    temp_lambda0 = lambda0[i];
+    temp_lambda1 = lambda1[i];
     temp_alpha = alpha[i];
     temp_beta = beta;
     temp_q1 = q1[i];
