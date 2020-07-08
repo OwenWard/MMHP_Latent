@@ -92,7 +92,7 @@ stan_input_lst <- prepareDataStan(current_cohort)
 stan_input_lst$alpha_id <- expert_rank_10[[current_cohort]][1]
 stan_input_lst$delta_1 <- rep(0.5,stan_input_lst$N_til)
 
-fit_cohort_mmhp <- stan("lib/model3_1.stan",  ## this will need to be updated
+fit_cohort_mmhp <- stan("lib/model3_1_bound.stan",  ## this will need to be updated
                         data = stan_input_lst,
                         warmup = 1000, iter = 2000, chains = 4, thin=4,
                         control=list(adapt_delta=0.999,max_treedepth=15))
