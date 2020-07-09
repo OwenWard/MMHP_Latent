@@ -1,7 +1,7 @@
 ---
-title: "Diagnostics Week of June 28th"
+title: "Diagnostics"
 author: "Owen Ward"
-date: "6/30/2020"
+date: '`r Sys.Date()`'
 output: 
   html_document:
     toc: true
@@ -161,8 +161,8 @@ for(current_cohort in 1:10) {
   
   mean_latent_rank <- apply(sim_cohort_mmhp$f,2,mean)
   
-  ranks <- tibble(expert = expert_rank_10[[current_cohort]],
-                  latent = mean_latent_rank)
+  ranks <- tibble(expert = 1:12,#expert_rank_10[[current_cohort]],
+                  latent = mean_latent_rank[expert_rank_10[[current_cohort]]])
   
   p <- ggplot(ranks,aes(latent,expert)) + geom_point() + 
     scale_y_continuous(breaks = c(12:1), trans = "reverse") + 
@@ -178,22 +178,20 @@ for(current_cohort in 1:10) {
 ```{r}
 
 for(current_cohort in 1:10) {
-  cat("Cohort, ", current_cohort,"\n",sep="")
+  cat("Cohort ", current_cohort,"\n",sep="")
   load(paste(data_path,cohort_names[current_cohort],
              "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
              ".RData",sep=''))
   
   mean_latent_rank <- apply(sim_cohort_mmhp$f,2,mean)
   
-  ranks <- tibble(expert = expert_rank_10[[current_cohort]],
-                  latent = mean_latent_rank)
   out_degree <- apply(sim_cohort_mmhp$gamma,2,mean)
   in_degree <- apply(sim_cohort_mmhp$zeta,2,mean)
   
   degs <- tibble(expert = expert_rank_10[[current_cohort]],
-                  latent = mean_latent_rank,
-                 out_deg = out_degree,
-                 in_deg = in_degree)
+                  latent = mean_latent_rank,#[expert],
+                 out_deg = out_degree,#[expert],
+                 in_deg = in_degree)#[expert])
   
   p <- ggplot(degs,aes(latent,out_deg)) + geom_point() + 
     #scale_y_continuous(breaks = c(12:1), trans = "reverse") + 
