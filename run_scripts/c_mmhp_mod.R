@@ -11,7 +11,7 @@ jobid <- as.numeric(jobid)
 cohort_id <- jobid
 #cohort_id <- 1
 ####
-save_data_path <- "output_lnor/"  #"output_june30/"
+save_data_path <- "output_exp/"  #"output_june30/"
 
 ### specify the number of segments here
 no_segments <- 500
@@ -351,7 +351,7 @@ saveRDS(m3_residual_array,
 # stan_train_input_lst$alpha_id <- expert_rank_10[[current_cohort]][1]
 # stan_train_input_lst$delta_1 <- rep(0.5,stan_train_input_lst$N_til)
 # 
-# fit_cohort_mmhp <- stan("lib/model3_1.stan",  ## this will need to be updated also
+# fit_cohort_mmhp <- stan("lib/model3_1_bound.stan",  ## this will need to be updated also
 #                         data = stan_train_input_lst,
 #                         warmup = 1000, iter = 2000, chains = 4,
 #                         control=list(adapt_delta=0.999,max_treedepth = 15))

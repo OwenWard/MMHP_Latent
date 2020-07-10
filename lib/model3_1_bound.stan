@@ -76,8 +76,8 @@ model{
   
   //priors
   //lambda0 ~ gamma(0.1,1); // prior has mean 0.1, var 0.1
-  gamma ~ lognormal(0,1); // sigma smaller, sparser
-  zeta ~ lognormal(0,1);
+  gamma ~ exponential(5);//(0,1); // sigma smaller, sparser
+  zeta ~ exponential(5);//lognormal(0,1);
   w_lambda ~ lognormal(0,2);
   eta_1 ~ lognormal(0,1);
   eta_2 ~ lognormal(0,1);
