@@ -4,3 +4,7 @@
 .Ruserdata
 .out
 .html
+html/
+figure-html/
+.png
+output_scripts/*.html
