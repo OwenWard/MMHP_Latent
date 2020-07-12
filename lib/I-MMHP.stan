@@ -8,7 +8,7 @@ data{
 }
 parameters{
   vector<lower=0>[N_til] lambda0; //baseline rate for each pair
-  vector<lower=1>[N_til] w_lambda;
+  vector<lower=0>[N_til] w_lambda;
   vector<lower=0, upper=1>[N_til] w_q1; //CTMC transition rate
   vector<lower=0, upper=1>[N_til] w_q2; //
   vector<lower=0>[N_til] alpha;
@@ -21,7 +21,7 @@ transformed parameters{
   vector<lower=0>[N_til] q2;
   row_vector[2] log_delta[N_til];
   
-  lambda1 = (lambda0).*w_lambda; 
+  lambda1 = (lambda0).*(1+w_lambda); 
   q2 = (lambda0).*w_q2;
   q1 = (lambda0).*w_q1;
 
@@ -57,9 +57,9 @@ model{
   real temp_delta_1;
 
   //priors
-  w_lambda ~ normal(0,2);
+  w_lambda ~ lognormal(0,2);
   alpha ~ lognormal(0,1);
-  beta ~ normal(0,10);
+  beta ~ gamma(1,1);
   //delta_1 ~ beta(2,2);
   w_q1 ~ beta(2,2);
   w_q2 ~ beta(2,2);
