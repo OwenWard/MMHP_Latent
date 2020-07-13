@@ -43,8 +43,8 @@ model{
   eta_3 ~ lognormal(0,1);
   beta ~ normal(0,10);
   //tilde_beta ~ normal(0,20);
-  gamma ~ double_exponential(0,scale); // sigma smaller, sparser
-  zeta ~ double_exponential(0,scale);
+  gamma ~ inv_gamma(3,0.5);//double_exponential(0,scale); // sigma smaller, sparser
+  zeta ~ inv_gamma(3,0.5);//double_exponential(0,scale);
 
   for(i in 1:N_til){
     lambda_current = gamma[I_fit[i]]+zeta[J_fit[i]];
