@@ -13,7 +13,7 @@ cohort_id <- jobid
 #cohort_id <- 1
 #####
 
-save_data_path <- "output/"
+save_data_path <- "output_immhp/"
 
 no_segments <- 500
 
