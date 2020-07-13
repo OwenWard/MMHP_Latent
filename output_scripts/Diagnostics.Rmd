@@ -20,7 +20,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 data_path <- "C:/Users/owenw/Google Drive/Tian/Current_Projects/MMHP_Latent/output_prior/"
 
-data_path <- "../output/"
+data_path <- "../output_jul6/"
 
 func_dir <- "../lib/"
 
@@ -221,6 +221,10 @@ for(current_cohort in 1:10) {
 
 
 
+
+
+
+# Correlation Issues in Fits
 
 
 # Examine Intensity and QQ Plot
