@@ -13,7 +13,7 @@ cohort_id <- jobid
 #cohort_id <- 1
 #####
 
-save_data_path <- "output_immhp/"
+save_data_path <- "output/"
 
 no_segments <- 500
 
@@ -89,7 +89,7 @@ stan_input_lst <- prepareDataStanIMMHP(current_cohort)
 
 fit_mmhp_sep <- stan("lib/I-MMHP.stan",
                      data=stan_input_lst,
-                     warmup = 1000, iter = 2000, thin = 4, chains = 4) 
+                     warmup = 2000, iter = 3000, thin = 4, chains = 4) 
 sim_mmhp_sep <- rstan::extract(fit_mmhp_sep)
 dir.create(paste(save_data_path, cohort_names[current_cohort],sep=''), recursive = TRUE, showWarnings = FALSE)
 save(sim_mmhp_sep, fit_mmhp_sep,
