@@ -41,7 +41,7 @@ model{
   eta_1 ~ lognormal(0,1);
   eta_2 ~ lognormal(0,1);
   eta_3 ~ lognormal(0,1);
-  beta ~ normal(0,10);
+  beta ~ lognormal(0,2);//(0,10);
   //tilde_beta ~ normal(0,20);
   gamma ~ inv_gamma(3,0.5);//double_exponential(0,scale); // sigma smaller, sparser
   zeta ~ inv_gamma(3,0.5);//double_exponential(0,scale);
