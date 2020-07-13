@@ -10,7 +10,7 @@ data{
 }
 parameters{
   real<lower=0> lambda0; //baseline rate for each pair
-  real<lower=1> r_lambda1;
+  real<lower=0> r_lambda1;
   vector<lower=0,upper=1>[N] f;
   real<lower=0> eta_1;
   real<lower=0> eta_2;
@@ -24,7 +24,7 @@ transformed parameters{
   vector[N_til] q2; // P(initial state = 1)
   vector[N_til] alpha; // P(initial state = 1)
 
-  lambda1 = lambda0*r_lambda1;
+  lambda1 = lambda0*(1+r_lambda1);
   log_delta[1] = log(0.5);
   log_delta[2] = log(0.5);
 
@@ -57,12 +57,12 @@ model{
   row_vector[2] temp_log_delta;
   
   //priors
-  lambda0 ~ normal(0.08,1);
-  r_lambda1 ~ normal(2,1);
-  beta ~ normal(1.5,1);
-  eta_1 ~ normal(2.5,1);
-  eta_2 ~ normal(0.6,1);
-  eta_3 ~ normal(5,1);
+  lambda0 ~ lognormal(0,2);
+  r_lambda1 ~ lognormal(0,2);
+  beta ~ lognormal(0,2);
+  eta_1 ~ lognormal(0,1);
+  eta_2 ~ lognormal(0,1);
+  eta_3 ~ lognormal(0,1);//normal(5,1);
   
   
   for(i in 1:N_til){ //for each pair
