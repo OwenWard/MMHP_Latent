@@ -7,6 +7,7 @@ source("/rigel/stats/users/ogw2103/code/MMHP/MMHP_Latent/run_scripts/cluster_set
 data_path <- "output/sims/"
 
 library(rstan)
+options(mc.cores = parallel::detectCores())
 #Sys.setenv(LOCAL_CPPFLAGS = '-march=corei7 -mtune=corei7')
 
 
