@@ -1,28 +1,28 @@
 ---
 title: "Plots for Latent Hawkes Paper"
 author: "Owen G. Ward"
+date: '`r Sys.Date()`'
 output:
   html_document:
-    df_print: paged
     toc: true
+    toc_depth: 2
     toc_float: true
+    number_sections: FALSE
+    code_folding: hide
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_knit$set(root.dir = "C:/Users/owenw/Google Drive/Tian/Current_Projects/MMHP_Latent/", echo = FALSE, include = FALSE,
-                     message=FALSE)
-# setting these to false to only show updates
-knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(echo = TRUE, fig.path = "paper_figure/",
+                      dev = 'png', fig.height = 4.5, fig.width = 7,
+                      warning = FALSE)
 ```
 
-```{r, load_packages, include=FALSE}
+```{r load_packages, include=FALSE}
 
 # don't write to this path
-orig_data_path <- "C:/Users/owenw/Google Drive/Tian/Research+JingWu/thesis_data/part2/real_data/"
+data_path <- "../output/"
 
-new_data_path <- "C:/Users/owenw/Google Drive/Tian/Current_Projects/MMHP_Latent/debug_orig_code/"
-
-func_dir <- "C:/Users/owenw/Dropbox/with Owen/code/part2/lib/"
+func_dir <- "../lib/"
 
 
 library(rstan)
@@ -55,17 +55,8 @@ source("https://gist.githubusercontent.com/jalapic/6ca3ece44bdcdc522bb735f183aa0
 
 
 
-
-```{r more_setup}
-#data_path <- "C:/Users/owenw/Google Drive/Tian/Current_Projects/MMHP_Latent/debug_copy/"
-jing_data_path <- "C:/Users/owenw/Google Drive/Tian/Research+JingWu/thesis_data/part2/real_data/"
-plot_path = "C:/Users/owenw/Google Drive/Tian/Current_Projects/MMHP_Latent/plots/"
-
-```
-
-
-```{r,echo=FALSE,include=FALSE}
-full_data <- readRDS("C:/Users/owenw/Dropbox/with Owen/code/part2/data/mice.RData")
+```{r load rankings,echo=FALSE,include=FALSE,results='hide',cache=TRUE}
+full_data <- readRDS("../data/mice.RData")
 # A=c9, B=c10, C=c12, D=c15, E=c16, F=c17, G=c18, H=c37, I=c38. J=c45
 cohort_names <- paste("cohort",c(9,10,12,15,16,17,18,37,38,45),sep='')
 cohort_short_names <- paste("C",c(9,10,12,15,16,17,18,37,38,45),sep='')
@@ -97,13 +88,8 @@ model3_fn <- list(alpha.fun = function(x,y,eta1,eta2){return(eta1*x*y*exp(-eta2*
 
 
 The aim of this notebook is a way to quickly and efficiently create all the plots
-required for this paper. We will currently build them using the refit version of Jing's fit,
-which ignored windows with no events (to confirm we can recreate that exactly).
+required for this paper. They will be built with the current fits and models.
 
-
-```{r}
-data_path <- "C:/Users/owenw/Google Drive/Tian/Current_Projects/MMHP_Latent/debug_copy/"
-```
 
 
 # Figure 2: Contour Plot and C-HP Diagnostics
@@ -112,10 +98,10 @@ This is not effected by the final model.
 
 ## Figure 2a: Contour Plot
 
-```{r}
+```{r fig-2a-contour-plot}
 current_cohort <- 1
-png(paste(plot_path,"contour.png",sep=""),width=480,height=480)
-load(paste(jing_data_path,cohort_names[current_cohort],
+#png(paste(plot_path,"contour.png",sep=""),width=480,height=480)
+load(paste(data_path,cohort_names[current_cohort],
            "/cohort_hp_stan_result_",cohort_names[current_cohort],
            ".RData",sep=''))
 eta1_mean <- mean(sim_cohort_hp$eta_1)
@@ -133,12 +119,6 @@ my.image.plot(seq(0,1,0.01), seq(0,1,0.01), z_plot,
               xlab=expression(f[j]),ylab=expression(f[i]),
               my.main="(a)", cex.main=2.3, 
               cex.lab=2.5, xLabels=c(1,0), yLabels=c(0,1))
-dev.off()
-
-my.image.plot(seq(0,1,0.01), seq(0,1,0.01), z_plot,
-              xlab=expression(f[j]),ylab=expression(f[i]),
-              my.main="(a)", cex.main=2.3, 
-              cex.lab=2.5, xLabels=c(1,0), yLabels=c(0,1))
 
 ```
 
@@ -148,8 +128,8 @@ my.image.plot(seq(0,1,0.01), seq(0,1,0.01), z_plot,
 This is using the correct form of the compensator for a Hawkes process.
 
 
-```{r,echo=FALSE}
-load(paste(jing_data_path,cohort_names[current_cohort],
+```{r fig-2b-diag-plot,echo=FALSE,warning=FALSE}
+load(paste(data_path,cohort_names[current_cohort],
            "/cohort_hp_stan_result_",cohort_names[current_cohort],
            ".RData",sep=''))
 eta1_mean <- mean(sim_cohort_hp$eta_1)
@@ -200,8 +180,8 @@ for(k in 1:mice_number){
   }
 }
 
-png(paste(plot_path,"/diagonsis_model1_",cohort_names[current_cohort],".png",sep=''),
-    width=480,height=480)
+# png(paste(plot_path,"/diagonsis_model1_",cohort_names[current_cohort],".png",sep=''),
+#     width=480,height=480)
 # -------------- KS plot (stat)
 col.vec <- cRamp(as.vector(ks.stat.matrix))
 ## need to do some sort of transformation between these here
@@ -261,7 +241,7 @@ mtext(text=expert_rank_10[[current_cohort]], side=2, line=0.5, outer=TRUE, cex=1
       at=1/12*c(12:1)-1/20, las=2)
 mtext(text="(b)", side=3, line=1.4, outer=TRUE, cex=2.2,
       at=0.45, font=2)
-dev.off()
+#dev.off()
 ```
 
 # Figure 3: Comparison of C-HP and C-DCHP
@@ -269,8 +249,8 @@ dev.off()
 ## Figure 3a: Baseline rates
 
 
-```{r}
-load(paste(jing_data_path,cohort_names[current_cohort],
+```{r fig-3a-baseline-rate}
+load(paste(data_path,cohort_names[current_cohort],
            "/cohort_dchp_stan_result_",cohort_names[current_cohort],
            ".RData",sep=''))
 gamma_mean <- apply(sim_cohort_dchp$gamma,2,mean)
@@ -279,32 +259,32 @@ zeta_mean <- apply(sim_cohort_dchp$zeta,2,mean)
 # social matrix plot
 latent_social_matrix <- gamma_mean%*%t(rep(1,mice_number))+rep(1,mice_number)%*%t(zeta_mean)
 
-png(paste(plot_path,"/lambda0_",cohort_names[current_cohort],".png",sep=''),
-    width=400, height=300)
+# png(paste(plot_path,"/lambda0_",cohort_names[current_cohort],".png",sep=''),
+#     width=400, height=300)
 matrixPlotParameter(latent_social_matrix[rev(expert_rank_10[[current_cohort]]),expert_rank_10[[current_cohort]]],
                     xLabels=expert_rank_10[[current_cohort]],
                     yLabels=rev(expert_rank_10[[current_cohort]]),title="(a)")
-mtext(text=c(1,2,11,6,7,9), side=1, line=-0.35, outer=TRUE, cex=1.3,
-      at=1/17.8*seq(2,12,2)+0.09)
-dev.off()
+# mtext(text=c(1,2,11,6,7,9), side=1, line=-0.35, outer=TRUE, cex=1.3,
+#       at=1/17.8*seq(2,12,2)+0.09)
+#dev.off()
 ```
 ## Figure 3b: Ranking Comparison
 
-```{r}
+```{r fig-3b-rank-comparison}
 current_cohort <- 1
 colors_plot <- viridis(2)
-load(paste(jing_data_path,cohort_names[current_cohort],
+load(paste(data_path,cohort_names[current_cohort],
            "/cohort_hp_stan_result_",cohort_names[current_cohort],
            ".RData",sep=''))
-load(paste(jing_data_path,cohort_names[current_cohort],
+load(paste(data_path,cohort_names[current_cohort],
            "/cohort_dchp_stan_result_",cohort_names[current_cohort],
            ".RData",sep=''))
-png(paste(plot_path,"/rank_",cohort_names[current_cohort],".png",sep=''),
-    width=400, height=300)
+# png(paste(plot_path,"/rank_",cohort_names[current_cohort],".png",sep=''),
+#     width=400, height=300)
 par(oma = c(0,0,2,0), mar = c(3,4,1,1),mgp=c(0,0.5,0))
 plot(order(expert_rank_10[[current_cohort]]),
      apply(sim_cohort_hp$f,2,mean),pch=16,cex=1.2,
-     #col= "steelblue", 
+     #col= "steelblue",
      col = colors_plot[1],
      ylab="",xlab="",
      xlim=c(1,12.5),ylim=c(0,1), xaxt="n", yaxt="n")
@@ -325,7 +305,7 @@ segments(order(expert_rank_10[[current_cohort]])+0.2,
          apply(sim_cohort_dchp$f,2,mean)+apply(sim_cohort_dchp$f,2,sd),
          col= add.alpha(colors_plot[2],0.8),lwd=2)
          #col= add.alpha("goldenrod2",0.8),lwd=2)
-    
+
 axis(BELOW<-1, at=1:12, labels=expert_rank_10[[current_cohort]], cex.axis=1.3, tck=-0.015)
 mtext(text=11, side=1, line=0.5, cex=1.3, at=6)
 
@@ -334,13 +314,15 @@ axis(LEFT <-2, at=seq(0,1,0.2), labels=seq(0,1,0.2), las= HORIZONTAL<-1,
 mtext(side=1, text="I&SI rank", line=1.8, cex=1.5)
 mtext(side=2, text="Latent rank", line=2.4, cex=1.6)
 mtext(side=3, text="(b)", line=0.8, cex=1.6, font=2)
-legend('bottomleft', legend = c("C-HP", "C-DCHP"), 
+legend('bottomleft', legend = c("C-HP", "C-DCHP"),
        pch = c(16, 16), lty = c(1, 1), lwd=c(2,2),
        #col=c("steelblue","goldenrod"),
        col=c(colors_plot[1],colors_plot[2]),
        cex=1.5)
-dev.off()
+#dev.off()
 ```
+
+
 # Figure 4:
 To be added.
 
@@ -353,20 +335,20 @@ To be added.
 ## Figure 6a: Rank vs I&SI
 
 
-```{r}
+```{r fig-6a-rank-vs-isi}
 ### Rank Comparison for Single Cohort ####
 current_cohort <- 1
 
-load(paste(jing_data_path,cohort_names[current_cohort],
+load(paste(data_path,cohort_names[current_cohort],
            "/agg_rank_stan_result_",cohort_names[current_cohort],
            ".RData",sep=''))
-load(paste(jing_data_path,cohort_names[current_cohort],
+load(paste(data_path,cohort_names[current_cohort],
            "/cohort_hp_stan_result_",cohort_names[current_cohort],
            ".RData",sep=''))
-load(paste(jing_data_path,cohort_names[current_cohort],
+load(paste(data_path,cohort_names[current_cohort],
            "/cohort_dchp_stan_result_",cohort_names[current_cohort],
            ".RData",sep=''))
-load(paste(jing_data_path,cohort_names[current_cohort],
+load(paste(data_path,cohort_names[current_cohort],
            "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
            ".RData",sep=''))
 
@@ -389,32 +371,62 @@ plot_latent_df$force[(1:(1000*mice_number))+3000*mice_number] <- as.vector(sim_c
 plot_latent_df$Mice <- factor(plot_latent_df$Mice,
                               levels = expert_rank_10[[current_cohort]])
 plot_latent_df$Method <- factor(plot_latent_df$Method,
-                                labels = c("AggRanking","C-HP","C-DCHP","C-MMHP")) 
+                                labels = c("AggRanking","C-HP","C-DCHP","C-MMHP"))
 
-png(paste(plot_path,"real_rank_one_cohort.png",sep=""),width=600,height=300)
+# png(paste(plot_path,"real_rank_one_cohort.png",sep=""),width=600,height=300)
 
-p1 <- ggplot(plot_latent_df, aes(x = Mice, y = force, fill = Method)) +
+p1 <- ggplot(plot_latent_df, 
+             aes(x = Mice, y = force, fill = Method)) +
   geom_boxplot(alpha=0.7) +
   scale_fill_manual(values = viridis::viridis(4))+
-  #scale_fill_manual(values = c("gray", "steelblue", "goldenrod2" , "firebrick2")) + 
+  #scale_fill_manual(values = c("gray", "steelblue", "goldenrod2" , "firebrick2")) +
   ggtitle("(a)") +
   theme_bw() +
   theme(plot.title = element_text(size = 22, hjust = 0.5, face="bold"),
         text = element_text(size = 20),
-        axis.text.x=element_text(size = 11),
+        axis.text.x=element_text(size = 10),
         legend.position="none") +
   facet_grid(cols=vars(Method)) +
-  xlab("Mice (ranked by I&SI method)") + 
+  xlab("Mice (ranked by I&SI method)") +
   ylab("Latent rank")
 p1
-dev.off()
-p1
-beepr::beep()
+#dev.off()
+
 ```
 ## Figure 6b: Spearman rank correlation
 
 Not completed. This would need the rankings to be
 rerun for all cohorts.
+
+
+
+
+```{r fig-6b-overall-rank-correlation}
+load("../output/weighted_rank_data.RData")
+#png(paste(plot_path,"real_rank_all_cohort.png",sep=""),width=600,height=300)
+no_method <- 4
+plot_cor_df <- data.frame(Method=rep(c(1:no_method),each=10),
+                          cor=as.vector(spearman_df))
+plot_cor_df$Method <- factor(plot_cor_df$Method,
+                             labels = c("Agg-rank","C-HP","C-DCHP","C-MMHP"))
+p2 <- ggplot(plot_cor_df, aes(x="", y = cor, fill = Method)) +
+        geom_boxplot(alpha=0.7, width=0.5) +
+        scale_fill_manual(values = viridis::viridis(4)) + 
+        ggtitle("(b)") +
+        ylim(0,1) +
+        theme_bw() +
+        theme(plot.title = element_text(size = 22, hjust = 0.5, face="bold"),
+              text = element_text(size = 20),
+              axis.text.y =element_text(size = 11),
+              legend.position="none",
+              axis.title.x=element_blank()) +
+        facet_grid(cols=vars(Method)) +
+        ylab("Spearman rank correlation")
+p2
+
+
+```
+
 
 
 # Figure 7: Pearson residual matrices
@@ -424,290 +436,452 @@ Currently using all from Jing's saved output.
 
 In the process of updating this to compute the PR for C-mmhp and I-mmhp on the cluster and simply load those matrices.
 
-```{r}
+```{r fig-7-prMatrix-Cohort1}
 current_cohort <- 1
 
-m1_residual_matrix_lst <- list()
-m2_residual_matrix_lst <- list()
-m3_residual_matrix_lst <- list()
-mmhp_residual_matrix_lst <- list()
+m1_pr <- readRDS(paste(data_path,cohort_names[current_cohort],
+                   "/chp_pr_matrix_",cohort_names[current_cohort],
+                   ".RDS",sep=''))
 
+m2_pr <- readRDS(paste(data_path,cohort_names[current_cohort],
+                     "/dchp_pr_matrix_",cohort_names[current_cohort],
+                     ".RDS",sep=''))
 
-  print(current_cohort)
-  clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
-  return_df <- cleanObservationPeriod(current_cohort, clean_data)
-  unique_pairs_df <- return_df %>% group_by(initiator, recipient) %>%
-    summarize(count=n(),
-              observe=list(observe.id),
-              observe.length=list(observe.time),
-              no.events=list(no.events))
-  unique_observe_win <- unique(return_df[,c("observe.id","observe.time")])
-  
-  # M1
-  load(paste(jing_data_path,cohort_names[current_cohort],
-             "/cohort_hp_stan_result_",cohort_names[current_cohort],
-             ".RData",sep=''))
-  model1_par_est <- list(lambda0=mean(sim_cohort_hp$lambda0),
-                         eta_1=mean(sim_cohort_hp$eta_1),
-                         eta_2=mean(sim_cohort_hp$eta_2),
-                         eta_3=mean(sim_cohort_hp$eta_3),
-                         beta=mean(sim_cohort_hp$beta),
-                         f=apply(sim_cohort_hp$f,2,mean))
-  model1_par_matrix <- list(lambda0_matrix=matrix(model1_par_est$lambda0,
-                                                  nrow=mice_number,ncol=mice_number),
-                            alpha_matrix=formMatrix(function(x,y) model1_fn$alpha.fun(x,y,
-                                                                                      model1_par_est$eta_1,
-                                                                                      model1_par_est$eta_2,
-                                                                                      model1_par_est$eta_3),
-                                                    model1_par_est$f),
-                            beta_matrix=matrix(model1_par_est$beta,
-                                               nrow=mice_number,ncol=mice_number))
-  m1_residual_matrix <- matrix(0,ncol=mice_number,nrow=mice_number)
-  
-  for(i in 1:mice_number){
-    for(j in 1:mice_number){
-      pair <- which(unique_pairs_df$initiator==i&unique_pairs_df$recipient==j)
-      if(length(pair)>0&(i!=j)){
-        par_est <- lapply(model1_par_matrix, function(x) x[i,j])
-        names(par_est) <- c("lambda0","alpha","beta")
-        current_window_vec <- unique_pairs_df$observe[[pair]]
-        all_residual <- 0
-        for(cur in c(1:length(current_window_vec))){ ## check length > 2
-          cur_win <- current_window_vec[cur]
-          current_event_time <- return_df[return_df$initiator==i&
-                                            return_df$recipient==j&
-                                            return_df$observe.id==cur_win,"event.times"][[1]]
-          current_obs_time <- return_df[return_df$initiator==i&
-                                          return_df$recipient==j&
-                                          return_df$observe.id==cur_win,"observe.time"]
-          all_residual <- all_residual + uniHawkesPearsonResidual(object=par_est,
-                                                                  events=current_event_time,
-                                                                  termination = current_obs_time)
-        }
-        m1_residual_matrix[i,j] <- all_residual
-      }
-    }
-  }
-  
-  # M2
-  load(paste(jing_data_path,cohort_names[current_cohort],
-             "/cohort_dchp_stan_result_",cohort_names[current_cohort],
-             ".RData",sep=''))
-  model2_par_est <- list(gamma=apply(sim_cohort_dchp$gamma,2,mean),
-                         zeta=apply(sim_cohort_dchp$zeta,2,mean),
-                         eta_1=mean(sim_cohort_dchp$eta_1),
-                         eta_2=mean(sim_cohort_dchp$eta_2),
-                         eta_3=mean(sim_cohort_dchp$eta_3),
-                         beta=mean(sim_cohort_dchp$beta),
-                         f=apply(sim_cohort_dchp$f,2,mean))
-  model2_par_matrix <- list(lambda0_matrix=model2_par_est$gamma%*%t(rep(1,mice_number))+
-                              rep(1,mice_number)%*%t(model2_par_est$zeta),
-                            alpha_matrix=formMatrix(function(x,y) model1_fn$alpha.fun(x,y,
-                                                                                      model2_par_est$eta_1,
-                                                                                      model2_par_est$eta_2,
-                                                                                      model2_par_est$eta_3),
-                                                    model2_par_est$f),
-                            beta_matrix=matrix(model2_par_est$beta,
-                                               nrow=mice_number,ncol=mice_number))
-  m2_residual_matrix <- matrix(0,ncol=mice_number,nrow=mice_number)
-  
-  for(i in 1:mice_number){
-    for(j in 1:mice_number){
-      pair <- which(unique_pairs_df$initiator==i&unique_pairs_df$recipient==j)
-      if(length(pair)>0&(i!=j)){
-        par_est <- lapply(model2_par_matrix, function(x) x[i,j])
-        names(par_est) <- c("lambda0","alpha","beta")
-        current_window_vec <- unique_pairs_df$observe[[pair]]
-        all_residual <- 0
-        for(cur in c(1:length(current_window_vec))){ 
-          cur_win <- current_window_vec[cur]
-          current_event_time <- return_df[return_df$initiator==i&
-                                            return_df$recipient==j&
-                                            return_df$observe.id==cur_win,"event.times"][[1]]
-          current_obs_time <- return_df[return_df$initiator==i&
-                                          return_df$recipient==j&
-                                          return_df$observe.id==cur_win,"observe.time"]
-          all_residual <- all_residual + uniHawkesPearsonResidual(object=par_est,
-                                                                  events=current_event_time,
-                                                                  termination = current_obs_time)
-        }
-        m2_residual_matrix[i,j] <- all_residual
-      }
-    }
-  }
-  
-```  
+m3_pr <- readRDS(paste(data_path,cohort_names[current_cohort],
+                     "/cmmhp_pr_matrix_",cohort_names[current_cohort],
+                     ".RDS",sep=''))
 
-This is too large to load at the moment again. Can do this on the cluster.
-  
-```{r, eval=FALSE}  
-  # M3
-  load(paste(jing_data_path,cohort_names[current_cohort],
-             "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
-             ".RData",sep=''))
-  load(paste(jing_data_path,cohort_names[current_cohort],
-             "/cmmhp_est_zt_",cohort_names[current_cohort],".RData",sep=''))
-  model3_par_est <- list(lambda0=mean(sim_cohort_mmhp$lambda0),
-                         lambda1=mean(sim_cohort_mmhp$lambda1),
-                         eta_1=mean(sim_cohort_mmhp$eta_1),
-                         eta_2=mean(sim_cohort_mmhp$eta_2),
-                         eta_3=mean(sim_cohort_mmhp$eta_3),
-                         beta=mean(sim_cohort_mmhp$beta),
-                         f=apply(sim_cohort_mmhp$f,2,mean))
-  model3_par_matrix <- list(lambda0_matrix=matrix(model3_par_est$lambda0,
-                                                  nrow=mice_number,ncol=mice_number),
-                            lambda1_matrix=matrix(model3_par_est$lambda1,
-                                                  nrow=mice_number,ncol=mice_number),
-                            alpha_matrix=formMatrix(function(x,y) model3_fn$alpha.fun(x,y,
-                                                                                      model3_par_est$eta_1,
-                                                                                      model3_par_est$eta_2),
-                                                    model3_par_est$f),
-                            beta_matrix=matrix(model3_par_est$beta,
-                                               nrow=mice_number,ncol=mice_number),
-                            q1_matrix=formMatrix(function(x,y) model3_fn$q1.fun(x,y,model3_par_est$eta_3),
-                                                 model3_par_est$f),
-                            q2_matrix=formMatrix(function(x,y) model3_fn$q0.fun(x,y,model3_par_est$eta_3),
-                                                 model3_par_est$f))
-  m3_residual_matrix <- matrix(0,ncol=mice_number,nrow=mice_number)
-  no_segments <- 5000 # changed from 5000
-  window_pr <- c()
-  for(i in 1:mice_number){
-    print(i)
-    for(j in 1:mice_number){
-      pair <- which(unique_pairs_df$initiator==i&unique_pairs_df$recipient==j)
-      if(length(pair)>0&(i!=j)){
-        par_est <- lapply(model3_par_matrix, function(x) x[i,j])
-        names(par_est) <- c("lambda0","lambda1","alpha","beta","q1","q2")
-        current_window_vec <- unique_pairs_df$observe[[pair]]
-        all_residual <- 0
-        for(cur in c(1:length(current_window_vec))){ ## check length > 2
-          cur_win <- current_window_vec[cur]
-          current_event_time <- return_df[return_df$initiator==i&
-                                            return_df$recipient==j&
-                                            return_df$observe.id==cur_win,"event.times"][[1]]
-          current_obs_time <- return_df[return_df$initiator==i&
-                                          return_df$recipient==j&
-                                          return_df$observe.id==cur_win,"observe.time"]
-          time_segment <- seq(0,current_obs_time,length.out=no_segments)
-          latent_mean <- apply(interpolation_array_list[[pair]][[cur_win]],1,mean)
-          latent_event <- as.numeric(apply(2-state_array_list[[pair]][[cur_win]],1,mean) > 0.5) 
-          est.intensity <- mmhpIntensityNumeric(params=par_est,
-                                                t=current_event_time,
-                                                time.vec=time_segment,
-                                                latent.vec=latent_mean)
-          est.intensity.events <- mmhpIntensityAtEvents(params=par_est, t=current_event_time,
-                                                        latent_z=latent_event)
-          all_residual <- all_residual + sum(1/sqrt(est.intensity.events))-
-            sum(sqrt(est.intensity))*(time_segment[2]-time_segment[1])
-          # print(sum(1/sqrt(est.intensity.events))-
-          #         sum(sqrt(est.intensity))*(time_segment[2]-time_segment[1]))
-          # print(summary(latent_mean))
-          # window_pr <- c(window_pr,sum(1/sqrt(est.intensity.events))-
-          #                  sum(sqrt(est.intensity))*(time_segment[2]-time_segment[1]))
-        }
-        m3_residual_matrix[i,j] <- all_residual
-      }
-    }
-  }
+indep_pr <- readRDS(paste(data_path,cohort_names[current_cohort],
+                     "/immhp_pr_matrix_",cohort_names[current_cohort],
+                     ".RDS",sep=''))
 
-```  
-These are in part 1 of the thesis folder on Google Drive.
-  
-```{r, eval=FALSE}
-ind_mmhp_data_path <- "C:/Users/owenw/Google Drive/Tian/Research+JingWu/thesis_data/part1/real_data/"
-  # Independent MMHP
-  load(paste(ind_mmhp_data_path, cohort_names[current_cohort], 
-             "/sep_mmhp_stan_result_", cohort_names[current_cohort],".RData",sep=''))
-  load(paste(ind_mmhp_data_path,cohort_names[current_cohort],
-             "/mmhp_est_zt_",cohort_names[current_cohort],".RData",sep=''))
-  
-  mmhp_residual_matrix <- matrix(0,ncol=mice_number,nrow=mice_number)
-  for(i in 1:mice_number){
-    print(i)
-    for(j in 1:mice_number){
-      pair <- which(unique_pairs_df$initiator==i&unique_pairs_df$recipient==j)
-      if(length(pair)>0&(i!=j)){
-        par_est <- list(lambda0=mean(sim_mmhp_sep$lambda0[,pair]),
-                        lambda1=mean(sim_mmhp_sep$lambda1[,pair]),
-                        alpha=mean(sim_mmhp_sep$alpha[,pair]),
-                        beta=mean(sim_mmhp_sep$beta[,pair]),
-                        q1=mean(sim_mmhp_sep$q1[,pair]),
-                        q2=mean(sim_mmhp_sep$q2[,pair]))
-        current_window_vec <- unique_pairs_df$observe[[pair]]
-        all_residual <- 0
-        for(cur in c(1:length(current_window_vec))){ ## check length > 2
-          cur_win <- current_window_vec[cur]
-          current_event_time <- return_df[return_df$initiator==i&
-                                            return_df$recipient==j&
-                                            return_df$observe.id==cur_win,"event.times"][[1]]
-          current_obs_time <- return_df[return_df$initiator==i&
-                                          return_df$recipient==j&
-                                          return_df$observe.id==cur_win,"observe.time"]
-          time_segment <- seq(0,current_obs_time,length.out=no_segments)
-          latent_mean <- apply(interpolation_array_list[[pair]][[cur_win]],1,mean)
-          latent_event <- as.numeric(apply(2-state_array_list[[pair]][[cur_win]],1,mean) > 0.5) 
-          est.intensity <- mmhpIntensityNumeric(params=par_est,
-                                                t=current_event_time,
-                                                time.vec=time_segment,
-                                                latent.vec=latent_mean)
-          est.intensity.events <- mmhpIntensityAtEvents(params=par_est, t=current_event_time,
-                                                        latent_z=latent_event)
-          all_residual <- all_residual + sum(1/sqrt(est.intensity.events))-
-            sum(sqrt(est.intensity))*(time_segment[2]-time_segment[1])
-        }
-        mmhp_residual_matrix[i,j] <- all_residual
-      }
-    }
-  }
-  m1_residual_matrix_lst[[current_cohort]] <- m1_residual_matrix
-  m2_residual_matrix_lst[[current_cohort]] <- m2_residual_matrix
-  m3_residual_matrix_lst[[current_cohort]] <- m3_residual_matrix
-  mmhp_residual_matrix_lst[[current_cohort]] <- mmhp_residual_matrix
-
-
-save(m1_residual_matrix_lst, m2_residual_matrix_lst, m3_residual_matrix_lst, mmhp_residual_matrix_lst,
-     file = "C:/Users/owenw/Google Drive/Tian/Current_Projects/MMHP_Latent/plots/pearson_residual_cohort9.RData")
-beepr::beep()
-```
-These would need to be rerun correctly and saved.
-For now using an *old* version.
-
-```{r}
-load("C:/Users/owenw/Google Drive/Tian/Current_Projects/MMHP_Latent/plots/pearson_residual_cohort9.RData")
-png(paste(plot_path,"real_residual_matrix_one_cohort.png",sep=""),width = 800,height = 400)
 matrix_lst_plot <- list(
-                        mmhp_residual_matrix_lst[[current_cohort]][rev(expert_rank_10[[current_cohort]]),
+                        indep_pr[rev(expert_rank_10[[current_cohort]]),
                                                                    expert_rank_10[[current_cohort]]],
-                        m1_residual_matrix_lst[[current_cohort]][rev(expert_rank_10[[current_cohort]]),
+                        m1_pr[rev(expert_rank_10[[current_cohort]]),
                                                                  expert_rank_10[[current_cohort]]],
-                        m2_residual_matrix_lst[[current_cohort]][rev(expert_rank_10[[current_cohort]]),
+                        m2_pr[rev(expert_rank_10[[current_cohort]]),
                                                                  expert_rank_10[[current_cohort]]],
-                        m3_residual_matrix_lst[[current_cohort]][rev(expert_rank_10[[current_cohort]]),
+                        m3_pr[rev(expert_rank_10[[current_cohort]]),
                                                                  expert_rank_10[[current_cohort]]]) 
+#cat("Cohort ",current_cohort,"\n",sep="")
 myMultiMatrixPlot(X=matrix_lst_plot,no_matrix=4,n_row=2,
                   xLabels=expert_rank_10[[current_cohort]],
                   yLabels=rev(expert_rank_10[[current_cohort]]),
-                  min=-63,max=63,axis_cex=2,title_cex = 1.8,
-                  colorPalette="RdBu",if.emp=FALSE,legend.mar=c(0.5,.5,0.5,0.95),
-                  title_lst=list("I-MMHP","C-HP","C-DCHP","C-MMHP"), 
+                  min=-60,max=60,axis_cex=2,title_cex = 1.8,
+                  colorPalette="RdBu",if.emp=FALSE,
+                  #legend.mar=c(0.5,.5,0.5,0.5),
+                  title_lst=list("I-MMHP","C-HP","C-DCHP","DC C-MMHP"), 
                   #title_lst = list("I-MMHP"),
-                  col_axis=c(-60,-30,0,30,60), out.title="", fake_matrix=FALSE,
-                  matrix.mar=c(2.5,2.5,2.5,2))
-dev.off()
+                  col_axis=c(-60,-30,0,30,60), fake_matrix=FALSE,
+                  matrix.mar=c(2.5,2.5,2.5,1)
+                  )
+
+
 ```
-The remaining plot code seems to mostly be in `PaperPlots.R`.
+<!-- The remaining plot code seems to mostly be in `PaperPlots.R`. -->
 
 # Figure 8
 
 ## Figure 8a: Frobenius norm of interaction predictions, single cohort
 
+```{r fig-8a-frob-norm-cohort1}
+load("../output/plot_N_predict.RData")
+current_cohort <- 1
+
+temp_plot_df <- predict_day_norm_df_lst[[current_cohort]]
+temp_plot_df$method <- factor(temp_plot_df$method,
+                              levels = c("mmhp","dsnl","m1","m2","m3"),
+                              labels = c("I-MMHP","DSNL","C-HP","C-DCHP","C-MMHP"))
+temp_plot_df$day <- factor(temp_plot_df$day)
+#png(paste(plot_path,"real_predict_N_one_cohort.png",sep=""),width=600,height=300)
+p3 <- ggplot(temp_plot_df, aes(x = method, y = norm, fill = method)) +
+  geom_boxplot(alpha=0.7) +
+  scale_fill_manual(values = viridis::viridis(5)) +
+  ggtitle("(a)") +
+  theme_bw() +
+  theme(plot.title = element_text(size = 22, hjust = 0.5, face="bold"),
+        text = element_text(size = 20),
+        axis.text.x=element_blank(),
+        axis.ticks.x = element_blank(),
+        legend.position="right") +
+  facet_grid(cols=vars(day)) +
+  xlab("Prediction horizon (day)") + 
+  ylab("Frobenius norm of error") +
+  ylim(0, 50)
+p3
+```
+
+
 ## Figure 8b: Same plot aggregated for all cohorts
+
+```{r fig-8b-frob-norm-all-cohorts}
+load("../output/plot_N_predict.RData")
+temp_plot_df <- all_cohort_norm_df %>% 
+  group_by(day, method) %>% 
+  summarize(avg=mean(norm), n= n(), sd=sd(norm))
+
+temp_plot_df$method <- factor(temp_plot_df$method,
+                              levels = c("mmhp","dsnl","m1","m2","m3"),
+                              labels = c("I-MMHP","DSNL","C-HP","C-DCHP","C-MMHP"))
+temp_plot_df$day <- factor(temp_plot_df$day)
+
+#png(paste(plot_path,"real_predict_N_all_cohort.png",sep=""),width=600,height=300)
+p4 <- ggplot(temp_plot_df, aes(x=day, y=avg, group=method, color=method)) + 
+  geom_line(size=1.2, alpha=0.8, position=position_dodge(0.2)) +
+  geom_errorbar(aes(ymin=avg-sd, ymax=avg+sd), width=0.8, size=0.8, alpha=0.8,
+                 position=position_dodge(0.2)) +
+  scale_color_manual(values = viridis::viridis(5)) + 
+  ggtitle("(b)") +
+  theme_bw() +
+  theme(plot.title = element_text(size = 22, hjust = 0.5, face="bold"),
+        text = element_text(size = 20),
+        axis.text.x=element_text(size = 18)) +
+  xlab("Prediction horizon (day)") + 
+  ylab("Frobenius norm of error") + 
+  coord_cartesian(ylim=c(2.5,57.5)) + 
+  guides(color=guide_legend(title="Model")) 
+p4
+```
+
 
 # Figure 9
 
 ## Figure 9a: Predicted Spearman rank for single cohort
 
+```{r fig-9a-spearman-rank-cohort1}
+load("../output/plot_rank_predict.RData")
+current_cohort <- 1
+temp_plot_df <- predict_day_rank_df_lst[[current_cohort]]
+temp_plot_df$method <- factor(temp_plot_df$method,
+                              levels = c("mmhp","dsnl","m1","m2","m3"),
+                              labels = c("I-MMHP","DSNL","C-HP","C-DCHP","C-MMHP"))
+temp_plot_df$day <- factor(temp_plot_df$day)
+# png(paste(plot_path,"real_predict_rank_one_cohort.png",sep=""),width=600,height=300)
+p5 <- ggplot(temp_plot_df, aes(x = method, y = spearman, fill = method)) +
+  geom_boxplot(alpha=0.7) +
+  scale_fill_manual(values = viridis::viridis(5)) +
+  #scale_fill_manual(values = c("gray","yellowgreen","steelblue","goldenrod2","firebrick2")) + 
+  ggtitle("(a)") +
+  theme_bw() +
+  theme(plot.title = element_text(size = 22, hjust = 0.5, face="bold"),
+        text = element_text(size = 20),
+        axis.text.x=element_blank(),
+        axis.ticks.x = element_blank(), 
+        legend.position="right") +
+  facet_grid(cols=vars(day)) +
+  xlab("Prediction horizon (day)") + 
+  ylab("Spearman rank correlation") +
+  ylim(0, 1)
+p5
+```
+
+
 ## Figure 9b: Predicted Spearman rank for all cohorts
 
+```{r fig-9b-spearman-rank-all-cohorts}
+load("../output/plot_rank_predict.RData")
+temp_plot_df <- all_cohort_rank_df %>% 
+  group_by(day, method) %>% 
+  summarize(avg=mean(spearman), n= n(), sd=sd(spearman))
+
+temp_plot_df$method <- factor(temp_plot_df$method,
+                              levels = c("mmhp","dsnl","m1","m2","m3"),
+                              labels = c("I-MMHP","DSNL","C-HP","C-DCHP","C-MMHP"))
+temp_plot_df$day <- factor(temp_plot_df$day)
+
+# png(paste(plot_path,"real_predict_rank_all_cohort.png",sep=""),width=600,height=300)
+p6 <- ggplot(temp_plot_df, aes(x=day, y=avg, group=method, color=method)) + 
+  geom_line(size=1.2, alpha=0.8, position=position_dodge(0.2)) +
+  geom_errorbar(aes(ymin=avg-sd, ymax=avg+sd), width=0.8, size=0.8, alpha=0.8,
+                position=position_dodge(0.2)) +
+  scale_fill_manual(values = viridis::viridis(5)) +
+  #scale_color_manual(values = c("gray","yellowgreen","steelblue","goldenrod2","firebrick2")) +
+  ggtitle("(b)") +
+  theme_bw() +
+  theme(plot.title = element_text(size = 22, hjust = 0.5, face="bold"),
+        text = element_text(size = 20),
+        axis.text.x=element_text(size = 18)) +
+  xlab("Prediction horizon (day)") + 
+  ylab("Spearman rank correlation") + 
+  coord_cartesian(ylim=c(0,1)) + 
+  guides(color=guide_legend(title="Model")) 
+p6
+```
+
+
 # Figure 10
+
+## Figure 10a
+
+
+```{r construct data for plot, results='hide',message=FALSE}
+library(PlayerRatings)
+load(paste(data_path,cohort_names[current_cohort],
+           "/predict_simulation_",cohort_names[current_cohort],
+           ".RData",sep=''))
+clean_data <- cleanData(full_data[[cohort_names[current_cohort]]],
+                        cut_off = 1)
+
+df <- full_data[[cohort_names[current_cohort]]]
+df <- df[df$Actor!="Start"&df$Actor!="End",]
+df1 <- expandrows(df)
+df1 <- df1[order(df1$Timestamp),] #ensure in date order
+df1$event <- 1:nrow(df1)
+glick.df <- df1[, c("event","Actor","Recipient","score"), with = FALSE] #need event, actor, recipient, score
+gl <- my_glicko(glick.df, history=TRUE, cval=2)
+
+# ------------------- period
+training_end <- nrow(df[df$day<=18,])
+testing_end <- 1076
+newx <- c(training_end:testing_end)
+
+# ----------------- set pars for plot
+my_col <- c("black", "grey", "orange", "red")
+col_vec <- colorRampPalette(my_col)(mice_number)
+ltypes_vec <- rep(1,mice_number) #c(1,2,3,1,2,3,1,2,3,1,2,3)
+history_width <- 3
+sim_width <- 0.3
+shade_vec <- makeTransparent(col_vec,0.2)
+less_shade_vec <- makeTransparent(col_vec,0.7)
+
+# ---------------- simulation mean and sd
+sim_gl_array <- array(NA, dim=c(12,testing_end-training_end+1,100))
+for(s in 1:100){
+  print(s)
+  temp_gl <- glickoScoreSimulationWithWindowsReturnAll(predict.sim = m3_predict_sim[5:8,s],
+                                                       history.df = glick.df[1:training_end,])
+  history_matrix <- temp_gl$history[,,1]
+  
+  if(testing_end>ncol(temp_gl$history[,,1])){
+    history_matrix <- cbind(history_matrix,
+                            t(matrix(rep(history_matrix[,ncol(history_matrix)],testing_end-ncol(temp_gl$history[,,1])),
+                                     nrow=testing_end-ncol(temp_gl$history[,,1]),byrow=TRUE)))
+  }else{
+    history_matrix <- temp_gl[,1:testing_end]
+  }
+  sim_gl_array[,,s] <- history_matrix[,training_end:testing_end]
+}
+```
+
+```{r fig-10a-glicko-rating}
+par(mar=c(3,5,3,1))
+plot(1, type="n", xlab="", ylab="Glicko ranking", xlim=c(0,dim(gl$history)[2]),
+     ylim=c(min(gl$history[,,1]),max(gl$history[,,1])),
+     cex.axis=2, cex.lab=2)
+for(m in c(1:mice_number)){
+  #history
+  lines(gl$history[m,1:training_end,1],
+        cex=0.6, col=col_vec[m],lwd=history_width,lty=ltypes_vec[m])
+  lines(c(rep(NA,training_end), gl$history[m,(training_end+1):testing_end,1]),
+        cex=0.6, col=shade_vec[m],lwd=history_width,lty=ltypes_vec[m])
+  
+  #simulation
+  cur_end <- testing_end
+  mean_vec <- apply(sim_gl_array[m,,],1,function(x) mean(na.omit(x)))
+  sd_vec <- apply(sim_gl_array[m,,],1,function(x) sd(na.omit(x)))
+  polygon(c(newx, rev(newx)), c(mean_vec-sd_vec,rev(mean_vec+sd_vec)),col = shade_vec[m], border = NA)
+  #polygon(c(newx), c(mean_vec-sd_vec),col = shade_vec[m], border = NA)
+  lines(c(rep(NA,training_end),mean_vec),
+        cex=0.6, col=col_vec[m],lwd=1,lty=2)
+}
+
+# annotate the days
+for(d in c(19:21)){
+  abline(v = nrow(df[df$day<=(d-1),]),lty=2,lwd=0.4)
+  text(x=nrow(df[df$day<=(d-1),]),y=2600,d)
+}
+mtext(text="(a)", side=3, line=-2.3, outer=TRUE, cex=2.8, at=0.5, font=2)
+```
+
+```{r remove some objects, include=FALSE}
+rm(m3_predict_sim)
+rm(m2_predict_sim)
+rm(m1_predict_sim)
+rm(mmhp_predict_sim)
+rm(fit_agg_rank)
+rm(fit_cohort_hp)
+rm(fit_cohort_dchp)
+rm(fit_cohort_mmhp)
+
+# also removing stan fits as they can cause issues in the next chunk
+
+```
+
+
+## Fig 10b
+
+```{r process for state separation cohort1,eval=FALSE}
+# only run this once and save the results
+# this doesn't need to be rerun ever, even if the stan fits change
+load(paste(data_path,cohort_names[current_cohort],
+             "/cmmhp_est_zt_",cohort_names[current_cohort],
+             ".RData",sep=''))
+clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
+return_df <- cleanObservationPeriod(current_cohort, clean_data)
+unique_pairs_df <- return_df %>% group_by(initiator, recipient) %>%
+  dplyr::summarize(count=n(),
+                   observe=list(observe.id),
+                   observe.length=list(observe.time),
+                   no.events=list(no.events))
+unique_observe_win <- unique(return_df[,c("day","observe.id","observe.time")])
+
+## 5.  find how many 1s for each pair
+print(".......state separation plot........")
+total_event_array <- array(0,dim=c(mice_number,mice_number,max(return_df$observe.id)))
+active_event_array <- array(0,dim=c(mice_number,mice_number,max(return_df$observe.id)))
+
+for(i in 1:mice_number){
+  for(j in c(1:mice_number)[-i]){
+    pair <- which(unique_pairs_df$initiator==i&unique_pairs_df$recipient==j)
+    if(length(pair)>0){
+      current_window_vec <- unique_pairs_df$observe[[pair]]
+      for(cur_win in current_window_vec){
+        row_indicator <- return_df$initiator==i&return_df$recipient==j&return_df$observe.id==cur_win
+        total_event_array[i,j,cur_win] <- length(return_df[row_indicator,"event.times"][[1]])
+        active_event_array[i,j,cur_win] <- sum(apply(2-state_array_list[[pair]][[cur_win]],1,mean) > 0.5)
+      }
+    }
+  }
+}
+
+utility_state_day <- array(0,dim=c(21,mice_number,mice_number))
+social_state_day <- array(0,dim=c(21,mice_number,mice_number))
+for(cur_day in c(1:21)){
+  cur_wins <- which(unique_observe_win$day==cur_day)
+  utility_state_day[cur_day,,] <- apply(active_event_array[,,cur_wins],c(1,2),sum)
+  social_state_day[cur_day,,] <- apply(total_event_array[,,cur_wins],c(1,2),sum)-utility_state_day[cur_day,,]
+}
+
+
+## utility dsnl
+fit_dsnl_active <- stan("../lib/dsnl_poisson.stan",
+                         data=list(day=21,
+                                   Gt=utility_state_day,
+                                   c=1,
+                                   sigma=0.5),
+                         iter=1000, chains=4, control=list(adapt_delta=0.99))
+print(fit_dsnl_active,pars=c("x"))
+sim_dsnl_active <- rstan::extract(fit_dsnl_active)
+
+## social dsnl
+fit_dsnl_inactive <- stan("../lib/dsnl_poisson.stan",
+                           data=list(day=21,
+                                     Gt=social_state_day,
+                                     c=1,
+                                     sigma=1),
+                           iter=1000, chains=4, control=list(adapt_delta=0.99))
+print(fit_dsnl_inactive,pars=c("x"))
+sim_dsnl_inactive <- rstan::extract(fit_dsnl_inactive)
+
+save(sim_dsnl_active, fit_dsnl_active, utility_state_day,
+     sim_dsnl_inactive, fit_dsnl_inactive, social_state_day,
+     file = paste(data_path,cohort_names[current_cohort],
+                  "/dsnl_state_separation_stan_result_",cohort_names[current_cohort],
+                  ".RData",sep=''))
+rm(interpolation_array_list)
+rm(state_array_list)
+rm(termination_state_list)
+rm(initial_state_list)
+```
+
+
+```{r process data for plot 10b}
+current_cohort <- 1
+load(paste(data_path,cohort_names[current_cohort],
+           "/dsnl_poisson_stan_result_",cohort_names[current_cohort],
+           ".RData",sep=''))
+load(paste(data_path,cohort_names[current_cohort],
+           "/dsnl_state_separation_stan_result_",cohort_names[current_cohort],
+           ".RData",sep=''))
+sub.types <- c("All", "Active", "Inactive"); # three methods
+task.types <- paste0("day", 1:21);  
+
+data.tbl <- data.frame(array(NA, c(2000*3*21, 3)))
+colnames(data.tbl) <- c("sub.type", "task.type", "data.value")  
+source('../lib/myGlicko.R')
+#------------ gl score
+df <- full_data[[cohort_names[current_cohort]]]
+df <- df[df$Actor!="Start"&df$Actor!="End",]
+df1 <- expandrows(df)
+df1 <- df1[order(df1$Timestamp),] #ensure in date order
+df1$event <- 1:nrow(df1)
+glick.df <- df1[, c("event","Actor","Recipient","score"), with = FALSE] #need event, actor, recipient, score
+real.gl <- my_glicko(glick.df, history=TRUE, cval=2)
+clean_data_all <- cleanData(full_data[[cohort_names[current_cohort]]],
+                              cut_off = 1)
+day_end_idx <- unlist(lapply(c(1:21),function(x) max(which(clean_data_all$day==x))))
+
+## All aggregate
+for (t in 1:length(task.types)){
+  temp_vec <- rep(NA,2000)
+  cur_real_rank <- real.gl$history[,day_end_idx[t],1]
+  for(s in c(1:2000)){
+    temp_result <- cor.test(sim_dsnl$x[s,t,], cur_real_rank, method = "spearman")
+    temp_vec[s] <- temp_result$estimate
+  }
+  data.tbl$sub.type[(1:2000)+(t-1)*2000] <- sub.types[1]  
+  data.tbl$task.type[(1:2000)+(t-1)*2000] <- task.types[t];  
+  data.tbl$data.value[(1:2000)+(t-1)*2000] <- temp_vec
+}  
+
+## Utility aggregate
+for (t in 1:length(task.types)){
+  temp_vec <- rep(NA,2000)
+  cur_real_rank <- real.gl$history[,day_end_idx[t],1]
+  for(s in c(1:2000)){
+    temp_result <- cor.test(-sim_dsnl_active$x[s,t,], cur_real_rank, method = "spearman")
+    temp_vec[s] <- temp_result$estimate
+  }
+  data.tbl$sub.type[(1:2000)+(t-1)*2000+42000] <- sub.types[2]  
+  data.tbl$task.type[(1:2000)+(t-1)*2000+42000] <- task.types[t];  
+  data.tbl$data.value[(1:2000)+(t-1)*2000+42000] <- temp_vec
+}  
+
+## Social aggregate
+for (t in 1:length(task.types)){
+  temp_vec <- rep(NA,2000)
+  cur_real_rank <- real.gl$history[,day_end_idx[t],1]
+  for(s in c(1:2000)){
+    temp_result <- cor.test(sim_dsnl_inactive$x[s,t,], cur_real_rank, method = "spearman")
+    temp_vec[s] <- temp_result$estimate
+  }
+  data.tbl$sub.type[(1:2000)+(t-1)*2000+42000*2] <- sub.types[3]  
+  data.tbl$task.type[(1:2000)+(t-1)*2000+42000*2] <- task.types[t];  
+  data.tbl$data.value[(1:2000)+(t-1)*2000+42000*2] <- temp_vec
+}  
+
+data.tbl$sub.type <- factor(data.tbl$sub.type);  
+data.tbl$task.type <- factor(data.tbl$task.type);
+```
+
+
+
+
+```{r fig-10b-rank-correlation}
+par(mar=c(3,5,3,1))
+cx <- 2;  # cex for axis label text; default is 1. bigger numbers make the text bigger, smaller, smaller.  
+x.ttl <- ""; # blank x-axis label  
+y.ttl <- "rank correlation (expert rank)";  
+ttl <- "(b)";  
+#y.lim <- c(min(data.tbl$data.value), max(data.tbl$data.value)+.5); # y-axis limits. +2 at top to give room for legend  
+y.lim <- c(-1,1.2)    
+x.lim <- c(0.5, (length(task.types))) 
+cols <- c('paleturquoise4', 'lightgreen', 'cornsilk')
+shifts <- c(-0.25, 0, 0.25)
+ 
+plot(x=0, y=0, xlim=x.lim, ylim=y.lim, xaxt='n', col='white', xlab=x.ttl, ylab=y.ttl, main=ttl, cex.main=cx*1.3, cex.axis=cx, cex.lab=cx); 
+axis(side=1, at=1:length(task.types), labels=task.types, cex.axis=cx, cex.lab=cx)  # put on the x-axis labels  
+grid(nx=NA, ny=NULL, col='darkgrey');  
+lines(x=c(-1,100), y=c(0,0), col='darkgrey');  
+for (t.id in 1:length(task.types)) {  
+  for (i in 1:length(sub.types)) {  # t.id <- 1; i <- 1;   
+   inds <- which(data.tbl$sub.type == sub.types[i] & data.tbl$task.type == task.types[t.id])
+   boxplot(data.tbl$data.value[inds], at=t.id+shifts[i], col=cols[i], add=TRUE, 
+           xaxt='n', yaxt='n', bty='n', boxwex=0.35, outpch = 20, outcex = 0.5) 
+  }  
+}  
+legend(x='top', legend=sub.types, fill=cols, horiz=TRUE, cex=cx, bg='white', bty='n')  
+box()
+```
 

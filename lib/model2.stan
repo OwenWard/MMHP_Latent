@@ -21,6 +21,14 @@ parameters{
   real<lower=0> beta;
   //real<lower=0> tilde_beta;
 }
+
+transformed parameters{
+  vector<lower=0>[N_til] lambda0;
+  for(i in 1:N_til){
+    lambda0[i] = gamma[I_fit[i]]+zeta[J_fit[i]];  
+  }
+}
+
 model{
   real r[max_Nm+1]; // record variable for Hawkes process
   real alpha;
@@ -33,10 +41,10 @@ model{
   eta_1 ~ lognormal(0,1);
   eta_2 ~ lognormal(0,1);
   eta_3 ~ lognormal(0,1);
-  beta ~ normal(0,10);
+  beta ~ lognormal(0,2);//(0,10);
   //tilde_beta ~ normal(0,20);
-  gamma ~ double_exponential(0,scale); // sigma smaller, sparser
-  zeta ~ double_exponential(0,scale);
+  gamma ~ inv_gamma(3,0.5);//double_exponential(0,scale); // sigma smaller, sparser
+  zeta ~ inv_gamma(3,0.5);//double_exponential(0,scale);
 
   for(i in 1:N_til){
     lambda_current = gamma[I_fit[i]]+zeta[J_fit[i]];

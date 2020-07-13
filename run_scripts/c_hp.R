@@ -151,6 +151,8 @@ model1_par_matrix <- list(lambda0_matrix=matrix(model1_par_est$lambda0,
                                              nrow=mice_number,ncol=mice_number))
 m1_residual_matrix <- matrix(0,ncol=mice_number,nrow=mice_number)
 
+m1_residual_array <- array(0,dim = c(mice_number,mice_number,num_winds))
+
 for(i in 1:mice_number){
   for(j in 1:mice_number){
     pair <- which(unique_pairs_df$initiator==i&unique_pairs_df$recipient==j)
@@ -173,6 +175,9 @@ for(i in 1:mice_number){
           all_residual <- all_residual + uniHawkesPearsonResidual(object=par_est,
                                                                   events=current_event_time,
                                                                   termination = current_obs_time)
+          m1_residual_array[i,j,cur] <- uniHawkesPearsonResidual(object=par_est,
+                                                                 events=current_event_time,
+                                                                 termination = current_obs_time)
         }
         else {
           # compute the intensity over empty window
@@ -182,6 +187,9 @@ for(i in 1:mice_number){
           all_residual <- all_residual + uniHawkesPearsonResidual(object = par_est,
                                                                   events = NULL,
                                                                   termination = current_obs_time )
+          m1_residual_array[i,j,cur] <- uniHawkesPearsonResidual(object = par_est,
+                                                                 events = NULL,
+                                                                 termination = current_obs_time )
         }
         
         
@@ -197,4 +205,7 @@ saveRDS(m1_residual_matrix,
                      "/chp_pr_matrix_",cohort_names[current_cohort],
                      ".RDS",sep=''))
 
-
+saveRDS(m1_residual_array,
+        file = paste(save_data_path,cohort_names[current_cohort],
+                     "/chp_pr_array_",cohort_names[current_cohort],
+                     ".RDS",sep=''))

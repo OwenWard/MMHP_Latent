@@ -154,6 +154,9 @@ uniHawkesCompensator <- function(object, events){
   Lambda<-rep(0,N)
   r<-0
   Lambda[1]<-lambda0*(events[1])
+  if(N == 1) { # for windows with only one event
+    return(Lambda)
+  }
   for(i in 2:N){
     delta.t <- events[i]-events[i-1]
     temp.r <-exp(-beta*delta.t)*(r+1)
