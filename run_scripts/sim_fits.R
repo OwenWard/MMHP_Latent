@@ -4,7 +4,7 @@
 #### if running on cluster ####
 source("/rigel/stats/users/ogw2103/code/MMHP/MMHP_Latent/run_scripts/cluster_setup.R")
 
-data_path <- "output/sims/"
+data_path <- "output/sims_long/"
 
 library(rstan)
 options(mc.cores = parallel::detectCores())
@@ -124,17 +124,17 @@ for(i in c(1:n_sim)){
   print(paste(i,"model1"))
   ## Fit in model 1
   sim_model3_stan_fit1[i][[1]] <- sampling(model1, data=data_list, 
-                                           iter=2000, chains=4)
+                                           iter=1000, chains=4)
   print("model2")
   ## Fit in model 2
   sim_model3_stan_fit2[i][[1]] <- sampling(model2,
                                            data=data_list,
-                                           iter=2000, chains=4)
+                                           iter=1000, chains=4)
   print("model3")
   ## Fit in model 3
   sim_model3_stan_fit3[i][[1]] <- sampling(model3,
                                            data=data_list,
-                                           iter=2000, chains=4)
+                                           iter=1000, chains=4)
   
 }
 
