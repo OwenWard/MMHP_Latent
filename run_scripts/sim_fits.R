@@ -2,12 +2,12 @@
 
 
 #### if running on cluster ####
-#source("/rigel/stats/users/ogw2103/code/MMHP/MMHP_Latent/run_scripts/cluster_setup.R")
+source("/rigel/stats/users/ogw2103/code/MMHP/MMHP_Latent/run_scripts/cluster_setup.R")
 
-data_path <- "/output/sims/"
+data_path <- "output/sims/"
 
 library(rstan)
-Sys.setenv(LOCAL_CPPFLAGS = '-march=corei7 -mtune=corei7')
+#Sys.setenv(LOCAL_CPPFLAGS = '-march=corei7 -mtune=corei7')
 
 
 #### Load source code from ../lib/ ####
