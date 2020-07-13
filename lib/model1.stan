@@ -31,7 +31,7 @@ model{
   eta_1 ~ lognormal(0,1);
   eta_2 ~ lognormal(0,1);
   eta_3 ~ lognormal(0,1);
-  beta ~ normal(0,10);
+  beta ~ lognormal(0,2);
   //tilde_beta ~ normal(0,20);
 
   for(i in 1:N_til){
