@@ -123,25 +123,18 @@ for(i in c(1:n_sim)){
                     max_interevent = clean_sim_data$max_interevent)
   print(paste(i,"model1"))
   ## Fit in model 1
-  sim_model3_stan_fit1[i][[1]] <- sampling(model1, data=data_list,
-                                           iter=1000, chains=4, 
-                                           control=list(adapt_delta=0.9,
-                                                        max_treedepth = 20),
-                                           refresh = -1)
+  sim_model3_stan_fit1[i][[1]] <- sampling(model1, data=data_list, 
+                                           iter=2000, chains=4)
   print("model2")
   ## Fit in model 2
   sim_model3_stan_fit2[i][[1]] <- sampling(model2,
                                            data=data_list,
-                                           iter=1000, chains=4, 
-                                           control=list(adapt_delta=0.9),
-                                           refresh = -1)
+                                           iter=2000, chains=4)
   print("model3")
   ## Fit in model 3
   sim_model3_stan_fit3[i][[1]] <- sampling(model3,
                                            data=data_list,
-                                           iter=1000, chains=4, 
-                                           control=list(adapt_delta=0.9),
-                                           refresh = -1)
+                                           iter=2000, chains=4)
   
 }
 
