@@ -15,7 +15,7 @@ data_path <- "output/"
 library(rstan)
 options(mc.cores = parallel::detectCores())
 
-
+library(PlayerRatings)
 library(compete)
 #library(RColorBrewer)
 #library(Hmisc)
