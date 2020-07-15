@@ -14,6 +14,7 @@ parameters{
   real<lower=0> eta_1;
   real<lower=0> eta_2;
   real<lower=0> eta_3;
+  //real<lower=0> alpha;
   real<lower=0> beta;
 }
 model{
@@ -24,7 +25,7 @@ model{
   real termination;
   
   lambda0 ~ lognormal(0,0.5);
-  beta ~ normal(0,10);
+  beta ~ lognormal(0,2);
   
   for(i in 1:N_til){
     alpha = exp(-eta_2*fabs(f[I_fit[i]]-f[J_fit[i]]))*f[I_fit[i]]*f[J_fit[i]]*eta_1/(1+exp(-eta_3*(f[I_fit[i]]-f[J_fit[i]])));

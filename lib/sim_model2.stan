@@ -25,7 +25,7 @@ model{
   vector[max_Nm] event;
   real termination;
   
-  beta ~ normal(0,10);
+  beta ~ lognormal(0,2);
   
   for(i in 1:N_til){
     lambda_current = gamma[I_fit[i]]+zeta[J_fit[i]];
