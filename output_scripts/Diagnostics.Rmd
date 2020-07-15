@@ -18,9 +18,11 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
+path_change <- FALSE # if change the data path, set this to false, else TRUE
+
 data_path <- "C:/Users/owenw/Google Drive/Tian/Current_Projects/MMHP_Latent/output_prior/"
 
-data_path <- "../output_jul6/"
+data_path <- "../output/"
 
 func_dir <- "../lib/"
 
@@ -224,8 +226,9 @@ for(current_cohort in 1:10) {
 
 
 
-# Correlation Issues in Fits
+<!-- # Correlation Issues in Fits -->
 
+<!-- We seek to further -->
 
 # Examine Intensity and QQ Plot
 
@@ -695,7 +698,7 @@ the most interactions.
 
 ### Cohort 1
 
-```{r cohort-1,cache=TRUE}
+```{r cohort-1,cache=path_change}
 current_cohort <- 1
 clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
 return_df <- cleanObservationPeriod(current_cohort, clean_data)
@@ -984,7 +987,7 @@ qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
 ### Cohort 2
 
 
-```{r cohort-2,cache=TRUE}
+```{r cohort-2,cache=path_change}
 current_cohort <- 2
 clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
 return_df <- cleanObservationPeriod(current_cohort, clean_data)
@@ -1277,7 +1280,7 @@ qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
 ### Cohort 3
 
 
-```{r cohort-3,cache=TRUE}
+```{r cohort-3,cache=path_change}
 current_cohort <- 3
 clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
 return_df <- cleanObservationPeriod(current_cohort, clean_data)
@@ -1572,7 +1575,7 @@ qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
 ### Cohort 4
 
 
-```{r cohort-4,cache=TRUE}
+```{r cohort-4,cache=path_change}
 current_cohort <- 4
 clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
 return_df <- cleanObservationPeriod(current_cohort, clean_data)
@@ -1865,7 +1868,7 @@ qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
 ### Cohort 5
 
 
-```{r cohort-5,cache=TRUE}
+```{r cohort-5,cache=path_change}
 current_cohort <- 5
 clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
 return_df <- cleanObservationPeriod(current_cohort, clean_data)
@@ -2158,7 +2161,7 @@ qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
 ### Cohort 6
 
 
-```{r cohort-6,cache=TRUE}
+```{r cohort-6,cache=path_change}
 current_cohort <- 6
 clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
 return_df <- cleanObservationPeriod(current_cohort, clean_data)
@@ -2451,7 +2454,7 @@ qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
 ### Cohort 7
 
 
-```{r cohort-7,cache=TRUE}
+```{r cohort-7,cache=path_change}
 y.upper <- 80
 current_cohort <- 7
 clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
@@ -2745,7 +2748,7 @@ qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
 ### Cohort 8
 
 
-```{r cohort-8,cache=TRUE}
+```{r cohort-8,cache=path_change}
 current_cohort <- 8
 clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
 return_df <- cleanObservationPeriod(current_cohort, clean_data)
@@ -3038,7 +3041,7 @@ qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
 ### Cohort 9
 
 
-```{r cohort-9,cache=TRUE}
+```{r cohort-9,cache=path_change}
 y.upper <- 60
 current_cohort <- 9
 clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
@@ -3332,7 +3335,7 @@ qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
 ### Cohort 10
 
 
-```{r cohort-10,cache=TRUE}
+```{r cohort-10,cache=path_change}
 current_cohort <- 10
 clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
 return_df <- cleanObservationPeriod(current_cohort, clean_data)
