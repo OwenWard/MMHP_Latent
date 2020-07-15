@@ -1378,6 +1378,7 @@ rm(initial_state_list)
 
 
 ```{r process data for plot 10b}
+library(PlayerRatings)
 current_cohort <- 1
 load(paste(data_path,cohort_names[current_cohort],
            "/dsnl_poisson_stan_result_",cohort_names[current_cohort],
