@@ -1201,7 +1201,11 @@ p6
 ```{r construct data for plot, results='hide',message=FALSE,cache=TRUE}
 library(PlayerRatings)
 
+<<<<<<< HEAD
 current_cohort <- 3
+=======
+current_cohort <- 5
+>>>>>>> 971945f60ca951aa30d275aaae42cbb85323e84c
 
 load(paste(data_path,cohort_names[current_cohort],
            "/predict_simulation_",cohort_names[current_cohort],
