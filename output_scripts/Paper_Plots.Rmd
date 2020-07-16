@@ -1201,11 +1201,7 @@ p6
 ```{r construct data for plot, results='hide',message=FALSE,cache=TRUE}
 library(PlayerRatings)
 
-<<<<<<< HEAD
-current_cohort <- 3
-=======
-current_cohort <- 5
->>>>>>> 971945f60ca951aa30d275aaae42cbb85323e84c
+current_cohort <- 1
 
 load(paste(data_path,cohort_names[current_cohort],
            "/predict_simulation_",cohort_names[current_cohort],
@@ -1223,7 +1219,7 @@ gl <- my_glicko(glick.df, history=TRUE, cval=2)
 
 # ------------------- period
 training_end <- nrow(df[df$day<=18,])
-testing_end <- nrow(df)#1077 #929 for cohort 5
+testing_end <- nrow(df)-1#1077 #929 for cohort 5
 newx <- c(training_end:testing_end)
 
 # ----------------- set pars for plot
