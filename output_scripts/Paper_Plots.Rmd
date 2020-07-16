@@ -126,7 +126,7 @@ my.image.plot(seq(0,1,0.01), seq(0,1,0.01), z_plot,
 
 ## Fig 2b: C-HP Diagnostics
 
-This is using the correct form of the compensator for a Hawkes process.
+<!-- This is using the correct form of the compensator for a Hawkes process. -->
 
 
 ```{r fig-2b-diag-plot,echo=FALSE,warning=FALSE}
@@ -920,7 +920,7 @@ mtext(text=c(1:5), side=1, line=1, outer=TRUE, cex=2,
 
 ```{r fig-6a-rank-vs-isi}
 ### Rank Comparison for Single Cohort ####
-current_cohort <- 1
+current_cohort <- 5
 
 load(paste(data_path,cohort_names[current_cohort],
            "/agg_rank_stan_result_",cohort_names[current_cohort],
@@ -978,8 +978,8 @@ p1
 ```
 ## Figure 6b: Spearman rank correlation
 
-Not completed. This would need the rankings to be
-rerun for all cohorts.
+<!-- Not completed. This would need the rankings to be -->
+<!-- rerun for all cohorts. -->
 
 
 
@@ -1014,10 +1014,10 @@ p2
 
 # Figure 7: Pearson residual matrices
 
-Here is where I need to be a bit more careful about using the correct fits.
-Currently using all from Jing's saved output.
+<!-- Here is where I need to be a bit more careful about using the correct fits. -->
+<!-- Currently using all from Jing's saved output. -->
 
-In the process of updating this to compute the PR for C-mmhp and I-mmhp on the cluster and simply load those matrices.
+<!-- In the process of updating this to compute the PR for C-mmhp and I-mmhp on the cluster and simply load those matrices. -->
 
 ```{r fig-7-prMatrix-Cohort1}
 current_cohort <- 1
@@ -1201,7 +1201,7 @@ p6
 ```{r construct data for plot, results='hide',message=FALSE,cache=TRUE}
 library(PlayerRatings)
 
-current_cohort <- 1
+current_cohort <- 5
 
 load(paste(data_path,cohort_names[current_cohort],
            "/predict_simulation_",cohort_names[current_cohort],
@@ -1219,7 +1219,7 @@ gl <- my_glicko(glick.df, history=TRUE, cval=2)
 
 # ------------------- period
 training_end <- nrow(df[df$day<=18,])
-testing_end <- 1076
+testing_end <- 929#1076
 newx <- c(training_end:testing_end)
 
 # ----------------- set pars for plot
@@ -1232,8 +1232,8 @@ shade_vec <- makeTransparent(col_vec,0.2)
 less_shade_vec <- makeTransparent(col_vec,0.7)
 
 # ---------------- simulation mean and sd
-sim_gl_array <- array(NA, dim=c(12,testing_end-training_end+1,200))
-for(s in 1:200){
+sim_gl_array <- array(NA, dim=c(12,testing_end-training_end+1,100))
+for(s in 1:100){
   print(s)
   temp_gl <- glickoScoreSimulationWithWindowsReturnAll(
     predict.sim = m3_predict_sim[5:8,s],
