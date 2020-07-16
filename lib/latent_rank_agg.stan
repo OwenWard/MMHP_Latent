@@ -7,6 +7,10 @@ parameters{
   real<lower=0> beta;
 }
 model{
+  
+  c ~ lognormal(0,1);
+  beta ~ lognormal(0,2);
+  
   for(i in 1:12){
     for(j in 1:12){
       if(i != j){

@@ -86,7 +86,7 @@ clean_data <- cleanData(raw_data = full_data[[cohort_names[current_cohort]]],
 # changed the cut off here from 0 to 1
 fit_agg_rank <- stan("lib/latent_rank_agg.stan",
                      data=list(n_matrix=clean_data$N_count),
-                     iter=1000, chains=4, control=list(adapt_delta=0.99))
+                     iter=6000, chains=4, control=list(adapt_delta=0.99))
 sim_agg_rank <- rstan::extract(fit_agg_rank)
 dir.create(paste(save_data_path, cohort_names[current_cohort],sep=''), 
            recursive = TRUE, showWarnings = FALSE)
