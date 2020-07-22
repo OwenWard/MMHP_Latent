@@ -100,7 +100,7 @@ This is not effected by the final model.
 ## Figure 2a: Contour Plot
 
 ```{r fig-2a-contour-plot}
-current_cohort <- 1
+current_cohort <- 5
 #png(paste(plot_path,"contour.png",sep=""),width=480,height=480)
 load(paste(data_path,cohort_names[current_cohort],
            "/cohort_hp_stan_result_",cohort_names[current_cohort],
@@ -130,6 +130,8 @@ my.image.plot(seq(0,1,0.01), seq(0,1,0.01), z_plot,
 
 
 ```{r fig-2b-diag-plot,echo=FALSE,warning=FALSE}
+current_cohort <- 5
+
 load(paste(data_path,cohort_names[current_cohort],
            "/cohort_hp_stan_result_",cohort_names[current_cohort],
            ".RData",sep=''))
@@ -251,6 +253,8 @@ mtext(text="(b)", side=3, line=1.4, outer=TRUE, cex=2.2,
 
 
 ```{r fig-3a-baseline-rate}
+current_cohort <- 5
+
 load(paste(data_path,cohort_names[current_cohort],
            "/cohort_dchp_stan_result_",cohort_names[current_cohort],
            ".RData",sep=''))
@@ -262,7 +266,8 @@ latent_social_matrix <- gamma_mean%*%t(rep(1,mice_number))+rep(1,mice_number)%*%
 
 # png(paste(plot_path,"/lambda0_",cohort_names[current_cohort],".png",sep=''),
 #     width=400, height=300)
-matrixPlotParameter(latent_social_matrix[rev(expert_rank_10[[current_cohort]]),expert_rank_10[[current_cohort]]],
+matrixPlotParameter(latent_social_matrix[rev(expert_rank_10[[current_cohort]]),
+                                         expert_rank_10[[current_cohort]]],
                     xLabels=expert_rank_10[[current_cohort]],
                     yLabels=rev(expert_rank_10[[current_cohort]]),title="(a)")
 # mtext(text=c(1,2,11,6,7,9), side=1, line=-0.35, outer=TRUE, cex=1.3,
@@ -272,7 +277,8 @@ matrixPlotParameter(latent_social_matrix[rev(expert_rank_10[[current_cohort]]),e
 ## Figure 3b: Ranking Comparison
 
 ```{r fig-3b-rank-comparison}
-current_cohort <- 1
+current_cohort <- 5
+
 colors_plot <- viridis(2)
 load(paste(data_path,cohort_names[current_cohort],
            "/cohort_hp_stan_result_",cohort_names[current_cohort],
@@ -308,7 +314,7 @@ segments(order(expert_rank_10[[current_cohort]])+0.2,
          #col= add.alpha("goldenrod2",0.8),lwd=2)
 
 axis(BELOW<-1, at=1:12, labels=expert_rank_10[[current_cohort]], cex.axis=1.3, tck=-0.015)
-mtext(text=11, side=1, line=0.5, cex=1.3, at=6)
+#mtext(text=11, side=1, line=0.5, cex=1.3, at=6)
 
 axis(LEFT <-2, at=seq(0,1,0.2), labels=seq(0,1,0.2), las= HORIZONTAL<-1,
      cex.axis=1.3, tck=-0.015)
@@ -511,10 +517,10 @@ legend.y <- c(62,37,18)#c(22,22,22)
 legend.cex <- 1.5 #3
 line.alpha <- c(0.9,0.6)
 line.wdth <- c(2,2.5)
-# negative.col <- add.alpha('lightskyblue',0.6)
-# positive.col <- add.alpha('tomato',0.6)
-negative.col <- viridis::viridis(5,alpha = 0.6)[1]
-positive.col <- viridis::viridis(5,alpha = 0.6)[4]
+negative.col <- add.alpha('lightskyblue',0.6)
+positive.col <- add.alpha('tomato',0.6)
+#negative.col <- viridis::viridis(5,alpha = 0.6)[1]
+#positive.col <- viridis::viridis(5,alpha = 0.6)[4]
 par(mar = c(0,0.3,0,0.1), oma = c(3,3.5,4,0),
     tcl=0.2,mgp=c(0.5,0,0), xpd=TRUE)
 
@@ -873,7 +879,7 @@ for(s in c(1:n_sim)){
 ```
 
 
-```{r fig5-residual-ks}
+```{r fig5-residual-ks, fig.height=7}
 cols_plot <- viridis::viridis(4)
 #load("../output/sim_model3_fit123_residuals.RData")
 par(mfrow=c(5,5),mar=rep(0.2,4),oma=c(2.4,2.4,0.5,0.5))
@@ -906,7 +912,7 @@ for(i in c(5:1)){
 }
 mtext(text=c(1:5), side=2, line=0.5, outer=TRUE, cex=2, las=2,
       at=c(0:4)/5+0.1)
-mtext(text=c(1:5), side=1, line=1, outer=TRUE, cex=2,
+mtext(text=c(5:1), side=1, line=1, outer=TRUE, cex=2,
       at=c(0:4)/5+0.1)
 
 ```
@@ -1019,8 +1025,8 @@ p2
 
 <!-- In the process of updating this to compute the PR for C-mmhp and I-mmhp on the cluster and simply load those matrices. -->
 
-```{r fig-7-prMatrix-Cohort1}
-current_cohort <- 1
+```{r fig-7-prMatrix-Cohort5, fig.height=7}
+current_cohort <- 5
 
 m1_pr <- readRDS(paste(data_path,cohort_names[current_cohort],
                    "/chp_pr_matrix_",cohort_names[current_cohort],
@@ -1068,7 +1074,7 @@ myMultiMatrixPlot(X=matrix_lst_plot,no_matrix=4,n_row=2,
 
 ## Figure 8a: Frobenius norm of interaction predictions, single cohort
 
-```{r fig-8a-frob-norm-cohort1}
+```{r fig-8a-frob-norm-cohort5}
 load("../output/plot_N_predict.RData")
 current_cohort <- 5# cohort 1 looks worse than rest
 
@@ -1198,10 +1204,10 @@ p6
 ## Figure 10a
 
 
-```{r construct data for plot, results='hide',message=FALSE,cache=TRUE}
+```{r construct data for plot, results='hide',message=FALSE,cache=FALSE}
 library(PlayerRatings)
 
-current_cohort <- 1
+current_cohort <- 5
 
 load(paste(data_path,cohort_names[current_cohort],
            "/predict_simulation_",cohort_names[current_cohort],
@@ -1232,11 +1238,11 @@ shade_vec <- makeTransparent(col_vec,0.2)
 less_shade_vec <- makeTransparent(col_vec,0.7)
 
 # ---------------- simulation mean and sd
-sim_gl_array <- array(NA, dim=c(12,testing_end-training_end+1,100))
-for(s in 1:100){
+sim_gl_array <- array(NA, dim=c(12,testing_end-training_end+1,1000))
+for(s in 1:1000){
   print(s)
   temp_gl <- glickoScoreSimulationWithWindowsReturnAll(
-    predict.sim = m3_predict_sim[5:8,s],
+    predict.sim = m3_predict_sim[5:8,s], #7 for c 2 and 10
     history.df = glick.df[1:training_end,])
   history_matrix <- temp_gl$history[,,1]
   
@@ -1247,13 +1253,16 @@ for(s in 1:100){
                                      nrow=testing_end-ncol(temp_gl$history[,,1]),
                                      byrow=TRUE)))
   }else{
-    try(
-    history_matrix <- temp_gl[,1:testing_end]
-    )
+    # this line makes no sense, and should likely never happen
+    # try(
+    history_matrix <- history_matrix[,1:testing_end]#temp_gl$history[,1:testing_end]
+    # )
   }
   sim_gl_array[,,s] <- history_matrix[,training_end:testing_end]
 }
 ```
+
+
 
 ```{r fig-10a-glicko-rating}
 par(mar=c(3,5,3,1))
@@ -1305,6 +1314,8 @@ rm(fit_cohort_mmhp)
 ```{r process for state separation cohort1,eval=FALSE}
 # only run this once and save the results
 # this doesn't need to be rerun ever, even if the stan fits change
+current_cohort <- 5
+
 load(paste(data_path,cohort_names[current_cohort],
              "/cmmhp_est_zt_",cohort_names[current_cohort],
              ".RData",sep=''))
@@ -1379,7 +1390,7 @@ rm(initial_state_list)
 
 ```{r process data for plot 10b}
 library(PlayerRatings)
-current_cohort <- 1
+current_cohort <- 5
 load(paste(data_path,cohort_names[current_cohort],
            "/dsnl_poisson_stan_result_",cohort_names[current_cohort],
            ".RData",sep=''))

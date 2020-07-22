@@ -7,8 +7,8 @@ matrixPlotParameter <- function(x, ...){
   #min<--0.78
   #max<-20
   #min<-0
-  yLabels <- rownames(x)
-  xLabels <- colnames(x)
+  #yLabels <- rownames(x)
+  #xLabels <- colnames(x)
   title <-c()
   # check for additional function arguments
   if( length(list(...)) ){
@@ -57,9 +57,9 @@ matrixPlotParameter <- function(x, ...){
   par(mar = c(1,3,1,1),mgp=c(0,0.7,0))
   image(1:length(xLabels), 1:length(yLabels), t(x), col=ColorRamp, xlab="",
         ylab="", axes=FALSE, zlim=c(min,max))
-  axis(BELOW<-1, at=1:length(xLabels), labels=xLabels, cex.axis=1.3, tck=-0.015)
+  axis(BELOW<-1, at=1:length(xLabels), labels=xLabels, cex.axis=1.1, tck=-0.015)
   axis(LEFT <-2, at=1:length(yLabels), labels=yLabels, las= HORIZONTAL<-1,
-       cex.axis=1.3, tck=-0.015)
+       cex.axis=1.1, tck=-0.015)
   mtext(side=3, text=title, line=0.8, cex=1.6, font=2)
   # Color Scale
   par(mar = c(1,2,1,1))
@@ -73,7 +73,8 @@ matrixPlotParameter <- function(x, ...){
 }
 
 # ----- Define a function for plotting a contour plot ----- #
-my.image.plot <- function(..., add = FALSE, xlab=NULL, ylab=NULL, my.main=NULL, cex.main=1, cex.lab = 1,
+my.image.plot <- function(..., add = FALSE, xlab=NULL, ylab=NULL, 
+                          my.main=NULL, cex.main=1, cex.lab = 1,
                           xLabels=NULL, yLabels=NULL,
                           breaks= NULL, nlevel = 64, col = NULL,  
                           horizontal = FALSE, legend.shrink = 0.9, legend.width = 1.2, 
@@ -81,7 +82,8 @@ my.image.plot <- function(..., add = FALSE, xlab=NULL, ylab=NULL, my.main=NULL, 
                           legend.line= 2,                    
                           graphics.reset = FALSE, bigplot = NULL, smallplot = NULL, 
                           legend.only = FALSE,  lab.breaks = NULL, 
-                          axis.args = NULL, legend.args = NULL, legend.cex=1.0, midpoint = FALSE, border = NA, 
+                          axis.args = NULL, legend.args = NULL, legend.cex=1.0,
+                          midpoint = FALSE, border = NA, 
                           lwd = 1, verbose=FALSE) {
   # Thanks to S. Koehler and  S. Woodhead
   # for comments on making this a better function
@@ -182,7 +184,7 @@ my.image.plot <- function(..., add = FALSE, xlab=NULL, ylab=NULL, my.main=NULL, 
   if (!horizontal) {
     image(ix, iy, iz, xaxt = "n", yaxt = "n", xlab = "", 
           ylab = "", col = col, breaks=breaks, axes=FALSE)
-    axis(4, at=c(0,0.6,1.2,1.8,2.4), labels=c(0,0.6,1.2,1.8,2.4), las= HORIZONTAL<-1, 
+    axis(4, at=c(0,0.8,1.6,2.4,3.2), labels=c(0,0.8,1.6,2.4,3.2), las= HORIZONTAL<-1, 
          cex.axis=1.6, tck=-0.15)
   }
   else {
