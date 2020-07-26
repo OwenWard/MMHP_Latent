@@ -14,6 +14,11 @@ uniHawkesSimulation<-function(object, horizon=NULL, N=NULL){
   beta <- object$beta
   lambda.star <- lambda0
   
+  # if(alpha > beta) {
+  #   print("Uh oh")
+  #   return(0)
+  # }
+  
   if( !is.null(N) ){
     events <- numeric(N)
     U<-runif(1)
