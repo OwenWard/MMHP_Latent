@@ -330,6 +330,18 @@ legend('bottomleft', legend = c("C-HP", "C-DCHP"),
 ```
 
 
+```{r, eval=FALSE}
+par(mar=c(3,3,1,1))
+plot(as.vector(n_matrix[n_matrix>0]), as.vector(ks.stat.matrix[n_matrix>0]),
+     xlab="", ylab="", pch=16, col="gray", cex= 0.8, xaxt="n", yaxt="n",
+     ylim=c(0,0.65))
+mtext("Number of events", cex=1.5, side=1, line=1.8)
+mtext("K-S statistics", cex=1.5, side=2, line=1.5)
+mgp.axis(1,mgp=c(0,0.3,0),at=seq(0,120,10),cex.axis=1,lwd=0,lwd.ticks=0.1)
+mgp.axis(2,mgp=c(0,0.1,0),at=seq(-0.2,0.6,0.2),cex.axis=1,lwd=0,lwd.ticks=0.8)
+```
+
+
 # Figure 4:
 
 ## Figure 4a Recover Latent Ranks
@@ -399,7 +411,7 @@ for(m in c(1:3)){
 ## Figure 4b: Recover Latent States
 
 
-```{r prepare data for 4b}
+```{r prepare data for 4b,cache=TRUE}
 plot.s <- 9
 plot.i <- 4
 plot.j <- 5
@@ -717,7 +729,7 @@ mtext(text="Intensity",side=2,line=0.6,outer=TRUE,cex=2.5)
 
 
 # Figure 5:
-```{r data for fig 5}
+```{r data for fig 5,cache=TRUE}
 load(paste(sim_data_path,"sim_model3_fit123.RData",sep=''))
 load(paste(sim_data_path,"fit123_state_est.RData",sep=''))
 ## Initialize
@@ -1016,6 +1028,26 @@ p2
 
 ```
 
+```{r fig-rank-slides, fig.height=3}
+
+p2_slides <- plot_cor_df %>%
+  filter(Method != "Agg-rank") %>%      
+  ggplot(aes(x="", y = cor, fill = Method)) +
+        geom_boxplot(alpha=0.7, width=0.5) +
+        scale_fill_manual(values = viridis::viridis(3)) + 
+        #ggtitle("(b)") +
+        ylim(0,1) +
+        theme_bw() +
+        theme(plot.title = element_text(size = 22, hjust = 0.5, face="bold"),
+              text = element_text(size = 20),
+              axis.text.y =element_text(size = 11),
+              legend.position="none",
+              axis.title.x=element_blank()) +
+        facet_grid(cols=vars(Method)) +
+        ylab("Rank correlation")
+p2_slides
+
+```
 
 
 # Figure 7: Pearson residual matrices
@@ -1057,17 +1089,65 @@ matrix_lst_plot <- list(
 myMultiMatrixPlot(X=matrix_lst_plot,no_matrix=4,n_row=2,
                   xLabels=expert_rank_10[[current_cohort]],
                   yLabels=rev(expert_rank_10[[current_cohort]]),
-                  min=-60,max=60,axis_cex=2,title_cex = 1.8,
+                  min=-80,max=80,axis_cex=2,title_cex = 1.8,
                   colorPalette="RdBu",if.emp=FALSE,
                   #legend.mar=c(0.5,.5,0.5,0.5),
-                  title_lst=list("I-MMHP","C-HP","C-DCHP","DC C-MMHP"), 
+                  title_lst=list("I-MMHP","C-HP","C-DCHP","C-MMHP"), 
                   #title_lst = list("I-MMHP"),
-                  col_axis=c(-60,-30,0,30,60), fake_matrix=FALSE,
+                  col_axis=c(-80,-40,0,40,80), fake_matrix=FALSE,
                   matrix.mar=c(2.5,2.5,2.5,1)
                   )
 
 
 ```
+
+```{r fig_pr_slides, fig.height=3, fig.width=7}
+current_cohort <- 5
+
+m1_pr <- readRDS(paste(data_path,cohort_names[current_cohort],
+                   "/chp_pr_matrix_",cohort_names[current_cohort],
+                   ".RDS",sep=''))
+
+m2_pr <- readRDS(paste(data_path,cohort_names[current_cohort],
+                     "/dchp_pr_matrix_",cohort_names[current_cohort],
+                     ".RDS",sep=''))
+
+m3_pr <- readRDS(paste(data_path,cohort_names[current_cohort],
+                     "/cmmhp_pr_matrix_",cohort_names[current_cohort],
+                     ".RDS",sep=''))
+
+indep_pr <- readRDS(paste(data_path,cohort_names[current_cohort],
+                     "/immhp_pr_matrix_",cohort_names[current_cohort],
+                     ".RDS",sep=''))
+
+matrix_lst_plot <- list(
+                        #indep_pr[rev(expert_rank_10[[current_cohort]]),
+#                                                                   #expert_rank_10[[current_cohort]]],
+                        m1_pr[rev(expert_rank_10[[current_cohort]]),
+                                                                  expert_rank_10[[current_cohort]]],
+                        m2_pr[rev(expert_rank_10[[current_cohort]]),
+                                                                 expert_rank_10[[current_cohort]]],
+                        m3_pr[rev(expert_rank_10[[current_cohort]]),
+                                                                 expert_rank_10[[current_cohort]]]) 
+#cat("Cohort ",current_cohort,"\n",sep="")
+myMultiMatrixPlot(X=matrix_lst_plot,no_matrix=3,n_row=1,
+                  xLabels=expert_rank_10[[current_cohort]],
+                  yLabels=rev(expert_rank_10[[current_cohort]]),
+                  min=-80,max=80,axis_cex=1,title_cex = 1.8,
+                  colorPalette="RdBu",if.emp=FALSE,
+                  #legend.mar=c(0.5,.5,0.5,0.5),
+                  title_lst=list("C-HP","C-DCHP","C-MMHP"), 
+                  #title_lst = list("I-MMHP"),
+                  col_axis=c(-80,-40,0,40,80), fake_matrix=FALSE,
+                  matrix.mar=c(2.5,2.5,2.5,0.5)
+                  )
+
+
+
+```
+
+
+
 <!-- The remaining plot code seems to mostly be in `PaperPlots.R`. -->
 
 # Figure 8
@@ -1084,7 +1164,10 @@ temp_plot_df$method <- factor(temp_plot_df$method,
                               labels = c("I-MMHP","DSNL","C-HP","C-DCHP","C-MMHP"))
 temp_plot_df$day <- factor(temp_plot_df$day)
 #png(paste(plot_path,"real_predict_N_one_cohort.png",sep=""),width=600,height=300)
-p3 <- ggplot(temp_plot_df, aes(x = method, y = norm, fill = method)) +
+p3 <- temp_plot_df %>%
+  rowwise() %>%
+  mutate(norm = min(norm,60)) %>%
+  ggplot( aes(x = method, y = norm, fill = method)) +
   geom_boxplot(alpha=0.7) +
   scale_fill_manual(values = viridis::viridis(5)) +
   ggtitle("(a)") +
@@ -1097,7 +1180,7 @@ p3 <- ggplot(temp_plot_df, aes(x = method, y = norm, fill = method)) +
   facet_grid(cols=vars(day)) +
   xlab("Prediction horizon (day)") + 
   ylab("Frobenius norm of error") +
-  ylim(0, 50)
+  ylim(0, 60)
 p3
 ```
 
@@ -1108,7 +1191,7 @@ p3
 load("../output/plot_N_predict.RData")
 temp_plot_df <- all_cohort_norm_df %>% 
   group_by(day, method) %>% 
-  summarize(avg=mean(norm), n= n(), sd=sd(norm))
+  summarise(avg=mean(norm), n= n(), sd=sd(norm))
 
 temp_plot_df$method <- factor(temp_plot_df$method,
                               levels = c("mmhp","dsnl","m1","m2","m3"),
@@ -1132,6 +1215,76 @@ p4 <- ggplot(temp_plot_df, aes(x=day, y=avg, group=method, color=method)) +
   guides(color=guide_legend(title="Model")) 
 p4
 ```
+
+
+```{r fig-slides-predict}
+load("../output/plot_N_predict_new.RData")
+temp_plot_df <- all_cohort_norm_df %>% 
+  group_by(day, method) %>% 
+  summarise(avg=mean(norm), n= n(), sd=sd(norm),
+            se = sd/sqrt(n))
+
+temp_plot_df$method <- factor(temp_plot_df$method,
+                              levels = c("mmhp","dsnl","m1","m2","m3"),
+                              labels = c("I-MMHP","DSNL","C-HP","C-DCHP","C-MMHP"))
+temp_plot_df$day <- factor(temp_plot_df$day)
+
+#png(paste(plot_path,"real_predict_N_all_cohort.png",sep=""),width=600,height=300)
+p4_slides <- ggplot(temp_plot_df, 
+                    aes(x=day, y=avg, group=method, color=method)) + 
+  geom_line(size=1.2, alpha=0.8, position=position_dodge(0.2)) +
+  geom_errorbar(aes(ymin=avg-sd, ymax=avg+sd), width=0.8, size=0.8, alpha=0.8,
+                 position=position_dodge(0.2)) +
+  scale_color_manual(values = viridis::viridis(5)) + 
+  #ggtitle("(b)") +
+  theme_bw() +
+  theme(plot.title = element_text(size = 22, hjust = 0.5, face="bold"),
+        text = element_text(size = 20),
+        axis.text.x=element_text(size = 18)) +
+  xlab("Prediction horizon (day)") + 
+  ylab("Frobenius norm of error") + 
+  coord_cartesian(ylim=c(2.5,57.5)) + 
+  guides(color=guide_legend(title="Model")) 
+p4_slides
+
+```
+
+
+
+```{r}
+
+all_sims <- do.call(rbind,predict_day_norm_df_lst)
+
+temp_plot_df <- all_sims %>% 
+  group_by(day, method) %>% 
+  summarise(avg=mean(norm), n= n(), sd=sd(norm),
+            se = sd/n)
+
+temp_plot_df$method <- factor(temp_plot_df$method,
+                              levels = c("mmhp","dsnl","m1","m2","m3"),
+                              labels = c("I-MMHP","DSNL","C-HP","C-DCHP","C-MMHP"))
+temp_plot_df$day <- factor(temp_plot_df$day)
+p4_slides <- temp_plot_df %>% #filter(method != "C-HP") %>% 
+  #filter(method != "I-MMHP") %>%
+  ggplot(aes(x=day, y=avg, group=method, color=method)) + 
+  geom_line(size=1.2, alpha=0.8, position=position_dodge(0.2)) +
+  geom_errorbar(aes(ymin=avg-sd, ymax=avg+sd), width=0.8, size=0.8, alpha=0.8,
+                 position=position_dodge(0.2)) +
+  scale_color_manual(values = viridis::viridis(5)) + 
+  #ggtitle("(b)") +
+  theme_bw() +
+  theme(plot.title = element_text(size = 22, hjust = 0.5, face="bold"),
+        text = element_text(size = 20),
+        axis.text.x=element_text(size = 18)) +
+  xlab("Prediction horizon (day)") + 
+  ylab("Frobenius norm of error") + 
+  coord_cartesian(ylim=c(2.5,57.5)) + 
+  guides(color=guide_legend(title="Model")) #+ ylim(c(0,1000))
+p4_slides
+
+
+```
+
 
 
 # Figure 9
@@ -1184,7 +1337,7 @@ p6 <- ggplot(temp_plot_df, aes(x=day, y=avg, group=method, color=method)) +
   geom_line(size=1.2, alpha=0.8, position=position_dodge(0.2)) +
   geom_errorbar(aes(ymin=avg-sd, ymax=avg+sd), width=0.8, size=0.8, alpha=0.8,
                 position=position_dodge(0.2)) +
-  scale_fill_manual(values = viridis::viridis(5)) +
+  scale_color_manual(values = viridis::viridis(5)) +
   #scale_color_manual(values = c("gray","yellowgreen","steelblue","goldenrod2","firebrick2")) +
   ggtitle("(b)") +
   theme_bw() +
