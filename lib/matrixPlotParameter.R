@@ -254,6 +254,8 @@ myMultiMatrixPlot <- function(X,xLabels,yLabels,min,max,colorPalette,no_matrix,n
   }else if(no_matrix==3){
     layout(matrix(c(1:(no_matrix+3)), nrow=1), 
            widths=c(rep(c(6,1.7),no_matrix-1),6,1.2), heights=1)
+    layout(matrix(c(1:(no_matrix+1)), nrow=1), 
+           widths=c(rep(c(6),no_matrix-1),6,1.2), heights=1)
   }else{
     layout(cbind(matrix(data=c(1:no_matrix), nrow=n_row, ncol=no_matrix/n_row, byrow = TRUE),
                  rep(no_matrix+1,n_row)), 
