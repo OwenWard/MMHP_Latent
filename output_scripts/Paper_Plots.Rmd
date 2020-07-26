@@ -15,6 +15,8 @@ output:
 knitr::opts_chunk$set(echo = TRUE, fig.path = "paper_figure/",
                       dev = 'png', fig.height = 4.5, fig.width = 7,
                       warning = FALSE)
+
+slides_plots <- TRUE
 ```
 
 ```{r load_packages, include=FALSE}
@@ -1028,7 +1030,7 @@ p2
 
 ```
 
-```{r fig-rank-slides, fig.height=3}
+```{r fig-rank-slides, fig.height=3,include=slides_plots,eval=slides_plots}
 
 p2_slides <- plot_cor_df %>%
   filter(Method != "Agg-rank") %>%      
@@ -1101,7 +1103,7 @@ myMultiMatrixPlot(X=matrix_lst_plot,no_matrix=4,n_row=2,
 
 ```
 
-```{r fig_pr_slides, fig.height=3, fig.width=7}
+```{r fig_pr_slides, fig.height=3, fig.width=7, include=slides_plots,eval=slides_plots}
 current_cohort <- 5
 
 m1_pr <- readRDS(paste(data_path,cohort_names[current_cohort],
@@ -1183,6 +1185,38 @@ p3 <- temp_plot_df %>%
   ylim(0, 60)
 p3
 ```
+```{r fig-pred-cohort-slides, include=slides_plots,eval=slides_plots, fig.height=3}
+load("../output/plot_N_predict_new.RData")
+current_cohort <- 5# cohort 1 looks worse than rest
+# 3 looks nice
+
+temp_plot_df <- predict_day_norm_df_lst[[current_cohort]]
+temp_plot_df$method <- factor(temp_plot_df$method,
+                              levels = c("mmhp","dsnl","m1","m2","m3"),
+                              labels = c("I-MMHP","DSNL","C-HP","C-DCHP","C-MMHP"))
+temp_plot_df$day <- factor(temp_plot_df$day)
+#png(paste(plot_path,"real_predict_N_one_cohort.png",sep=""),width=600,height=300)
+p3_slides <- temp_plot_df %>%
+  filter(method != "I-MMHP") %>%
+  rowwise() %>%
+  mutate(norm = min(norm,120)) %>%
+  ggplot( aes(x = method, y = norm, fill = method)) +
+  geom_boxplot(alpha=0.7) +
+  scale_fill_manual(values = viridis::viridis(5)) +
+  #ggtitle("(a)") +
+  theme_bw() +
+  theme(plot.title = element_text(size = 22, hjust = 0.5, face="bold"),
+        text = element_text(size = 20),
+        axis.text.x=element_blank(),
+        axis.ticks.x = element_blank(),
+        legend.position="right") +
+  facet_grid(cols=vars(day)) +
+  xlab("Prediction horizon (day)") + 
+  ylab("Frobenius norm of error") +
+  #ylim(0, 60) +
+  NULL
+p3_slides
+```
 
 
 ## Figure 8b: Same plot aggregated for all cohorts
@@ -1217,7 +1251,7 @@ p4
 ```
 
 
-```{r fig-slides-predict}
+```{r fig-slides-predict,include=slides_plots,eval=slides_plots,fig.height=3}
 load("../output/plot_N_predict_new.RData")
 temp_plot_df <- all_cohort_norm_df %>% 
   group_by(day, method) %>% 
@@ -1251,7 +1285,7 @@ p4_slides
 
 
 
-```{r}
+```{r, include=FALSE,eval=FALSE}
 
 all_sims <- do.call(rbind,predict_day_norm_df_lst)
 
@@ -1268,7 +1302,7 @@ p4_slides <- temp_plot_df %>% #filter(method != "C-HP") %>%
   #filter(method != "I-MMHP") %>%
   ggplot(aes(x=day, y=avg, group=method, color=method)) + 
   geom_line(size=1.2, alpha=0.8, position=position_dodge(0.2)) +
-  geom_errorbar(aes(ymin=avg-sd, ymax=avg+sd), width=0.8, size=0.8, alpha=0.8,
+  geom_errorbar(aes(ymin=max(0,avg-sd), ymax=avg+sd), width=0.8, size=0.8, alpha=0.8,
                  position=position_dodge(0.2)) +
   scale_color_manual(values = viridis::viridis(5)) + 
   #ggtitle("(b)") +
@@ -1278,7 +1312,7 @@ p4_slides <- temp_plot_df %>% #filter(method != "C-HP") %>%
         axis.text.x=element_text(size = 18)) +
   xlab("Prediction horizon (day)") + 
   ylab("Frobenius norm of error") + 
-  coord_cartesian(ylim=c(2.5,57.5)) + 
+  #coord_cartesian(ylim=c(2.5,57.5)) + 
   guides(color=guide_legend(title="Model")) #+ ylim(c(0,1000))
 p4_slides
 
@@ -1319,6 +1353,37 @@ p5
 ```
 
 
+```{r fig-pred-cor, eval=slides_plots,include=slides_plots,fig.height=3}
+load("../output/plot_rank_predict.RData")
+current_cohort <- 5
+temp_plot_df <- predict_day_rank_df_lst[[current_cohort]]
+temp_plot_df$method <- factor(temp_plot_df$method,
+                              levels = c("mmhp","dsnl","m1","m2","m3"),
+                              labels = c("I-MMHP","DSNL","C-HP","C-DCHP","C-MMHP"))
+temp_plot_df$day <- factor(temp_plot_df$day)
+# png(paste(plot_path,"real_predict_rank_one_cohort.png",sep=""),width=600,height=300)
+temp_plot_df <- temp_plot_df %>%
+  filter(method != "I-MMHP") 
+p5 <- ggplot(temp_plot_df, aes(x = method, y = spearman, fill = method)) +
+  geom_boxplot(alpha=0.7) +
+  scale_fill_manual(values = viridis::viridis(5)) +
+  #scale_fill_manual(values = c("gray","yellowgreen","steelblue","goldenrod2","firebrick2")) + 
+  #ggtitle("(a)") +
+  theme_bw() +
+  theme(plot.title = element_text(size = 22, hjust = 0.5, face="bold"),
+        text = element_text(size = 20),
+        axis.text.x=element_blank(),
+        axis.ticks.x = element_blank(), 
+        legend.position="right") +
+  facet_grid(cols=vars(day)) +
+  xlab("Prediction horizon (day)") + 
+  ylab("Rank correlation") +
+  ylim(0, 1)
+p5
+```
+
+
+
 ## Figure 9b: Predicted Spearman rank for all cohorts
 
 ```{r fig-9b-spearman-rank-all-cohorts}
@@ -1357,7 +1422,7 @@ p6
 ## Figure 10a
 
 
-```{r construct data for plot, results='hide',message=FALSE,cache=FALSE}
+```{r construct data for plot, results='hide',message=FALSE,cache=TRUE}
 library(PlayerRatings)
 
 current_cohort <- 5
@@ -1446,6 +1511,39 @@ for(d in c(19:21)){
 }
 mtext(text="(a)", side=3, line=-2.3, outer=TRUE, cex=2.8, at=0.5, font=2)
 ```
+
+```{r fig-glicko-pred-slides,eval=slides_plots,include=slides_plots}
+par(mar=c(3,5,3,1))
+plot(1, type="n", xlab="", ylab="Glicko ranking", xlim=c(0,dim(gl$history)[2]),
+     ylim=c(min(gl$history[,,1]),max(gl$history[,,1])),
+     cex.axis=2, cex.lab=2)
+for(m in c(1:mice_number)){
+  #history
+  lines(gl$history[m,1:training_end,1],
+        cex=0.6, col=col_vec[m],lwd=history_width,lty=ltypes_vec[m])
+  lines(c(rep(NA,training_end), gl$history[m,(training_end+1):testing_end,1]),
+        cex=0.6, col=shade_vec[m],lwd=history_width,lty=ltypes_vec[m])
+  
+  #simulation
+  cur_end <- testing_end
+  mean_vec <- apply(sim_gl_array[m,,],1,function(x) mean(na.omit(x)))
+  sd_vec <- apply(sim_gl_array[m,,],1,function(x) sd(na.omit(x)))
+  polygon(c(newx, rev(newx)), c(mean_vec-sd_vec,rev(mean_vec+sd_vec)),col = shade_vec[m], border = NA)
+  #polygon(c(newx), c(mean_vec-sd_vec),col = shade_vec[m], border = NA)
+  lines(c(rep(NA,training_end),mean_vec),
+        cex=0.6, col=col_vec[m],lwd=1,lty=2)
+}
+
+# annotate the days
+for(d in c(19:21)){
+  abline(v = nrow(df[df$day<=(d-1),]),lty=2,lwd=0.4)
+  text(x=nrow(df[df$day<=(d-1),]),y=2600,d)
+}
+#mtext(text="(a)", side=3, line=-2.3, outer=TRUE, cex=2.8, at=0.5, font=2)
+```
+
+
+
 
 ```{r remove some objects, include=FALSE}
 rm(m3_predict_sim)
