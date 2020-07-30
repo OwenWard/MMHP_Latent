@@ -1182,11 +1182,13 @@ p3 <- temp_plot_df %>%
   facet_grid(cols=vars(day)) +
   xlab("Prediction horizon (day)") + 
   ylab("Frobenius norm of error") +
-  ylim(0, 60)
+  ylim(0, 60) 
 p3
 ```
+
+
 ```{r fig-pred-cohort-slides, include=slides_plots,eval=slides_plots, fig.height=3}
-load("../output/plot_N_predict_new.RData")
+load("../output/plot_N_predict.RData")
 current_cohort <- 5# cohort 1 looks worse than rest
 # 3 looks nice
 
@@ -1199,7 +1201,7 @@ temp_plot_df$day <- factor(temp_plot_df$day)
 p3_slides <- temp_plot_df %>%
   filter(method != "I-MMHP") %>%
   rowwise() %>%
-  mutate(norm = min(norm,120)) %>%
+  #mutate(norm = min(norm,100)) %>%
   ggplot( aes(x = method, y = norm, fill = method)) +
   geom_boxplot(alpha=0.7) +
   scale_fill_manual(values = viridis::viridis(5)) +
@@ -1213,7 +1215,7 @@ p3_slides <- temp_plot_df %>%
   facet_grid(cols=vars(day)) +
   xlab("Prediction horizon (day)") + 
   ylab("Frobenius norm of error") +
-  #ylim(0, 60) +
+  ylim(0, 80) +
   NULL
 p3_slides
 ```
@@ -1252,7 +1254,7 @@ p4
 
 
 ```{r fig-slides-predict,include=slides_plots,eval=slides_plots,fig.height=3}
-load("../output/plot_N_predict_new.RData")
+load("../output/plot_N_predict.RData")
 temp_plot_df <- all_cohort_norm_df %>% 
   group_by(day, method) %>% 
   summarise(avg=mean(norm), n= n(), sd=sd(norm),
@@ -1299,10 +1301,10 @@ temp_plot_df$method <- factor(temp_plot_df$method,
                               labels = c("I-MMHP","DSNL","C-HP","C-DCHP","C-MMHP"))
 temp_plot_df$day <- factor(temp_plot_df$day)
 p4_slides <- temp_plot_df %>% #filter(method != "C-HP") %>% 
-  #filter(method != "I-MMHP") %>%
+  filter(method != "I-MMHP") %>%
   ggplot(aes(x=day, y=avg, group=method, color=method)) + 
   geom_line(size=1.2, alpha=0.8, position=position_dodge(0.2)) +
-  geom_errorbar(aes(ymin=max(0,avg-sd), ymax=avg+sd), width=0.8, size=0.8, alpha=0.8,
+  geom_errorbar(aes(ymin=avg-sd, ymax=avg+sd), width=0.8, size=0.8, alpha=0.8,
                  position=position_dodge(0.2)) +
   scale_color_manual(values = viridis::viridis(5)) + 
   #ggtitle("(b)") +
@@ -1312,7 +1314,7 @@ p4_slides <- temp_plot_df %>% #filter(method != "C-HP") %>%
         axis.text.x=element_text(size = 18)) +
   xlab("Prediction horizon (day)") + 
   ylab("Frobenius norm of error") + 
-  #coord_cartesian(ylim=c(2.5,57.5)) + 
+  coord_cartesian(ylim=c(2.5,57.5)) + 
   guides(color=guide_legend(title="Model")) #+ ylim(c(0,1000))
 p4_slides
 
