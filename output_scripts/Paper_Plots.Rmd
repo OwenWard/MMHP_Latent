@@ -16,7 +16,7 @@ knitr::opts_chunk$set(echo = TRUE, fig.path = "paper_figure/",
                       dev = 'png', fig.height = 4.5, fig.width = 7,
                       warning = FALSE)
 
-slides_plots <- TRUE
+slides_plots <- FALSE
 ```
 
 ```{r load_packages, include=FALSE}
@@ -414,7 +414,7 @@ for(m in c(1:3)){
 
 
 ```{r prepare data for 4b,cache=TRUE}
-plot.s <- 9
+plot.s <- 7#9
 plot.i <- 4
 plot.j <- 5
 
@@ -436,12 +436,12 @@ model1_par_est <- list(lambda0=mean(sim_model3_stan_sim1[[plot.s]]$lambda0[1001:
                        beta=mean(sim_model3_stan_sim1[[plot.s]]$beta[1001:2000]),
                        f=apply(sim_model3_stan_sim1[[plot.s]]$f[1001:2000,],2,mean))
 lambda.m1<-uniHawkesIntensityNumeric(object=list(lambda0=model1_par_est$lambda0,
-                                                 alpha=model1_fn$alpha.fun(model1_par_est$f[plot.i],
-                                                                           model1_par_est$f[plot.j],
-                                                                           model1_par_est$eta_1,
-                                                                           model1_par_est$eta_2,
-                                                                           model1_par_est$eta_3),
-                                                 beta=model1_par_est$beta),
+                                     alpha=model1_fn$alpha.fun(model1_par_est$f[plot.i],
+                                    model1_par_est$f[plot.j],
+                                    model1_par_est$eta_1,
+                                    model1_par_est$eta_2,
+                                    model1_par_est$eta_3),
+                                    beta=model1_par_est$beta),
                                      events=temp.t,
                                      time.vec=time.segment)
 
@@ -456,16 +456,17 @@ model2_par_est <- list(gamma=apply(sim_model3_stan_sim2[[plot.s]]$gamma[1001:200
                        beta=mean(sim_model3_stan_sim2[[plot.s]]$beta[1001:2000]),
                        f=apply(sim_model3_stan_sim2[[plot.s]]$f[1001:2000,],2,mean))
 
-lambda.m2<-uniHawkesIntensityNumeric(object=list(lambda0=model2_par_est$gamma[plot.i]+
-                                                   model2_par_est$zeta[plot.j],
-                                                 alpha=model1_fn$alpha.fun(model2_par_est$f[plot.i],
-                                                                           model2_par_est$f[plot.j],
-                                                                           model2_par_est$eta_1,
-                                                                           model2_par_est$eta_2,
-                                                                           model2_par_est$eta_3),
-                                                 beta=model2_par_est$beta),
-                                     events=temp.t,
-                                     time.vec=time.segment)
+lambda.m2 <- uniHawkesIntensityNumeric(object=list(
+  lambda0=model2_par_est$gamma[plot.i]+
+          model2_par_est$zeta[plot.j],                                        
+  alpha=model1_fn$alpha.fun(model2_par_est$f[plot.i],
+                            model2_par_est$f[plot.j],
+                            model2_par_est$eta_1,
+                            model2_par_est$eta_2,
+                            model2_par_est$eta_3),
+                beta=model2_par_est$beta),
+                events=temp.t,
+                time.vec=time.segment)
 
 ## Model3
 #############
@@ -491,15 +492,13 @@ object_hat <- list(lambda0=mmhp_par_est$lambda0,
                                        mmhp_par_est$f[cur_j],
                                        mmhp_par_est$eta_3))
 
-## don't have these parameters....?
+
 state.est.latent.mmhp <- interpolate_state_est_lst[[plot.s]][plot.i,plot.j][[1]]
-state.est.latent.mmhp.new <- fixInterpolateState(state.est.latent.mmhp, termination=200)
+state.est.latent.mmhp.new <- fixInterpolateState(state.est.latent.mmhp,
+                                                 termination=200)
 
-# where is fixInterpolateState?...
-# this is in one of the files at the top of latent_simulation.Rmd
-# drawIntensity.R
-
-step.fun.est <- stepfun(state.est.latent.mmhp$x.hat,2-state.est.latent.mmhp$z.hat)
+step.fun.est <- stepfun(state.est.latent.mmhp$x.hat,
+                        2-state.est.latent.mmhp$z.hat)
 
 lambda.m3 <- mmhpIntensityNumeric(params=object_hat,
                                   t=temp.t[-1],
@@ -509,16 +508,17 @@ lambda.m3 <- mmhpIntensityNumeric(params=object_hat,
 object_true <- lapply(object_matrix,function(x) x[plot.i,plot.j])
 names(object_true) <- c("lambda0","lambda1","alpha","beta","q1","q2")
 
-lambda.true <- mmhpTrueIntensityNumeric(params=object_true, t=temp.t,
-                                        latent=list(x=fixStateTransition(test.mmhp)$x,
-                                                    z=fixStateTransition(test.mmhp)$z),
-                                        time.vec=time.segment)
+lambda.true <- mmhpTrueIntensityNumeric(params=object_true,
+                                        t=temp.t,
+                       latent=list(x=fixStateTransition(test.mmhp)$x,
+                              z=fixStateTransition(test.mmhp)$z),
+                              time.vec=time.segment)
 
 ```
 
 
 ```{r fig4b-recover-latent-states}
-y.ub <- c(130,72,31)
+y.ub <- c(20,20,20)#c(130,72,31)
 #model_colors <- c("steelblue", "goldenrod2", "firebrick2")
 model_colors <- viridis::viridis(3)
 layout(matrix(c(1:6), 6, 1), heights=rep(c(2.5,1),3))
@@ -527,7 +527,7 @@ my.xlim <- 200#130
 my.long.x <- 205#134.5
 legend.x <- c(135,135,135)
 legend.y <- #c(34,32,32)
-legend.y <- c(62,37,18)#c(22,22,22)
+legend.y <- c(20,12,15)#c(62,37,18)#c(22,22,22)
 legend.cex <- 1.5 #3
 line.alpha <- c(0.9,0.6)
 line.wdth <- c(2,2.5)
@@ -551,7 +551,6 @@ drawUniMMHPIntensityPaper(true.object,simulation=fixStateTransition(test.mmhp),
                           title.cex = 2,
                           box.type="n")
 drawHawkesIntensityPaper(lambda0=model1_par_est$lambda0,
-                         
                          alpha=model1_fn$alpha.fun(model1_par_est$f[plot.i],
                                                    model1_par_est$f[plot.j],
                                                    model1_par_est$eta_1,
@@ -566,19 +565,17 @@ drawHawkesIntensityPaper(lambda0=model1_par_est$lambda0,
 ## draw box
 axis(1,at=c(-2,my.long.x),col="gray35",
      line=0.5,tick=T,labels=rep("",2),lwd=0.5,lwd.ticks=0,lty=3)
-# axis(2,at=c(-10,y.ub[1]),col="gray35",line=0,tick=T,labels=rep("",2),lwd=0.7,lwd.ticks=0)
-# axis(3,at=c(-5,my.long.x),col="gray35",line=0,tick=T,labels=rep("",2),lwd=0.7,lwd.ticks=0)
-# axis(4,at=c(-10,y.ub[1]),col="gray35",line=-0.5,tick=T,labels=rep("",2),lwd=0.7,lwd.ticks=0)
+
 
 ## add legend
 # changed 34 to 23, 25 to 18, -20 to -10
-legend(20,104,c("State 1/0 events","State change point"),
-       col = c(NA,"red"),
-       y.intersp=0.85,x.intersp=-0.1, bty = "n",
-       pch = c(NA,4), pt.cex = c(NA,2), cex=legend.cex,
-       lty = c(NA,NA), lwd=c(NA,4))
-points(29,84,pch=1,cex=2,col="blue")
-points(26,84,pch=16,cex=2,col="blue")
+# legend(10,legend.y[1],c("State 1/0 events","State change point"),
+#        col = c(NA,"red"),
+#        y.intersp=0.85,x.intersp=-0.1, bty = "n",
+#        pch = c(NA,4), pt.cex = c(NA,2), cex=legend.cex,
+#        lty = c(NA,NA), lwd=c(NA,4))
+# points(29,84,pch=1,cex=2,col="blue")
+# points(26,84,pch=16,cex=2,col="blue")
 legend(legend.x[1],legend.y[1],c("True"),
        col = c("black"),
        y.intersp=0.88,x.intersp=0.15,bty = "n",
@@ -587,11 +584,6 @@ legend(legend.x[1]+18,legend.y[1],c("C-HP"),
        col = c(model_colors[1]),
        y.intersp=0.88,x.intersp=0.15,bty = "n",
        lty = c(1), lwd = c(5), cex=legend.cex,seg.len=1)
-
-# legend(93,24,c("Overestimation","Underestimation"),
-#        col = c(positive.col,negative.col),
-#        y.intersp=0.88,x.intersp=0.5,bty = "n",
-#        lty = c(1,1), lwd = c(20,20), cex=legend.cex,seg.len=0.8)
 
 ## delta lambda
 par(mar = c(0,0.3,0,0.1))
@@ -607,15 +599,10 @@ polygon(c(0,lambda.true$time.vec,200),
         c(0,delta.negative,0),col=negative.col,border=NA)
 polygon(c(0,lambda.true$time.vec,200),
         c(0,delta.positive,0),col=positive.col,border=NA)
-# segments(0,0,my.xlim,0,col="gray45")
-## draw box
-# change -0.7 to -0.5 and -0.5 to -0.25
+
 axis(1,at=c(-2,my.long.x),col="gray35",
      line=0,tick=T,labels=rep("",2),lwd=0.7,lwd.ticks=0)
-# axis(2,at=c(-2,y.ub[1]),col="gray35",
-#      line=0,tick=T,labels=rep("",2),lwd=0.7,lwd.ticks=0)
-# axis(4,at=c(-2,y.ub[1]),col="gray35",
-#      line=-0.5,tick=T,labels=rep("",2),lwd=0.7,lwd.ticks=0)
+
 
 # model2
 ############
@@ -639,13 +626,17 @@ legend(legend.x[2],legend.y[2],"C-DCHP",
        col = model_colors[2],
        y.intersp=0.88,x.intersp=0.1,bty = "n",
        lty = 1, lwd = 5, cex= legend.cex,seg.len=1)
-## draw box
-# -20 to -10 to -5 here
+
 axis(1,at=c(-2,my.long.x),col="gray35",
      line=0.5,tick=T,labels=rep("",2),lwd=0.5,lwd.ticks=0,lty=3)
-# axis(2,at=c(-5,y.ub[2]),col="gray35",line=0,tick=T,labels=rep("",2),lwd=0.7,lwd.ticks=0)
-# axis(3,at=c(-5,my.long.x),col="gray35",line=0,tick=T,labels=rep("",2),lwd=0.7,lwd.ticks=0)
-# axis(4,at=c(-5,y.ub[2]),col="gray35",line=-0.5,tick=T,labels=rep("",2),lwd=0.7,lwd.ticks=0)
+
+legend(10,legend.y[2],c("State 1/0 events","State change point"),
+       col = c(NA,"red"),
+       y.intersp=0.85,x.intersp=-0.1, bty = "n",
+       pch = c(NA,4), pt.cex = c(NA,2), cex=legend.cex,
+       lty = c(NA,NA), lwd=c(NA,4))
+points(14,8,pch=1,cex=2,col="blue")
+points(16,8,pch=16,cex=2,col="blue")
 
 ## delta lambda
 par(mar = c(0,0.3,0,0.1))
@@ -658,25 +649,27 @@ delta.positive <- delta.lambda
 delta.positive[delta.positive<0] <- 0
 delta.negative <- delta.lambda
 delta.negative[delta.negative>0] <- 0
-#### hiding these for now ####
 polygon(c(0,lambda.true$time.vec,200), c(0,delta.negative,0),col=negative.col,border=NA)
 polygon(c(0,lambda.true$time.vec,200), c(0,delta.positive,0),col=positive.col,border=NA)
 # segments(0,0,my.xlim,0,col="gray45")
 ## draw box
 axis(1,at=c(-2,my.long.x),col="gray35",
      line=0,tick=T,labels=rep("",2),lwd=0.7,lwd.ticks=0)
-# axis(2,at=c(-20,y.ub[2]),col="gray35",line=0,tick=T,labels=rep("",2),lwd=0.7,lwd.ticks=0)
-# axis(4,at=c(-20,y.ub[2]),col="gray35",line=-0.5,tick=T,labels=rep("",2),lwd=0.7,lwd.ticks=0)
+
 
 # model3
 ########
 par(mar = c(0,0.3,1,0.1))
-drawUniMMHPIntensityPaper(true.object,simulation=fixStateTransition(test.mmhp),
-                          yupper=y.ub[3], color=add.alpha("black", alpha=line.alpha[1]),line.width=line.wdth[1],
+drawUniMMHPIntensityPaper(true.object,
+                          simulation=fixStateTransition(test.mmhp),
+                          yupper=y.ub[3],
+                          color=add.alpha("black", alpha=line.alpha[1]),
+                          line.width=line.wdth[1],
                           y.ratio=-0.05, min.y=-2, min.x=0, max.x=my.xlim, 
                           box.type="n")
-drawUniMMHPIntensityPaper(object_hat,simulation=list(
-  x=state.est.latent.mmhp.new$x.hat,                                               
+drawUniMMHPIntensityPaper(object_hat,
+                          simulation = list(
+  x=state.est.latent.mmhp.new$x.hat,                                          
   z=state.est.latent.mmhp.new$z.hat,
   tau=test.mmhp$tau,zt=test.mmhp$zt,
   lambda.max=test.mmhp$lambda.max),
@@ -691,11 +684,8 @@ legend(legend.x[3],legend.y[3],"C-MMHP",
 ## draw box
 axis(1,at=c(-2,my.long.x),col="gray35",
      line=0.5,tick=T,labels=rep("",2),lwd=0.5,lwd.ticks=0,lty=3)
-# axis(2,at=c(-20,y.ub[3]),col="gray35",line=0,tick=T,labels=rep("",2),lwd=0.7,lwd.ticks=0)
-# axis(3,at=c(-5,my.long.x),col="gray35",line=0,tick=T,labels=rep("",2),lwd=0.7,lwd.ticks=0)
-# axis(4,at=c(-20,y.ub[3]),col="gray35",line=-0.5,tick=T,labels=rep("",2),lwd=0.7,lwd.ticks=0)
 
-legend(55,32,c("Overestimation","Underestimation"),
+legend(10,legend.y[3],c("Overestimation","Underestimation"),
        col = c(positive.col,negative.col),
        y.intersp=0.88,x.intersp=0.5,bty = "n",
        lty = c(1,1), lwd = c(10,10), cex=legend.cex,seg.len=0.8)
@@ -716,9 +706,7 @@ polygon(c(0,lambda.true$time.vec,200), c(0,delta.positive,0),col=positive.col,bo
 ## draw box
 axis(1,at=c(-2,my.long.x),col="gray35",
      line=0,tick=T,labels=rep("",2),lwd=0.7,lwd.ticks=0)
-# axis(2,at=c(-20,y.ub[1]),col="gray35",
-#      line=0,tick=T,labels=rep("",2),lwd=0.7,lwd.ticks=0)
-# axis(4,at=c(-20,y.ub[1]),col="gray35",line=-0.5,tick=T,labels=rep("",2),lwd=0.7,lwd.ticks=0)
+
 
 ## top
 mtext(text="(b)",side=3,line=0.8,outer=TRUE,cex=2.5,font=2)
@@ -1168,7 +1156,7 @@ temp_plot_df$day <- factor(temp_plot_df$day)
 #png(paste(plot_path,"real_predict_N_one_cohort.png",sep=""),width=600,height=300)
 p3 <- temp_plot_df %>%
   rowwise() %>%
-  mutate(norm = min(norm,60)) %>%
+  #mutate(norm = min(norm,60)) %>%
   ggplot( aes(x = method, y = norm, fill = method)) +
   geom_boxplot(alpha=0.7) +
   scale_fill_manual(values = viridis::viridis(5)) +
@@ -1182,7 +1170,8 @@ p3 <- temp_plot_df %>%
   facet_grid(cols=vars(day)) +
   xlab("Prediction horizon (day)") + 
   ylab("Frobenius norm of error") +
-  ylim(0, 60) 
+  ylim(0, 150) +
+  NULL
 p3
 ```
 
@@ -1564,7 +1553,7 @@ rm(fit_cohort_mmhp)
 
 ## Fig 10b
 
-```{r process for state separation cohort1,eval=FALSE}
+```{r process for state separation cohort5,eval=FALSE}
 # only run this once and save the results
 # this doesn't need to be rerun ever, even if the stan fits change
 current_cohort <- 5
