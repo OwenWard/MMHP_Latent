@@ -12,13 +12,15 @@ parameters{
   vector<lower=0, upper=1>[N_til] w_q1; //CTMC transition rate
   vector<lower=0, upper=1>[N_til] w_q2; //
   vector<lower=0>[N_til] alpha;
-  vector<lower=0>[N_til] beta;
+  vector<lower=0>[N_til] beta_delta;
   vector<lower=0,upper=1>[N_til] delta_1; // P(initial state = 1)
 }
 transformed parameters{
   vector<lower=0>[N_til] lambda1;
   vector<lower=0>[N_til] q1;
   vector<lower=0>[N_til] q2;
+  vector[N_til] beta;
+  
   row_vector[2] log_delta[N_til];
   
   lambda1 = (lambda0).*(1+w_lambda); 
@@ -29,6 +31,7 @@ transformed parameters{
     //delta_1[i] = q2[i]/(q1[i]+q2[i]);
     log_delta[i][1] = log(delta_1[i]);
     log_delta[i][2] = log(1-delta_1[i]);
+    beta[i] = alpha[i]*(1+beta_delta[i]);
   }
 }
 model{
@@ -59,7 +62,7 @@ model{
   //priors
   w_lambda ~ lognormal(0,2);
   alpha ~ lognormal(0,1);
-  beta ~ gamma(1,1);
+  beta_delta ~ gamma(1,1);
   //delta_1 ~ beta(2,2);
   w_q1 ~ beta(2,2);
   w_q2 ~ beta(2,2);
