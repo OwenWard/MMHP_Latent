@@ -20,7 +20,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 path_change <- FALSE # if change the data path, set this to false, else TRUE
 
-data_path <- "C:/Users/owenw/Google Drive/Tian/Current_Projects/MMHP_Latent/output_prior/"
+#data_path <- "C:/Users/owenw/Google Drive/Tian/Current_Projects/MMHP_Latent/output_prior/"
 
 data_path <- "../output/"
 
@@ -92,15 +92,20 @@ for(current_cohort in fit_cohorts){
 ```
 
 
-# Correction to Pair level rates
+<!-- # Correction to Pair level rates -->
 
-A previous bug with C-MMHP was not correctly accounting for the degree 
-corrected `lambda0` and corresponding
-`lambda1` between each pair when interpolating the latent states and then 
-identifying the residual matrices. This gives more reasonable results for
-overall model fit in terms of the total Pearson residuals summed across all 
-observation windows.
+<!-- A previous bug with C-MMHP was not correctly accounting for the degree  -->
+<!-- corrected `lambda0` and corresponding -->
+<!-- `lambda1` between each pair when interpolating the latent states and then  -->
+<!-- identifying the residual matrices. This gives more reasonable results for -->
+<!-- overall model fit in terms of the total Pearson residuals summed across all  -->
+<!-- observation windows. -->
 
+# Pearson Residuals
+
+We first compute the Pearson residuals for each of the proposed models for
+each of the 10 cohorts. Here I-MMHP is the unconstrained model which
+does not learn a latent ranking.
 
 
 ```{r}
@@ -154,6 +159,10 @@ for(current_cohort in cohorts) {
 
 # Latent Ranks vs Expert Ranks
 
+We can then plot the estimated latent ranks from C-MMHP to the 
+I&SI ranks. They are highly correlated but not identical (I&SI only using counts 
+rather than the times of interactions).
+
 ```{r}
 for(current_cohort in 1:10) {
   #cat("Cohort, ", current_cohort,"\n",sep="")
@@ -176,6 +185,11 @@ for(current_cohort in 1:10) {
 ```
 
 # Ranks vs Degree
+
+Similarly we can plot the out/in degree parameters of the C-MMHP model
+against both the I&SI ranking and also the latent ranking from the
+model. This indicates that these degree parameters capture a different structure
+to just the dominance of the animals.
 
 ```{r}
 
@@ -231,6 +245,11 @@ for(current_cohort in 1:10) {
 <!-- We seek to further -->
 
 # Examine Intensity and QQ Plot
+
+As a further model checking, for each cohort we take the
+pair with the most interactions and the window which contains the
+most interactions for this pair and plot the estimated intensity and
+the corresponding QQ plot. 
 
 
 ```{r test pairs, include=FALSE,eval=FALSE}
