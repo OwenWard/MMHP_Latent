@@ -3,10 +3,14 @@ data{
 }
 parameters{
   vector<lower=0,upper=1>[12] x;
-  real<lower=0> c;
-  real<lower=0> beta;
+  real<lower=0,upper=1> c;
+  real<lower=0,upper=1> beta;
 }
 model{
+  
+  c ~ lognormal(0,1);
+  beta ~ lognormal(0,2);
+  
   for(i in 1:12){
     for(j in 1:12){
       if(i != j){

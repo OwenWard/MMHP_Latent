@@ -3,19 +3,19 @@
 
 ### code ###
 ## run this if running on the cluster
-#source("/rigel/stats/users/ogw2103/code/MMHP/MMHP_Latent/run_scripts/cluster_setup.R")
+source("/rigel/stats/users/ogw2103/code/MMHP/MMHP_Latent/run_scripts/cluster_setup.R")
 # ### set cohort_id based on job num
 # jobid <- Sys.getenv("SLURM_ARRAY_TASK_ID")
 # jobid <- as.numeric(jobid)
 # cohort_id <- jobid
-cohort_id <- 1
+# cohort_id <- 1
 ####
 data_path <- "output/"
 
 library(rstan)
 options(mc.cores = parallel::detectCores())
 
-
+library(PlayerRatings)
 library(compete)
 #library(RColorBrewer)
 #library(Hmisc)
@@ -238,6 +238,8 @@ save(predict_day_norm_df_lst, all_cohort_norm_df, est_array_m1, est_array_m2, es
      est_array_mmhp, est_array_dsnl,
      file = paste(data_path,"plot_N_predict.RData",sep=""))
 
+
+#### everything down to here works fine ####
 
 #### Rank Prediction
 

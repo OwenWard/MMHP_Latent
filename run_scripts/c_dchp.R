@@ -142,7 +142,11 @@ model2_par_matrix <- list(lambda0_matrix=model2_par_est$gamma%*%t(rep(1,mice_num
                                                   model2_par_est$f),
                           beta_matrix=matrix(model2_par_est$beta,
                                              nrow=mice_number,ncol=mice_number))
+
+
 m2_residual_matrix <- matrix(0,ncol=mice_number,nrow=mice_number)
+
+m2_residual_array <- array(0,c(mice_number,mice_number,num_winds))
 
 for(i in 1:mice_number){
   for(j in 1:mice_number){
@@ -166,6 +170,9 @@ for(i in 1:mice_number){
           all_residual <- all_residual + uniHawkesPearsonResidual(object=par_est,
                                                                   events=current_event_time,
                                                                   termination = current_obs_time)
+          m2_residual_array[i,j,cur] <- uniHawkesPearsonResidual(object=par_est,
+                                                                 events=current_event_time,
+                                                                 termination = current_obs_time)
         }
         else {
           # compute the intensity over empty window
@@ -174,6 +181,9 @@ for(i in 1:mice_number){
           all_residual <- all_residual + uniHawkesPearsonResidual(object = par_est,
                                                                   events = NULL,
                                                                   termination = current_obs_time )
+          m2_residual_array[i,j,cur] <- uniHawkesPearsonResidual(object = par_est,
+                                                                 events = NULL,
+                                                                 termination = current_obs_time )
         }                                                        
       }
       m2_residual_matrix[i,j] <- all_residual
@@ -187,4 +197,8 @@ saveRDS(m2_residual_matrix,
                      "/dchp_pr_matrix_",cohort_names[current_cohort],
                      ".RDS",sep=''))
 
+saveRDS(m2_residual_array,
+        file = paste(save_data_path,cohort_names[current_cohort],
+                     "/dchp_pr_array_",cohort_names[current_cohort],
+                     ".RDS",sep=''))
 

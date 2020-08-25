@@ -11,7 +11,7 @@ jobid <- as.numeric(jobid)
 cohort_id <- jobid
 #cohort_id <- 1
 ####
-save_data_path <- "output/"
+save_data_path <- "output/"  #"output_june30/"
 
 ### specify the number of segments here
 no_segments <- 500
@@ -92,10 +92,10 @@ stan_input_lst <- prepareDataStan(current_cohort)
 stan_input_lst$alpha_id <- expert_rank_10[[current_cohort]][1]
 stan_input_lst$delta_1 <- rep(0.5,stan_input_lst$N_til)
 
-fit_cohort_mmhp <- stan("lib/model3.stan",  ## this will need to be updated
+fit_cohort_mmhp <- stan("lib/model3_current.stan",  ## this will need to be updated
                         data = stan_input_lst,
                         warmup = 1000, iter = 2000, chains = 4, thin=4,
-                        control=list(adapt_delta=0.98))
+                        control=list(adapt_delta=0.999,max_treedepth=15))
 sim_cohort_mmhp <- rstan::extract(fit_cohort_mmhp)
 dir.create(paste(save_data_path, cohort_names[current_cohort],sep=''), recursive = TRUE, showWarnings = FALSE)
 save(sim_cohort_mmhp, fit_cohort_mmhp,
@@ -120,7 +120,7 @@ unique_observe_win <- unique(return_df[,c("observe.id","observe.time")])
 
 num_winds <- nrow(unique_observe_win)
 
-state_array_list <- list() 
+state_array_list <- list()
 initial_state_list <- list()
 termination_state_list <- list()
 interpolation_array_list <- list()
@@ -129,17 +129,22 @@ interpolation_array_list <- list()
 
 param <- rep(list(),1000)
 for(s in 1:1000){
-  model3_par_est <- list(lambda0=sim_cohort_mmhp$lambda0[s],
+  model3_par_est <- list(gamma=sim_cohort_mmhp$gamma[s,],
+                         zeta=sim_cohort_mmhp$zeta[s,],
                          lambda1=sim_cohort_mmhp$lambda1[s],
                          eta_1=sim_cohort_mmhp$eta_1[s],
                          eta_2=sim_cohort_mmhp$eta_2[s],
                          eta_3=sim_cohort_mmhp$eta_3[s],
                          beta=sim_cohort_mmhp$beta[s],
+                         w_lambda = sim_cohort_mmhp$w_lambda[s],
                          f=sim_cohort_mmhp$f[s,])
-  param[[s]] <- list(lambda0_matrix=matrix(model3_par_est$lambda0,
-                                           nrow=mice_number,ncol=mice_number),
-                     lambda1_matrix=matrix(model3_par_est$lambda0,
-                                           nrow=mice_number,ncol=mice_number),
+  param[[s]] <- list(lambda0_matrix = outer(model3_par_est$gamma, model3_par_est$zeta, FUN = "+"),
+                     # lambda0_matrix=matrix(model3_par_est$lambda0,
+                     #                       nrow=mice_number,ncol=mice_number),
+                     # lambda1_matrix=matrix(model3_par_est$lambda1,
+                     #                       nrow=mice_number,ncol=mice_number),
+                     lambda1_matrix = outer(model3_par_est$gamma,
+                                            model3_par_est$zeta, FUN = "+")*(1+model3_par_est$w_lambda),
                      alpha_matrix=formMatrix(function(x,y) model3_fn$alpha.fun(x,y,
                                                                                model3_par_est$eta_1,
                                                                                model3_par_est$eta_2),
@@ -157,18 +162,18 @@ for(pair in 1:nrow(unique_pairs_df)){
   current_initiator <- as.numeric(unique_pairs_df[pair,"initiator"])
   current_recipient <- as.numeric(unique_pairs_df[pair,"recipient"])
   current_window_vec <- unique_pairs_df$observe[[pair]]
-  
+
   state_array_list[[pair]] <- list()
   initial_state_list[[pair]] <- list()
   termination_state_list[[pair]] <- list()
   interpolation_array_list[[pair]] <- list()
-  
+
   if(current_initiator!=current_recipient){
     #for(current_win in current_window_vec){
     for(current_win in 1:num_winds){
       row_indicator <- return_df$initiator==current_initiator&return_df$recipient==current_recipient&return_df$observe.id==current_win
-      
-      
+
+
       ### need to adjust these for no events
       # check if in current_window_vec
       if(current_win %in% current_window_vec){
@@ -182,28 +187,28 @@ for(pair in 1:nrow(unique_pairs_df)){
         state_array_list[[pair]][[current_win]] <- matrix(0,nrow=1,ncol=1000)
         # is this the right length for state_array_list?
       }
-      
-      
+
+
       time_segment <- seq(0,observe_period,length.out=no_segments)
-      
-      
+
+
       initial_state_list[[pair]][[current_win]] <- matrix(0,nrow=1,ncol=1000)
       termination_state_list[[pair]][[current_win]] <- matrix(0,nrow=1,ncol=1000)
       interpolation_array_list[[pair]][[current_win]] <- matrix(0,nrow=no_segments,ncol=1000)
-      
+
       for(current_sim in 1:1000){
         ## latent states at event times
         param_pair <- lapply(param[[current_sim]],function(x) x[current_initiator,current_recipient])
         names(param_pair) <- c("lambda0","lambda1","alpha","beta","q1","q2")
-        
+
         viterbi_result <- myViterbiWithInitial(events = time_vec, param = param_pair,
                                                termination = observe_period)
         # this needs to be updated for windows with no events - done
-        
+
         state_array_list[[pair]][[current_win]][,current_sim] <- viterbi_result$zt_v
         initial_state_list[[pair]][[current_win]][1,current_sim] <- viterbi_result$initial_state
         termination_state_list[[pair]][[current_win]][1,current_sim] <- viterbi_result$termination_state
-        
+
         ## interpolation
         latent_inter <- interpolateLatentTrajectory(param_pair, time_vec, viterbi_result$zt_v,
                                                     initial.state = viterbi_result$initial_state,
@@ -222,25 +227,7 @@ save(state_array_list,initial_state_list,termination_state_list,
       file=paste(save_data_path,cohort_names[current_cohort],
                  "/cmmhp_est_zt_",cohort_names[current_cohort],".RData",sep=''))
 
-### Predictions for this model ####
-print(current_cohort)
-stan_train_input_lst <- prepareDataStanTrain(current_cohort)
-stan_train_input_lst$alpha_id <- expert_rank_10[[current_cohort]][1]
-stan_train_input_lst$delta_1 <- rep(0.5,stan_train_input_lst$N_til)
-
-fit_cohort_mmhp <- stan("lib/model3.stan",  ## this will need to be updated also
-                        data = stan_train_input_lst,
-                        warmup = 1000, iter = 2000, chains = 4,
-                        control=list(adapt_delta=0.99))
-sim_cohort_mmhp <- rstan::extract(fit_cohort_mmhp)
-dir.create(paste(save_data_path, cohort_names[current_cohort],sep=''), recursive = TRUE, showWarnings = FALSE)
-save(sim_cohort_mmhp, fit_cohort_mmhp,
-     file = paste(save_data_path,cohort_names[current_cohort],
-                  "/cohort_mmhp_predict_stan_result_",cohort_names[current_cohort],
-                  ".RData",sep=''))
-
 #### pearson residuals for this fit ####
-
 
 mice_number <- 12
 
@@ -249,17 +236,22 @@ load(paste(save_data_path,cohort_names[current_cohort],
            ".RData",sep=''))
 load(paste(save_data_path,cohort_names[current_cohort],
            "/cmmhp_est_zt_",cohort_names[current_cohort],".RData",sep=''))
-model3_par_est <- list(lambda0=mean(sim_cohort_mmhp$lambda0),
+model3_par_est <- list(gamma=apply(sim_cohort_mmhp$gamma,2,mean),
+                       zeta=apply(sim_cohort_mmhp$zeta,2,mean),
                        lambda1=mean(sim_cohort_mmhp$lambda1),
                        eta_1=mean(sim_cohort_mmhp$eta_1),
                        eta_2=mean(sim_cohort_mmhp$eta_2),
                        eta_3=mean(sim_cohort_mmhp$eta_3),
                        beta=mean(sim_cohort_mmhp$beta),
+                       w_lambda = mean(sim_cohort_mmhp$w_lambda),
                        f=apply(sim_cohort_mmhp$f,2,mean))
-model3_par_matrix <- list(lambda0_matrix=matrix(model3_par_est$lambda0,
-                                                nrow=mice_number,ncol=mice_number),
-                          lambda1_matrix=matrix(model3_par_est$lambda1,
-                                                nrow=mice_number,ncol=mice_number),
+model3_par_matrix <- list(lambda0_matrix = outer(model3_par_est$gamma,model3_par_est$zeta,FUN = "+"),
+                          # lambda0_matrix=matrix(model3_par_est$lambda0,
+                          #                       nrow=mice_number,ncol=mice_number),
+                          # lambda1_matrix=matrix(model3_par_est$lambda1,
+                          #                       nrow=mice_number,ncol=mice_number),
+                          lambda1_matrix = outer(model3_par_est$gamma,
+                                                 model3_par_est$zeta,FUN = "+")*(1+model3_par_est$w_lambda),
                           alpha_matrix=formMatrix(function(x,y) model3_fn$alpha.fun(x,y,
                                                                                     model3_par_est$eta_1,
                                                                                     model3_par_est$eta_2),
@@ -271,7 +263,10 @@ model3_par_matrix <- list(lambda0_matrix=matrix(model3_par_est$lambda0,
                           q2_matrix=formMatrix(function(x,y) model3_fn$q0.fun(x,y,model3_par_est$eta_3),
                                                model3_par_est$f))
 m3_residual_matrix <- matrix(0,ncol=mice_number,nrow=mice_number)
-no_segments <- 500 # changed from 5000
+
+m3_residual_array <- array(0, dim =  c(mice_number,mice_number,num_winds))
+
+#no_segments <- 500 # changed from 5000
 window_pr <- c()
 for(i in 1:mice_number){
   print(i)
@@ -289,13 +284,13 @@ for(i in 1:mice_number){
                                             return_df$recipient==j&
                                             return_df$observe.id==cur_win,"event.times"][[1]]
           # I think this just returns the windows where there are events
-          
+
           current_obs_time <- return_df[return_df$initiator==i&
                                           return_df$recipient==j&
                                           return_df$observe.id==cur_win,"observe.time"]
           time_segment <- seq(0,current_obs_time,length.out=no_segments)
           latent_mean <- apply(interpolation_array_list[[pair]][[cur_win]],1,mean)
-          latent_event <- as.numeric(apply(2-state_array_list[[pair]][[cur_win]],1,mean) > 0.5) 
+          latent_event <- as.numeric(apply(2-state_array_list[[pair]][[cur_win]],1,mean) > 0.5)
           est.intensity <- mmhpIntensityNumeric(params=par_est,
                                                 t=current_event_time,
                                                 time.vec=time_segment,
@@ -304,6 +299,8 @@ for(i in 1:mice_number){
                                                         latent_z=latent_event)
           all_residual <- all_residual + sum(1/sqrt(est.intensity.events))-
             sum(sqrt(est.intensity))*(time_segment[2]-time_segment[1])
+          m3_residual_array[i,j,cur] <- sum(1/sqrt(est.intensity.events))-
+            sum(sqrt(est.intensity))*(time_segment[2]-time_segment[1])
         }
         else {
           current_event_time <- NULL
@@ -311,7 +308,7 @@ for(i in 1:mice_number){
           current_obs_time <- return_df[return_df$observe.id == cur,"observe.time"][1]
           time_segment <- seq(0,current_obs_time,length.out=no_segments)
           latent_mean <- apply(interpolation_array_list[[pair]][[cur]],1,mean)
-          latent_event <- as.numeric(apply(2-state_array_list[[pair]][[cur]],1,mean) > 0.5) 
+          latent_event <- as.numeric(apply(2-state_array_list[[pair]][[cur]],1,mean) > 0.5)
           est.intensity <- mmhpIntensityNumeric_win(params=par_est,
                                                     t=current_event_time,
                                                     time.vec=time_segment,
@@ -320,9 +317,10 @@ for(i in 1:mice_number){
           #                                               latent_z=latent_event)
           all_residual <- all_residual -
             sum(sqrt(est.intensity))*(time_segment[2]-time_segment[1])
-          
+          m3_residual_array[i,j,cur] <- -1*sum(sqrt(est.intensity))*(time_segment[2]-time_segment[1])
+
         }
-        
+
         # print(sum(1/sqrt(est.intensity.events))-
         #         sum(sqrt(est.intensity))*(time_segment[2]-time_segment[1]))
         # print(summary(latent_mean))
@@ -341,5 +339,29 @@ saveRDS(m3_residual_matrix,
         file = paste(save_data_path,cohort_names[current_cohort],
                      "/cmmhp_pr_matrix_",cohort_names[current_cohort],
                      ".RDS",sep=''))
+saveRDS(m3_residual_array,
+	file = paste(save_data_path,cohort_names[current_cohort],
+		     "/cmmhp_pr_array_", cohort_names[current_cohort],
+         ".RDS",sep=''))
+
+
+# ### Predictions for this model ####
+print(current_cohort)
+stan_train_input_lst <- prepareDataStanTrain(current_cohort)
+stan_train_input_lst$alpha_id <- expert_rank_10[[current_cohort]][1]
+stan_train_input_lst$delta_1 <- rep(0.5,stan_train_input_lst$N_til)
+
+fit_cohort_mmhp <- stan("lib/model3_current.stan",  ## this will need to be updated also
+                        data = stan_train_input_lst,
+                        warmup = 1000, iter = 2000, chains = 4,
+                        control=list(adapt_delta=0.999,max_treedepth = 15))
+sim_cohort_mmhp <- rstan::extract(fit_cohort_mmhp)
+dir.create(paste(save_data_path, cohort_names[current_cohort],sep=''), recursive = TRUE, showWarnings = FALSE)
+save(sim_cohort_mmhp, fit_cohort_mmhp,
+     file = paste(save_data_path,cohort_names[current_cohort],
+                  "/cohort_mmhp_predict_stan_result_",cohort_names[current_cohort],
+                  ".RData",sep=''))
+
+
 
 

@@ -65,7 +65,7 @@ simulateLatentMMHP <- function(lambda0_matrix,
             sim.cur.result <- tryCatch(expr = {withTimeout(simulate.mmhp(object = sim_mmhp_object, 
                                                                          termination=horizon,
                                                                          if.prefer.active=if.prefer.active),
-                                                           timeout = 5)},
+                                                           timeout = 15)},
                                        TimeoutException = function(ex) cat("Timeout. Skipping.\n"))
           }
           temp_mmhp <- sim.cur.result

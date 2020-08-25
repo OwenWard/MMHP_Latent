@@ -1,0 +1,3645 @@
+---
+title: "Diagnostics"
+author: "Owen Ward"
+date: '`r Sys.Date()`'
+output: 
+  html_document:
+    toc: true
+    toc_depth: 2
+    toc_float: true
+    number_sections: FALSE
+    code_folding: hide
+---
+
+<!-- The aim of this script is to further investigate model fit  -->
+<!-- by better diagnostic -->
+<!-- plots for mice pairs in a specific window. -->
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+path_change <- FALSE # if change the data path, set this to false, else TRUE
+
+#data_path <- "C:/Users/owenw/Google Drive/Tian/Current_Projects/MMHP_Latent/output_prior/"
+
+data_path <- "../output/"
+
+func_dir <- "../lib/"
+
+library(rstan)
+Sys.setenv(LOCAL_CPPFLAGS = '-march=corei7 -mtune=corei7')
+options(mc.cores = parallel::detectCores())
+library(tidyverse)
+library(R.utils)
+library(fields)
+library(bayesplot)
+library(compete)
+library(RColorBrewer)
+source(paste(func_dir,'naiveRankHierarchy.R',sep = ""))
+source(paste(func_dir,'expertRankHierarchy.R',sep = ""))
+source(paste(func_dir,'cleanData.R',sep = "")) 
+source(paste(func_dir,'prepareDataStan.R',sep = "")) 
+source(paste(func_dir,'inferLatentMmhp.R',sep = ""))
+source(paste(func_dir,'plotUtil.R',sep = "")) 
+source(paste(func_dir,'mmhp.R',sep = ""))
+source(paste(func_dir,'uniHawkes.R',sep = ""))
+source(paste(func_dir,'simulatePrediction.R',sep = ""))
+source(paste(func_dir,'myGlicko.R',sep = ""))
+source(paste(func_dir,'matrixPlotParameter.R',sep = ""))
+source(paste(func_dir,'residualStructureScore.R',sep = ""))
+source("https://gist.githubusercontent.com/jalapic/6ca3ece44bdcdc522bb735f183aa0ca0/raw/1a07f469eff08117121b6cbebcd22fb7569e3ee8/compete_extra.R")
+
+
+source("C:/Users/owenw/Dropbox/with Owen/code/part3/lib/intensityPlot.R")
+source("C:/Users/owenw/Dropbox/with Owen/code/part3/lib/uniHawkes.R")
+
+theme_set(theme_minimal())
+
+model1_fn <- list(alpha.fun = function(x,y,eta1,eta2,eta3){return(eta1*x*y*exp(-eta2*abs(x-y))/(1+exp(-eta3*(x-y))))})
+
+
+# c_mmhp_path <- "C:/Users/owenw/Google Drive/Tian/Current_Projects/MMHP_Latent/output_folders/output_june30/"
+# 
+# other_path  <- "C:/Users/owenw/Google Drive/Tian/Current_Projects/MMHP_Latent/output_null_windows/"
+# old_data_path  <- "C:/Users/owenw/Google Drive/Tian/Current_Projects/MMHP_Latent/output_null_windows/"
+
+```
+
+
+```{r mice_setup,include=FALSE,echo=FALSE, cache=TRUE}
+cohort_names <- paste("cohort",c(9,10,12,15,16,17,18,37,38,45),sep='')
+cohort_short_names <- paste("C",c(9,10,12,15,16,17,18,37,38,45),sep='')
+cut_off <- 3
+mice_number <- 12
+
+full_data <- readRDS("../data/mice.RData")
+# A=c9, B=c10, C=c12, D=c15, E=c16, F=c17, G=c18, H=c37, I=c38. J=c45
+cohort_names <- paste("cohort",c(9,10,12,15,16,17,18,37,38,45),sep='')
+cohort_short_names <- paste("C",c(9,10,12,15,16,17,18,37,38,45),sep='')
+cut_off <- 3
+mice_number <- 12
+
+# Define the cohorts will be fitted
+fit_cohorts <- c(1:10)
+naive_rank_10 <- list()
+expert_rank_10 <- list()
+for(current_cohort in fit_cohorts){
+  naive_rank_10[[current_cohort]] <- naiveRankHierarchy(full_data[[cohort_names[current_cohort]]])
+  expert_rank_10[[current_cohort]] <- expertRankHierarchy(full_data[[cohort_names[current_cohort]]])
+}
+
+
+```
+
+
+<!-- # Correction to Pair level rates -->
+
+<!-- A previous bug with C-MMHP was not correctly accounting for the degree  -->
+<!-- corrected `lambda0` and corresponding -->
+<!-- `lambda1` between each pair when interpolating the latent states and then  -->
+<!-- identifying the residual matrices. This gives more reasonable results for -->
+<!-- overall model fit in terms of the total Pearson residuals summed across all  -->
+<!-- observation windows. -->
+
+# Pearson Residuals
+
+We first compute the Pearson residuals for each of the proposed models for
+each of the 10 cohorts. Here I-MMHP is the unconstrained model which
+does not learn a latent ranking.
+
+
+```{r}
+cohorts <- 1:10
+
+
+for(current_cohort in cohorts) {
+  m1_pr <- readRDS(paste(data_path,cohort_names[current_cohort],
+                     "/chp_pr_matrix_",cohort_names[current_cohort],
+                     ".RDS",sep=''))
+
+  m2_pr <- readRDS(paste(data_path,cohort_names[current_cohort],
+                       "/dchp_pr_matrix_",cohort_names[current_cohort],
+                       ".RDS",sep=''))
+  
+  m3_pr <- readRDS(paste(data_path,cohort_names[current_cohort],
+                       "/cmmhp_pr_matrix_",cohort_names[current_cohort],
+                       ".RDS",sep=''))
+  
+  indep_pr <- readRDS(paste(data_path,cohort_names[current_cohort],
+                       "/immhp_pr_matrix_",cohort_names[current_cohort],
+                       ".RDS",sep=''))
+  
+  matrix_lst_plot <- list(
+                          indep_pr[rev(expert_rank_10[[current_cohort]]),
+                                                                     expert_rank_10[[current_cohort]]],
+                          m1_pr[rev(expert_rank_10[[current_cohort]]),
+                                                                   expert_rank_10[[current_cohort]]],
+                          m2_pr[rev(expert_rank_10[[current_cohort]]),
+                                                                   expert_rank_10[[current_cohort]]],
+                          m3_pr[rev(expert_rank_10[[current_cohort]]),
+                                                                   expert_rank_10[[current_cohort]]]) 
+  cat("Cohort ",current_cohort,"\n",sep="")
+  myMultiMatrixPlot(X=matrix_lst_plot,no_matrix=4,n_row=2,
+                    xLabels=expert_rank_10[[current_cohort]],
+                    yLabels=rev(expert_rank_10[[current_cohort]]),
+                    min=-60,max=60,axis_cex=2,title_cex = 1.8,
+                    colorPalette="RdBu",if.emp=FALSE,
+                    #legend.mar=c(0.5,.5,0.5,0.5),
+                    title_lst=list("I-MMHP","C-HP","C-DCHP","DC C-MMHP"), 
+                    #title_lst = list("I-MMHP"),
+                    col_axis=c(-60,-30,0,30,60), fake_matrix=FALSE,
+                    matrix.mar=c(2.5,2.5,2.5,1)
+                    )
+}
+
+
+
+```
+
+
+# Latent Ranks vs Expert Ranks
+
+We can then plot the estimated latent ranks from C-MMHP to the 
+I&SI ranks. They are highly correlated but not identical (I&SI only using counts 
+rather than the times of interactions).
+
+```{r}
+for(current_cohort in 1:10) {
+  #cat("Cohort, ", current_cohort,"\n",sep="")
+  load(paste(data_path,cohort_names[current_cohort],
+             "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
+             ".RData",sep=''))
+  
+  mean_latent_rank <- apply(sim_cohort_mmhp$f,2,mean)
+  
+  ranks <- tibble(expert = 1:12,#expert_rank_10[[current_cohort]],
+                  latent = mean_latent_rank[expert_rank_10[[current_cohort]]])
+  
+  p <- ggplot(ranks,aes(latent,expert)) + geom_point() + 
+    scale_y_continuous(breaks = c(12:1), trans = "reverse") + 
+    ggtitle(paste("Cohort ", current_cohort,sep=""))
+  print(p)
+}
+
+
+```
+
+# Ranks vs Degree
+
+Similarly we can plot the out/in degree parameters of the C-MMHP model
+against both the I&SI ranking and also the latent ranking from the
+model. This indicates that these degree parameters capture a different structure
+to just the dominance of the animals.
+
+```{r}
+
+for(current_cohort in 1:10) {
+  cat("Cohort ", current_cohort,"\n",sep="")
+  load(paste(data_path,cohort_names[current_cohort],
+             "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
+             ".RData",sep=''))
+  
+  mean_latent_rank <- apply(sim_cohort_mmhp$f,2,mean)
+  
+  out_degree <- apply(sim_cohort_mmhp$gamma,2,mean)
+  in_degree <- apply(sim_cohort_mmhp$zeta,2,mean)
+  
+  degs <- tibble(expert = expert_rank_10[[current_cohort]],
+                  latent = mean_latent_rank,#[expert],
+                 out_deg = out_degree,#[expert],
+                 in_deg = in_degree)#[expert])
+  
+  p <- ggplot(degs,aes(latent,out_deg)) + geom_point() + 
+    #scale_y_continuous(breaks = c(12:1), trans = "reverse") + 
+    ggtitle(paste("Out Degree vs Latent Cohort ", current_cohort,sep="")) + 
+    ylab("Out Degree") + xlab("Latent Rank")
+  print(p)
+  
+  q <- ggplot(degs,aes(latent,in_deg)) + geom_point() +
+    ggtitle(paste("In Degree vs Latent Cohort ",current_cohort,sep="")) +
+    ylab("In Degree") + xlab("Latent Rank")
+  print(q)
+  
+  r <- ggplot(degs,aes(expert,out_deg)) + geom_point() +
+    ggtitle(paste("Out Degree vs Expert Cohort ", current_cohort,sep="")) + 
+    ylab("Out Degree") + xlab("Expert Rank")
+  print(r)
+  
+  s <- ggplot(degs,aes(expert,in_deg)) + geom_point() +
+    ggtitle(paste("In Degree vs Expert Cohort ", current_cohort,sep="")) + 
+    ylab("In Degree") + xlab("Expert Rank")
+  print(s)  
+  
+}
+
+
+```
+
+
+
+
+
+
+<!-- # Correlation Issues in Fits -->
+
+<!-- We seek to further -->
+
+# Examine Intensity and QQ Plot
+
+As a further model checking, for each cohort we take the
+pair with the most interactions and the window which contains the
+most interactions for this pair and plot the estimated intensity and
+the corresponding QQ plot. 
+
+
+```{r test pairs, include=FALSE,eval=FALSE}
+current_cohort <- 1
+
+clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
+return_df <- cleanObservationPeriod(current_cohort, clean_data)
+unique_pairs_df <- return_df %>% group_by(initiator, recipient) %>%
+  dplyr::summarize(count=n(),
+            observe=list(observe.id),
+            observe.length=list(observe.time),
+            no.events=list(no.events)) 
+top_pairs <- unique_pairs_df %>% arrange(desc(count))
+
+best_i <- top_pairs$initiator[1]
+best_j <- top_pairs$recipient[1]
+wind <- unlist(lapply(top_pairs$no.events,which.max))[1]
+
+```
+
+
+
+
+```{r select cohort pair and window,eval=FALSE,include=FALSE}
+no_segments <- 500
+
+current_cohort <- 4#5
+current_i <- 2 #8
+current_j <- 8 #2
+current_win <- 42
+clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
+return_df <- cleanObservationPeriod(current_cohort, clean_data)
+unique_pairs_df <- return_df %>% group_by(initiator, recipient) %>%
+  dplyr::summarize(count=n(),
+            observe=list(observe.id),
+            observe.length=list(observe.time),
+            no.events=list(no.events))
+pair <- which(unique_pairs_df$initiator==current_i&unique_pairs_df$recipient==current_j)
+unique_observe_win <- unique(return_df[,c("observe.id","observe.time")])
+
+row_indicator <- return_df$initiator==current_i&return_df$recipient==current_j&return_df$observe.id==current_win
+row_idx <- which(return_df$initiator==current_i&return_df$recipient==current_j&return_df$observe.id==current_win)
+current_event_time <- return_df[row_indicator,"event.times"][[1]]
+observe_period <- return_df[row_indicator,"observe.time"]
+time_segment <- seq(0,observe_period,length.out=no_segments)
+
+```
+
+```{r plot_functions, include=FALSE, cache=TRUE}
+drawRealIntensityPaper <- function(t,
+                                   object=NULL,simulation=NULL,
+                                   yupper=10,add=FALSE,color=1,line.width=1,
+                                 title_name="",title.cex=9, y.ratio=0,
+                                 min.y=0, min.x=0, max.x=NULL, 
+                                 annotate.time=FALSE,
+                                 event.cex=1, box.type="l",
+                                 box.col="gray40", title.line=1){
+  # input object: the parameter list used for generating mmhp
+  #       simulation: simulation result from simulate.mmhp 
+  if(t[1]>0){
+    t <- c(0,t)
+  }
+  if(is.null(max.x)){
+    max.x <- tail(t,1)
+  }
+  if(is.null(object)){
+    termination <- tail(t,1)
+    n <- length(t)
+    plot(0,0,xlim=c(min.x,max.x),ylim=c(min.y,yupper*(1+y.ratio)),
+         type="n",xlab="",ylab="",xaxt="n",yaxt="n",axes=FALSE)
+    box(lty ='solid', col=box.col, lwd=0.7, bty=box.type)
+    title(title_name,line=title.line,cex.main=title.cex)
+    #left axes
+    #axis(2,at=seq(0,yupper,5),labels=FALSE,cex.lab=2,lwd=0,lwd.ticks=1) 
+    #text(-termination/50, y=seq(0,yupper,5), labels=seq(0,yupper,5), cex=1.6, srt=0, xpd=TRUE)
+    #bottom axes
+    # events
+    points(t[-1],rep(min.y,n-1),cex=event.cex,pch=16,col="black")
+  }else{
+    state <- simulation$z
+    state_time <- simulation$x
+    if(tail(state_time,1)<tail(t,1)){
+      state_time <- c(state_time,tail(t,1))
+      state <- c(state,3-tail(state,1))
+    }
+    lambda0 <- object$lambda0
+    lambda1 <- object$lambda1
+    alpha <- object$alpha
+    beta <- object$beta
+    termination <- tail(t,1)
+    n <- length(t)
+    m <- length(state)
+    if(is.null(min.y)){
+      min.y <- -lambda0
+    }
+    if(is.null(max.x)){
+      max.x <- termination
+    }
+    #plot(1,4,xlim=c(0.27,23),ylim=c(-0.5,9), type="n",xlab="Time",ylab="",xaxt="n",yaxt="n",cex.lab=1.8,bty="n")
+    
+    if(add==FALSE){
+      plot(0,0,xlim=c(min.x,max.x),ylim=c(min.y,yupper*(1+y.ratio)),
+           type="n",xlab="",ylab="",xaxt="n",yaxt="n",axes=FALSE)
+      box(lty ='solid', col=box.col, lwd=0.7, bty=box.type)
+      title(title_name,line=title.line,cex.main=title.cex)
+      #left axes
+      #axis(2,at=seq(0,yupper,5),labels=FALSE,cex.lab=2,lwd=0,lwd.ticks=1) 
+      #text(-termination/50, y=seq(0,yupper,5), labels=seq(0,yupper,5), cex=1.6, srt=0, xpd=TRUE)
+      #bottom axes
+      if(annotate.time){
+        axis(1,at=seq(0,ceiling(termination),length.out=5),labels=FALSE,cex.lab=2,lwd=0,lwd.ticks=1) #bottom axes
+        text(seq(0,ceiling(termination),length.out=5), y=-y.ratio*6, cex=1.7, srt=0, xpd=TRUE,
+             labels=round(seq(0,ceiling(termination),length.out=5),0))
+      }
+      # events
+      points(t[-1],rep(min.y,n-1),cex=event.cex,pch=16,col="black")
+    }
+    
+    if(m==2&state[1]==1&state_time[2]==tail(t,1)){
+      drawHawkesIntensityPaper(lambda0,alpha,beta,t,color=color,
+                               line.width=line.width)
+    }else{
+      for(i in 1:(m-1)){
+        if(state[i]==1){
+          hawkes_time <- t[t>=state_time[i]&t<=state_time[i+1]]
+          if(i==1) hawkes_time <- hawkes_time[-1]
+          history <- t[t<state_time[i]]
+          # bug here
+          drawHawkesIntensityPaper(lambda0 =lambda1,
+                                   #i,
+                                   alpha = alpha,
+                                   beta = beta,
+                                   #state_time[i],
+                                   #state_time[i+1],
+                                   #history[-1],
+                                   events = hawkes_time,
+                                   color=color,line.width=line.width)
+        }else{
+          segments(x0=state_time[i],x1=state_time[i+1], y0=lambda0,
+                   lty=1,col=color,lwd=line.width)
+        }
+        if(i>1){
+          segments(x0=state_time[i],y0=lambda0, y1=lambda1, lty=2, col=color,lwd=line.width)
+        }
+      }
+    }
+  }
+}
+
+
+drawHawkesIntensityPaper <- function(lambda0,alpha,beta,
+                                     events,color=1,line.width=2, termination=NULL){
+  # input object: parameters for Hawkes process, include lambda0, alpha, beta 
+  #       events: vector of event happening time
+  horizon <- tail(events,1)
+  events <- events[events>0]
+  N <- length(events)
+  
+  if(N==1){ # only one event condition
+    segments(x0=0, x1=events[1], y0=lambda0, col=color,lwd=line.width)
+    segments(x0=events[1], y0=lambda0, y1=lambda0+alpha, col=color,lwd=line.width)
+    if(horizon > tail(events,1)){
+      lambda.n <- function(s) lambda0+alpha*sum(exp(-beta*(s-events[1])))
+      new.lambda.n<-Vectorize(lambda.n)
+      curve(new.lambda.n, from=tail(events,1), to=horizon, add=TRUE, col=color,lwd=line.width)
+    }
+    #if( !is.null(title) ) title(main=title)
+  }else{
+    segments(x0=0, x1=events[1], y0=lambda0, col=color,lwd=line.width)
+    segments(x0=events[1], y0=lambda0, y1=lambda0+alpha, col=color,lwd=line.width)
+    
+    for(i in 1:(N-1)){
+      lambda.n <- function(s) lambda0+alpha*sum(exp(-beta*(rep(s,i)-events[1:i])))
+      new.lambda.n<-Vectorize(lambda.n)
+      curve(new.lambda.n, from=events[i], to=events[i+1], add=TRUE, col=color,lwd=line.width)
+      segments(x0=events[i+1],y0=lambda.n(events[i+1]),y1=lambda.n(events[i+1])+alpha, col=color,lwd=line.width)
+    }
+  }
+  if(!is.null(termination)){
+    lambda.n <- function(s) lambda0+alpha*sum(exp(-beta*(rep(s,N)-events[1:N])))
+    new.lambda.n<-Vectorize(lambda.n)
+    curve(new.lambda.n, from=events[N], to=termination, add=TRUE, col=color,lwd=line.width)
+  }
+}
+
+
+
+```
+
+
+
+
+```{r extract hawkes fits, results='hide',eval=FALSE,include=FALSE}
+print(current_cohort)
+
+## Cohort Hawkes ####
+# load the parameters for this pair
+load(paste(data_path, cohort_names[current_cohort],
+           "/cohort_hp_stan_result_", cohort_names[current_cohort],".RData",sep=''))
+
+# create a list to store the hawkes parameters for this
+model1_par_est <- list(lambda0=mean(sim_cohort_hp$lambda0),
+                       eta_1=mean(sim_cohort_hp$eta_1),
+                       eta_2=mean(sim_cohort_hp$eta_2),
+                       eta_3=mean(sim_cohort_hp$eta_3),
+                       beta=mean(sim_cohort_hp$beta),
+                       f=apply(sim_cohort_hp$f,2,mean))
+model1_par_matrix <- list(lambda0_matrix=matrix(model1_par_est$lambda0,
+                                                nrow=mice_number,ncol=mice_number),
+                          alpha_matrix=formMatrix(function(x,y) model1_fn$alpha.fun(x,y,
+                                                                                    model1_par_est$eta_1,
+                                                                                    model1_par_est$eta_2,
+                                                                                    model1_par_est$eta_3),
+                                                  model1_par_est$f),
+                          beta_matrix=matrix(model1_par_est$beta,
+                                             nrow=mice_number,ncol=mice_number))
+
+hawkes.par <- c(model1_par_matrix$lambda0_matrix[current_i,current_j],
+                model1_par_matrix$alpha[current_i,current_j],
+                        model1_par_matrix$beta[current_i,current_j])
+
+
+
+#### Degree Corrected Hawkes ####
+load(paste(data_path, cohort_names[current_cohort],
+           "/cohort_dchp_stan_result_", cohort_names[current_cohort],".RData",sep=''))
+
+# create a list to store the hawkes parameters for this
+model2_par_est <- list(gamma = apply(sim_cohort_dchp$gamma,2,mean),
+                       zeta = apply(sim_cohort_dchp$zeta,2,mean),
+                       #lambda0=mean(sim_cohort_dchp$lambda0),
+                       eta_1=mean(sim_cohort_dchp$eta_1),
+                       eta_2=mean(sim_cohort_dchp$eta_2),
+                       eta_3=mean(sim_cohort_dchp$eta_3),
+                       beta=mean(sim_cohort_dchp$beta),
+                       f=apply(sim_cohort_dchp$f,2,mean))
+model2_par_matrix <- list(lambda0_matrix= outer(model2_par_est$gamma,
+                                                model2_par_est$zeta,FUN = "+"),
+                          alpha_matrix=formMatrix(function(x,y) model1_fn$alpha.fun(x,y,
+                                                                                    model2_par_est$eta_1,
+                                                                                  model2_par_est$eta_2,
+                                                                                    model2_par_est$eta_3),
+                                                  model2_par_est$f),
+                          beta_matrix=matrix(model2_par_est$beta,
+                                             nrow=mice_number,ncol=mice_number))
+
+hawkes.par_dc <- c(model2_par_matrix$lambda0_matrix[current_i,current_j],
+                model2_par_matrix$alpha[current_i,current_j],
+                model2_par_matrix$beta[current_i,current_j])
+
+rm(fit_cohort_hp)
+rm(fit_cohort_dchp)
+rm(sim_cohort_hp)
+rm(sim_cohort_dchp)
+
+```
+
+
+
+```{r extract_cmmhp_fit, results='hide',eval=FALSE,include=FALSE}
+print(current_cohort)
+## Cohort MMHP
+load(paste(data_path,cohort_names[current_cohort],
+             "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
+             ".RData",sep=''))
+load(paste(data_path,cohort_names[current_cohort],
+             "/cmmhp_est_zt_",cohort_names[current_cohort],".RData",sep=''))
+
+# then adjust the parameters for c-mmhp below here also
+
+c_mmhp_par <- list(lambda1=mean(sim_cohort_mmhp$lambda1[,pair]),
+                 lambda0=mean(sim_cohort_mmhp$lambda0[,pair]),
+                 alpha=mean(sim_cohort_mmhp$alpha[,pair]),
+                 beta=mean(sim_cohort_mmhp$beta),
+                 q1=mean(sim_cohort_mmhp$q1[,pair]),
+                 q2=mean(sim_cohort_mmhp$q2[,pair]))
+
+c_mmhp.est.latent <- ifelse(apply(state_array_list[[pair]][[current_win]],
+                                1,
+                                function(x) sum(x==1)) >500,rep(1,1000),rep(2,1000))
+c_mmhp.est.latent <- interpolateLatentTrajectory(params=c_mmhp_par,
+                                               events=current_event_time,
+                                                       zt=c_mmhp.est.latent,                                         initial.state=mean(initial_state_list[[pair]][[current_win]]),
+                     termination.time=observe_period,
+                     termination.state = 2)
+
+
+rm(interpolation_array_list)
+rm(state_array_list)
+rm(initial_state_list)
+rm(termination_state_list)
+
+```
+
+
+```{r extract indep mmhp fit, results='hide',eval=FALSE,include=FALSE}
+
+print(current_cohort)
+#### I-MMHP  ####
+load(paste(data_path,cohort_names[current_cohort],
+             "/sep_mmhp_stan_result_",cohort_names[current_cohort],
+             ".RData",sep=''))
+load(paste(data_path,cohort_names[current_cohort],
+             "/mmhp_est_zt_",cohort_names[current_cohort],".RData",sep=''))
+
+# then adjust the parameters for c-mmhp below here also
+
+sep_mmhp_par <- list(lambda1=mean(sim_mmhp_sep$lambda1[,pair]),
+                 lambda0=mean(sim_mmhp_sep$lambda0[,pair]),
+                 alpha=mean(sim_mmhp_sep$alpha[,pair]),
+                 beta=mean(sim_mmhp_sep$beta),
+                 q1=mean(sim_mmhp_sep$q1[,pair]),
+                 q2=mean(sim_mmhp_sep$q2[,pair]))
+
+sep_mmhp.est.latent <- ifelse(apply(state_array_list[[pair]][[current_win]],
+                                1,
+                                function(x) sum(x==1)) >500,rep(1,1000),rep(2,1000))
+sep_mmhp.est.latent <- interpolateLatentTrajectory(params=c_mmhp_par,
+                                               events=current_event_time,
+                                                       zt=sep_mmhp.est.latent,                                         initial.state=mean(initial_state_list[[pair]][[current_win]]),
+                     termination.time=observe_period,
+                     termination.state = 2)
+
+
+rm(interpolation_array_list)
+rm(state_array_list)
+rm(initial_state_list)
+rm(termination_state_list)
+
+```
+
+
+For each cohort, we extract the mouse pair with the most interactions, plotting
+thes estimated intensity in the window with the most interactions along with
+the QQ plot of all events (in all windows) between that pair.
+
+```{r pair diagnostic plot, include=FALSE,eval=FALSE}
+row_indicator <- return_df$initiator==current_i&return_df$recipient==current_j&return_df$observe.id==current_win
+row_idx <- which(return_df$initiator==current_i&return_df$recipient==current_j&return_df$observe.id==current_win)
+current_event_time <- return_df[row_indicator,"event.times"][[1]]
+observe_period <- return_df[row_indicator,"observe.time"]
+no_segments <- 500
+time_segment <- seq(0,observe_period,length.out=no_segments)
+
+par(mfrow=c(2,4), oma=c(1,1,1,1), mar=c(2,3,2,1), mgp=c(0.8,0,0))
+layout(matrix(1:8,nrow=2,byrow=TRUE),widths=rep(2,4),height=c(3,3))
+anno.cex <- 1.3
+title.cex <- 2.2
+title.line <- 0.5
+y.upper <- 20
+
+
+#### Cohort Hawkes  ####
+
+drawRealIntensityPaper(current_event_time,
+                       yupper=y.upper, color="black",line.width=2,title.line=title.line,
+                       title_name="C-HP",
+                       title.cex=title.cex, max.x=observe_period, box.col="black")
+drawHawkesIntensityPaper(lambda0=hawkes.par[1],
+                         alpha=hawkes.par[2],
+                         beta=hawkes.par[3],
+                         events=current_event_time, termination=observe_period)
+
+### DC Cohort Hawkes ####
+
+drawRealIntensityPaper(current_event_time,
+                       yupper=y.upper, color="black",line.width=2,title.line=title.line,
+                       title_name="DC-HP",
+                       title.cex=title.cex, max.x=observe_period, box.col="black")
+drawHawkesIntensityPaper(lambda0=hawkes.par_dc[1],
+                         alpha=hawkes.par_dc[2],
+                         beta=hawkes.par_dc[3],
+                         events=current_event_time, termination=observe_period)
+
+#### DC C-MMHP ####
+drawRealIntensityPaper(current_event_time, object=c_mmhp_par,title.line=title.line,
+                       simulation=list(x=c(0,c_mmhp.est.latent$x.hat),
+                                       z=c_mmhp.est.latent$z.hat),
+                       yupper=y.upper, color="black", line.width=2,
+                       title_name="DC C-MMHP", title.cex=title.cex, max.x=observe_period, box.col="black")
+
+#### Sep MMHP ####
+
+drawRealIntensityPaper(current_event_time, object=sep_mmhp_par,title.line=title.line,
+                       simulation=list(x=c(0,sep_mmhp.est.latent$x.hat),
+                                       z=sep_mmhp.est.latent$z.hat),
+                       yupper=y.upper, color="black", line.width=2,
+                       title_name="I-MMHP", title.cex=title.cex, max.x=observe_period, box.col="black")
+
+
+#### then the corresponding QQ plots ####
+load(paste(data_path,cohort_names[current_cohort],
+             "/real_diag_four_models_",cohort_names[current_cohort],
+             ".RData",sep=''))
+
+#### Cohort Hawkes ####
+
+Lambda.c_hawkes.test <- Lambda_c_hawkes_matrix[current_i,current_j][[1]]
+
+p <- ppoints(length(Lambda.c_hawkes.test))    # 100 equally spaced points on (0,1), excluding endpoints
+q <- quantile(Lambda.c_hawkes.test,p=p,na.rm=TRUE) # percentiles of the sample distribution
+plot(qexp(p),q, 
+     xlab="",ylab="",xaxt="n",yaxt="n",
+     pch=1,cex=1,col="Black",ylim=c(0,8),xlim=c(0,5))
+mtext(side=1, text="TQ", line=1.6, cex=anno.cex)
+mtext(side=2, text="EQ", line=1.2, cex=anno.cex)
+Hmisc::mgp.axis(1,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+Hmisc::mgp.axis(2,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
+
+#### Cohort DC Hawkes ####
+
+Lambda.dc_hawkes.test <- Lambda_dc_hawkes_matrix[current_i,current_j][[1]]
+
+p <- ppoints(length(Lambda.dc_hawkes.test))    # 100 equally spaced points on (0,1), excluding endpoints
+q <- quantile(Lambda.dc_hawkes.test,p=p,na.rm=TRUE) # percentiles of the sample distribution
+plot(qexp(p),q, 
+     xlab="",ylab="",xaxt="n",yaxt="n",
+     pch=1,cex=1,col="Black",ylim=c(0,8),xlim=c(0,5))
+mtext(side=1, text="TQ", line=1.6, cex=anno.cex)
+mtext(side=2, text="EQ", line=1.2, cex=anno.cex)
+Hmisc::mgp.axis(1,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+Hmisc::mgp.axis(2,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
+
+
+#### DC C-MMHP ####
+Lambda.cmmhp.test <- Lambda_cmmhp_matrix[current_i,current_j][[1]]
+
+p <- ppoints(length(Lambda.cmmhp.test))    # 100 equally spaced points on (0,1), excluding endpoints
+q <- quantile(Lambda.cmmhp.test,p=p,na.rm=TRUE) # percentiles of the sample distribution
+plot(qexp(p),q, 
+     xlab="",ylab="",xaxt="n",yaxt="n",
+     pch=1,cex=1,col="Black",ylim=c(0,8),xlim=c(0,5))
+mtext(side=1, text="TQ", line=1.6, cex=anno.cex)
+mtext(side=2, text="EQ", line=1.2, cex=anno.cex)
+Hmisc::mgp.axis(1,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+Hmisc::mgp.axis(2,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
+
+
+#### I-MMHP ####
+Lambda.immhp.test <- Lambda_mmhp_matrix[current_i,current_j][[1]]
+
+p <- ppoints(length(Lambda.immhp.test))    # 100 equally spaced points on (0,1), excluding endpoints
+q <- quantile(Lambda.immhp.test,p=p,na.rm=TRUE) # percentiles of the sample distribution
+plot(qexp(p),q, 
+     xlab="",ylab="",xaxt="n",yaxt="n",
+     pch=1,cex=1,col="Black",ylim=c(0,8),xlim=c(0,5))
+mtext(side=1, text="TQ", line=1.6, cex=anno.cex)
+mtext(side=2, text="EQ", line=1.2, cex=anno.cex)
+Hmisc::mgp.axis(1,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+Hmisc::mgp.axis(2,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
+
+
+```
+
+
+
+We want to repeat this for the pair with the most interactions in a single
+cohort, displaying the fitted intensity in the window where they have
+the most interactions.
+
+
+### Cohort 1
+
+```{r cohort-1,cache=path_change}
+current_cohort <- 1
+clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
+return_df <- cleanObservationPeriod(current_cohort, clean_data)
+unique_pairs_df <- return_df %>% group_by(initiator, recipient) %>%
+  dplyr::summarize(count=n(),
+            observe=list(observe.id),
+            observe.length=list(observe.time),
+            no.events=list(no.events)) 
+top_pairs <- unique_pairs_df %>% arrange(desc(count))
+
+best_i <- top_pairs$initiator[1]
+best_j <- top_pairs$recipient[1]
+wind <- unlist(lapply(top_pairs$no.events,which.max))[1]
+
+win_length <- top_pairs$observe.length[[1]][wind]
+
+unique_observe_win <- unique(return_df[,c("observe.id","observe.time")])
+
+actual_win <- which(unique_observe_win$observe.time == win_length)
+
+no_segments <- 500
+
+current_i <- best_i #8
+current_j <- best_j #2
+current_win <- actual_win#wind 
+# this is the 18th window, not the 18th window with observations
+### that this pair have events in, which it should be
+
+pair <- which(unique_pairs_df$initiator==current_i&unique_pairs_df$recipient==current_j)
+unique_observe_win <- unique(return_df[,c("observe.id","observe.time")])
+
+row_indicator <- return_df$initiator==current_i&return_df$recipient==current_j&return_df$observe.id==current_win
+row_idx <- which(return_df$initiator==current_i&return_df$recipient==current_j&return_df$observe.id==current_win)
+current_event_time <- return_df[row_indicator,"event.times"][[1]]
+observe_period <- return_df[row_indicator,"observe.time"]
+time_segment <- seq(0,observe_period,length.out=no_segments)
+
+### load the corresponding stan fits ####
+#print(current_cohort)
+
+## Cohort Hawkes ####
+# load the parameters for this pair
+load(paste(data_path, cohort_names[current_cohort],
+           "/cohort_hp_stan_result_", cohort_names[current_cohort],".RData",sep=''))
+
+# create a list to store the hawkes parameters for this
+model1_par_est <- list(lambda0=mean(sim_cohort_hp$lambda0),
+                       eta_1=mean(sim_cohort_hp$eta_1),
+                       eta_2=mean(sim_cohort_hp$eta_2),
+                       eta_3=mean(sim_cohort_hp$eta_3),
+                       beta=mean(sim_cohort_hp$beta),
+                       f=apply(sim_cohort_hp$f,2,mean))
+model1_par_matrix <- list(lambda0_matrix=matrix(model1_par_est$lambda0,
+                                                nrow=mice_number,ncol=mice_number),
+                          alpha_matrix=formMatrix(function(x,y) model1_fn$alpha.fun(x,y,
+                                                                                    model1_par_est$eta_1,
+                                                                                    model1_par_est$eta_2,
+                                                                                    model1_par_est$eta_3),
+                                                  model1_par_est$f),
+                          beta_matrix=matrix(model1_par_est$beta,
+                                             nrow=mice_number,ncol=mice_number))
+
+hawkes.par <- c(model1_par_matrix$lambda0_matrix[current_i,current_j],
+                model1_par_matrix$alpha[current_i,current_j],
+                        model1_par_matrix$beta[current_i,current_j])
+
+
+
+#### Degree Corrected Hawkes ####
+load(paste(data_path, cohort_names[current_cohort],
+           "/cohort_dchp_stan_result_", cohort_names[current_cohort],".RData",sep=''))
+
+# create a list to store the hawkes parameters for this
+model2_par_est <- list(gamma = apply(sim_cohort_dchp$gamma,2,mean),
+                       zeta = apply(sim_cohort_dchp$zeta,2,mean),
+                       #lambda0=mean(sim_cohort_dchp$lambda0),
+                       eta_1=mean(sim_cohort_dchp$eta_1),
+                       eta_2=mean(sim_cohort_dchp$eta_2),
+                       eta_3=mean(sim_cohort_dchp$eta_3),
+                       beta=mean(sim_cohort_dchp$beta),
+                       f=apply(sim_cohort_dchp$f,2,mean))
+model2_par_matrix <- list(lambda0_matrix= outer(model2_par_est$gamma,
+                                                model2_par_est$zeta,FUN = "+"),
+                          alpha_matrix=formMatrix(function(x,y) model1_fn$alpha.fun(x,y,
+                                                                                    model2_par_est$eta_1,
+                                                                                  model2_par_est$eta_2,
+                                                                                    model2_par_est$eta_3),
+                                                  model2_par_est$f),
+                          beta_matrix=matrix(model2_par_est$beta,
+                                             nrow=mice_number,ncol=mice_number))
+
+hawkes.par_dc <- c(model2_par_matrix$lambda0_matrix[current_i,current_j],
+                model2_par_matrix$alpha[current_i,current_j],
+                model2_par_matrix$beta[current_i,current_j])
+
+rm(fit_cohort_hp)
+rm(fit_cohort_dchp)
+rm(sim_cohort_hp)
+rm(sim_cohort_dchp)
+
+## Cohort MMHP
+load(paste(data_path,cohort_names[current_cohort],
+             "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
+             ".RData",sep=''))
+load(paste(data_path,cohort_names[current_cohort],
+             "/cmmhp_est_zt_",cohort_names[current_cohort],".RData",sep=''))
+
+# then adjust the parameters for c-mmhp below here also
+
+c_mmhp_par <- list(lambda1=mean(sim_cohort_mmhp$lambda1[,pair]),
+                 lambda0=mean(sim_cohort_mmhp$lambda0[,pair]),
+                 alpha=mean(sim_cohort_mmhp$alpha[,pair]),
+                 beta=mean(sim_cohort_mmhp$beta),
+                 q1=mean(sim_cohort_mmhp$q1[,pair]),
+                 q2=mean(sim_cohort_mmhp$q2[,pair]))
+
+c_mmhp.est.latent <- ifelse(apply(state_array_list[[pair]][[current_win]],
+                                1,
+                                function(x) sum(x==1)) >500,rep(1,1000),rep(2,1000))
+c_mmhp.est.latent <- interpolateLatentTrajectory(params=c_mmhp_par,
+                                               events=current_event_time,
+                                                       zt=c_mmhp.est.latent,                                         initial.state=mean(initial_state_list[[pair]][[current_win]]),
+                     termination.time=observe_period,
+                     termination.state = 2)
+
+
+rm(interpolation_array_list)
+rm(state_array_list)
+rm(initial_state_list)
+rm(termination_state_list)
+
+## Cohort MMHP
+load(paste(data_path,cohort_names[current_cohort],
+             "/sep_mmhp_stan_result_",cohort_names[current_cohort],
+             ".RData",sep=''))
+load(paste(data_path,cohort_names[current_cohort],
+             "/mmhp_est_zt_",cohort_names[current_cohort],".RData",sep=''))
+
+# then adjust the parameters for c-mmhp below here also
+
+sep_mmhp_par <- list(lambda1=mean(sim_mmhp_sep$lambda1[,pair]),
+                 lambda0=mean(sim_mmhp_sep$lambda0[,pair]),
+                 alpha=mean(sim_mmhp_sep$alpha[,pair]),
+                 beta=mean(sim_mmhp_sep$beta),
+                 q1=mean(sim_mmhp_sep$q1[,pair]),
+                 q2=mean(sim_mmhp_sep$q2[,pair]))
+
+sep_mmhp.est.latent <- ifelse(apply(state_array_list[[pair]][[current_win]],
+                                1,
+                                function(x) sum(x==1)) >500,rep(1,1000),rep(2,1000))
+sep_mmhp.est.latent <- interpolateLatentTrajectory(params=c_mmhp_par,
+                                               events=current_event_time,
+                                                       zt=sep_mmhp.est.latent,                                         initial.state=mean(initial_state_list[[pair]][[current_win]]),
+                     termination.time=observe_period,
+                     termination.state = 2)
+
+
+rm(interpolation_array_list)
+rm(state_array_list)
+rm(initial_state_list)
+rm(termination_state_list)
+
+# row_indicator <- return_df$initiator==current_i&return_df$recipient==current_j&return_df$observe.id==current_win
+# row_idx <- which(return_df$initiator==current_i&return_df$recipient==current_j&return_df$observe.id==current_win)
+# current_event_time <- return_df[row_indicator,"event.times"][[1]]
+# observe_period <- return_df[row_indicator,"observe.time"]
+# no_segments <- 500
+# time_segment <- seq(0,observe_period,length.out=no_segments)
+
+par(mfrow=c(2,4), oma=c(1,1,1,1), mar=c(2,3,2,1), mgp=c(0.8,0,0))
+layout(matrix(1:8,nrow=2,byrow=TRUE),widths=rep(2,4),height=c(3,3))
+anno.cex <- 1.3
+title.cex <- 2.2
+title.line <- 0.5
+y.upper <- 20
+
+
+#### Cohort Hawkes  ####
+
+drawRealIntensityPaper(current_event_time,
+                       yupper=y.upper, color="black",line.width=2,title.line=title.line,
+                       title_name="C-HP",
+                       title.cex=title.cex, max.x=observe_period, box.col="black")
+drawHawkesIntensityPaper(lambda0=hawkes.par[1],
+                         alpha=hawkes.par[2],
+                         beta=hawkes.par[3],
+                         events=current_event_time, termination=observe_period)
+
+### DC Cohort Hawkes ####
+
+drawRealIntensityPaper(current_event_time,
+                       yupper=y.upper, color="black",line.width=2,title.line=title.line,
+                       title_name="DC-HP",
+                       title.cex=title.cex, max.x=observe_period, box.col="black")
+drawHawkesIntensityPaper(lambda0=hawkes.par_dc[1],
+                         alpha=hawkes.par_dc[2],
+                         beta=hawkes.par_dc[3],
+                         events=current_event_time, termination=observe_period)
+
+#### DC C-MMHP ####
+drawRealIntensityPaper(current_event_time, object=c_mmhp_par,title.line=title.line,
+                       simulation=list(x=c(0,c_mmhp.est.latent$x.hat),
+                                       z=c_mmhp.est.latent$z.hat),
+                       yupper=y.upper, color="black", line.width=2,
+                       title_name="DC C-MMHP", title.cex=title.cex, max.x=observe_period, box.col="black")
+
+#### Sep MMHP ####
+
+drawRealIntensityPaper(current_event_time, object=sep_mmhp_par,title.line=title.line,
+                       simulation=list(x=c(0,sep_mmhp.est.latent$x.hat),
+                                       z=sep_mmhp.est.latent$z.hat),
+                       yupper=y.upper, color="black", line.width=2,
+                       title_name="I-MMHP", title.cex=title.cex, max.x=observe_period, box.col="black")
+
+
+#### then the corresponding QQ plots ####
+load(paste(data_path,cohort_names[current_cohort],
+             "/real_diag_four_models_",cohort_names[current_cohort],
+             ".RData",sep=''))
+
+#### Cohort Hawkes ####
+
+Lambda.c_hawkes.test <- Lambda_c_hawkes_matrix[current_i,current_j][[1]]
+
+p <- ppoints(length(Lambda.c_hawkes.test))    # 100 equally spaced points on (0,1), excluding endpoints
+q <- quantile(Lambda.c_hawkes.test,p=p,na.rm=TRUE) # percentiles of the sample distribution
+plot(qexp(p),q, 
+     xlab="",ylab="",xaxt="n",yaxt="n",
+     pch=1,cex=1,col="Black",ylim=c(0,8),xlim=c(0,5))
+mtext(side=1, text="TQ", line=1.6, cex=anno.cex)
+mtext(side=2, text="EQ", line=1.2, cex=anno.cex)
+Hmisc::mgp.axis(1,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+Hmisc::mgp.axis(2,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
+
+#### Cohort DC Hawkes ####
+
+Lambda.dc_hawkes.test <- Lambda_dc_hawkes_matrix[current_i,current_j][[1]]
+
+p <- ppoints(length(Lambda.dc_hawkes.test))    # 100 equally spaced points on (0,1), excluding endpoints
+q <- quantile(Lambda.dc_hawkes.test,p=p,na.rm=TRUE) # percentiles of the sample distribution
+plot(qexp(p),q, 
+     xlab="",ylab="",xaxt="n",yaxt="n",
+     pch=1,cex=1,col="Black",ylim=c(0,8),xlim=c(0,5))
+mtext(side=1, text="TQ", line=1.6, cex=anno.cex)
+mtext(side=2, text="EQ", line=1.2, cex=anno.cex)
+Hmisc::mgp.axis(1,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+Hmisc::mgp.axis(2,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
+
+
+#### DC C-MMHP ####
+Lambda.cmmhp.test <- Lambda_cmmhp_matrix[current_i,current_j][[1]]
+
+p <- ppoints(length(Lambda.cmmhp.test))    # 100 equally spaced points on (0,1), excluding endpoints
+q <- quantile(Lambda.cmmhp.test,p=p,na.rm=TRUE) # percentiles of the sample distribution
+plot(qexp(p),q, 
+     xlab="",ylab="",xaxt="n",yaxt="n",
+     pch=1,cex=1,col="Black",ylim=c(0,8),xlim=c(0,5))
+mtext(side=1, text="TQ", line=1.6, cex=anno.cex)
+mtext(side=2, text="EQ", line=1.2, cex=anno.cex)
+Hmisc::mgp.axis(1,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+Hmisc::mgp.axis(2,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
+
+
+#### I-MMHP ####
+Lambda.immhp.test <- Lambda_mmhp_matrix[current_i,current_j][[1]]
+
+p <- ppoints(length(Lambda.immhp.test))    # 100 equally spaced points on (0,1), excluding endpoints
+q <- quantile(Lambda.immhp.test,p=p,na.rm=TRUE) # percentiles of the sample distribution
+plot(qexp(p),q, 
+     xlab="",ylab="",xaxt="n",yaxt="n",
+     pch=1,cex=1,col="Black",ylim=c(0,8),xlim=c(0,5))
+mtext(side=1, text="TQ", line=1.6, cex=anno.cex)
+mtext(side=2, text="EQ", line=1.2, cex=anno.cex)
+Hmisc::mgp.axis(1,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+Hmisc::mgp.axis(2,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
+
+```
+
+
+
+
+### Cohort 2
+
+
+```{r cohort-2,cache=path_change}
+current_cohort <- 2
+clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
+return_df <- cleanObservationPeriod(current_cohort, clean_data)
+unique_pairs_df <- return_df %>% group_by(initiator, recipient) %>%
+  dplyr::summarize(count=n(),
+            observe=list(observe.id),
+            observe.length=list(observe.time),
+            no.events=list(no.events)) 
+top_pairs <- unique_pairs_df %>% arrange(desc(count))
+
+best_i <- top_pairs$initiator[1]
+best_j <- top_pairs$recipient[1]
+wind <- unlist(lapply(top_pairs$no.events,which.max))[1]
+
+win_length <- top_pairs$observe.length[[1]][wind]
+
+unique_observe_win <- unique(return_df[,c("observe.id","observe.time")])
+actual_win <- which(unique_observe_win$observe.time == win_length)
+
+no_segments <- 500
+
+current_i <- best_i #8
+current_j <- best_j #2
+current_win <- actual_win#wind 
+# this is the 18th window, not the 18th window with observations
+### that this pair have events in, which it should be
+
+# clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
+# return_df <- cleanObservationPeriod(current_cohort, clean_data)
+# unique_pairs_df <- return_df %>% group_by(initiator, recipient) %>%
+#   dplyr::summarize(count=n(),
+#             observe=list(observe.id),
+#             observe.length=list(observe.time),
+#             no.events=list(no.events))
+pair <- which(unique_pairs_df$initiator==current_i&unique_pairs_df$recipient==current_j)
+unique_observe_win <- unique(return_df[,c("observe.id","observe.time")])
+
+row_indicator <- return_df$initiator==current_i&return_df$recipient==current_j&return_df$observe.id==current_win
+row_idx <- which(return_df$initiator==current_i&return_df$recipient==current_j&return_df$observe.id==current_win)
+current_event_time <- return_df[row_indicator,"event.times"][[1]]
+observe_period <- return_df[row_indicator,"observe.time"]
+time_segment <- seq(0,observe_period,length.out=no_segments)
+
+### load the corresponding stan fits ####
+#print(current_cohort)
+
+## Cohort Hawkes ####
+# load the parameters for this pair
+load(paste(data_path, cohort_names[current_cohort],
+           "/cohort_hp_stan_result_", cohort_names[current_cohort],".RData",sep=''))
+
+# create a list to store the hawkes parameters for this
+model1_par_est <- list(lambda0=mean(sim_cohort_hp$lambda0),
+                       eta_1=mean(sim_cohort_hp$eta_1),
+                       eta_2=mean(sim_cohort_hp$eta_2),
+                       eta_3=mean(sim_cohort_hp$eta_3),
+                       beta=mean(sim_cohort_hp$beta),
+                       f=apply(sim_cohort_hp$f,2,mean))
+model1_par_matrix <- list(lambda0_matrix=matrix(model1_par_est$lambda0,
+                                                nrow=mice_number,ncol=mice_number),
+                          alpha_matrix=formMatrix(function(x,y) model1_fn$alpha.fun(x,y,
+                                                                                    model1_par_est$eta_1,
+                                                                                    model1_par_est$eta_2,
+                                                                                    model1_par_est$eta_3),
+                                                  model1_par_est$f),
+                          beta_matrix=matrix(model1_par_est$beta,
+                                             nrow=mice_number,ncol=mice_number))
+
+hawkes.par <- c(model1_par_matrix$lambda0_matrix[current_i,current_j],
+                model1_par_matrix$alpha[current_i,current_j],
+                        model1_par_matrix$beta[current_i,current_j])
+
+
+
+#### Degree Corrected Hawkes ####
+load(paste(data_path, cohort_names[current_cohort],
+           "/cohort_dchp_stan_result_", cohort_names[current_cohort],".RData",sep=''))
+
+# create a list to store the hawkes parameters for this
+model2_par_est <- list(gamma = apply(sim_cohort_dchp$gamma,2,mean),
+                       zeta = apply(sim_cohort_dchp$zeta,2,mean),
+                       #lambda0=mean(sim_cohort_dchp$lambda0),
+                       eta_1=mean(sim_cohort_dchp$eta_1),
+                       eta_2=mean(sim_cohort_dchp$eta_2),
+                       eta_3=mean(sim_cohort_dchp$eta_3),
+                       beta=mean(sim_cohort_dchp$beta),
+                       f=apply(sim_cohort_dchp$f,2,mean))
+model2_par_matrix <- list(lambda0_matrix= outer(model2_par_est$gamma,
+                                                model2_par_est$zeta,FUN = "+"),
+                          alpha_matrix=formMatrix(function(x,y) model1_fn$alpha.fun(x,y,
+                                                                                    model2_par_est$eta_1,
+                                                                                  model2_par_est$eta_2,
+                                                                                    model2_par_est$eta_3),
+                                                  model2_par_est$f),
+                          beta_matrix=matrix(model2_par_est$beta,
+                                             nrow=mice_number,ncol=mice_number))
+
+hawkes.par_dc <- c(model2_par_matrix$lambda0_matrix[current_i,current_j],
+                model2_par_matrix$alpha[current_i,current_j],
+                model2_par_matrix$beta[current_i,current_j])
+
+rm(fit_cohort_hp)
+rm(fit_cohort_dchp)
+rm(sim_cohort_hp)
+rm(sim_cohort_dchp)
+
+## Cohort MMHP
+load(paste(data_path,cohort_names[current_cohort],
+             "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
+             ".RData",sep=''))
+load(paste(data_path,cohort_names[current_cohort],
+             "/cmmhp_est_zt_",cohort_names[current_cohort],".RData",sep=''))
+
+# then adjust the parameters for c-mmhp below here also
+
+c_mmhp_par <- list(lambda1=mean(sim_cohort_mmhp$lambda1[,pair]),
+                 lambda0=mean(sim_cohort_mmhp$lambda0[,pair]),
+                 alpha=mean(sim_cohort_mmhp$alpha[,pair]),
+                 beta=mean(sim_cohort_mmhp$beta),
+                 q1=mean(sim_cohort_mmhp$q1[,pair]),
+                 q2=mean(sim_cohort_mmhp$q2[,pair]))
+
+c_mmhp.est.latent <- ifelse(apply(state_array_list[[pair]][[current_win]],
+                                1,
+                                function(x) sum(x==1)) >500,rep(1,1000),rep(2,1000))
+c_mmhp.est.latent <- interpolateLatentTrajectory(params=c_mmhp_par,
+                                               events=current_event_time,
+                                                       zt=c_mmhp.est.latent,                                         initial.state=mean(initial_state_list[[pair]][[current_win]]),
+                     termination.time=observe_period,
+                     termination.state = 2)
+
+
+rm(interpolation_array_list)
+rm(state_array_list)
+rm(initial_state_list)
+rm(termination_state_list)
+
+## Cohort MMHP
+load(paste(data_path,cohort_names[current_cohort],
+             "/sep_mmhp_stan_result_",cohort_names[current_cohort],
+             ".RData",sep=''))
+load(paste(data_path,cohort_names[current_cohort],
+             "/mmhp_est_zt_",cohort_names[current_cohort],".RData",sep=''))
+
+# then adjust the parameters for c-mmhp below here also
+
+sep_mmhp_par <- list(lambda1=mean(sim_mmhp_sep$lambda1[,pair]),
+                 lambda0=mean(sim_mmhp_sep$lambda0[,pair]),
+                 alpha=mean(sim_mmhp_sep$alpha[,pair]),
+                 beta=mean(sim_mmhp_sep$beta),
+                 q1=mean(sim_mmhp_sep$q1[,pair]),
+                 q2=mean(sim_mmhp_sep$q2[,pair]))
+
+sep_mmhp.est.latent <- ifelse(apply(state_array_list[[pair]][[current_win]],
+                                1,
+                                function(x) sum(x==1)) >500,rep(1,1000),rep(2,1000))
+sep_mmhp.est.latent <- interpolateLatentTrajectory(params=c_mmhp_par,
+                                               events=current_event_time,
+                                                       zt=sep_mmhp.est.latent,                                         initial.state=mean(initial_state_list[[pair]][[current_win]]),
+                     termination.time=observe_period,
+                     termination.state = 2)
+
+
+rm(interpolation_array_list)
+rm(state_array_list)
+rm(initial_state_list)
+rm(termination_state_list)
+
+row_indicator <- return_df$initiator==current_i&return_df$recipient==current_j&return_df$observe.id==current_win
+row_idx <- which(return_df$initiator==current_i&return_df$recipient==current_j&return_df$observe.id==current_win)
+current_event_time <- return_df[row_indicator,"event.times"][[1]]
+observe_period <- return_df[row_indicator,"observe.time"]
+no_segments <- 500
+time_segment <- seq(0,observe_period,length.out=no_segments)
+
+par(mfrow=c(2,4), oma=c(1,1,1,1), mar=c(2,3,2,1), mgp=c(0.8,0,0))
+layout(matrix(1:8,nrow=2,byrow=TRUE),widths=rep(2,4),height=c(3,3))
+anno.cex <- 1.3
+title.cex <- 2.2
+title.line <- 0.5
+y.upper <- 20
+
+
+#### Cohort Hawkes  ####
+
+drawRealIntensityPaper(current_event_time,
+                       yupper=y.upper, color="black",line.width=2,title.line=title.line,
+                       title_name="C-HP",
+                       title.cex=title.cex, max.x=observe_period, box.col="black")
+drawHawkesIntensityPaper(lambda0=hawkes.par[1],
+                         alpha=hawkes.par[2],
+                         beta=hawkes.par[3],
+                         events=current_event_time, termination=observe_period)
+
+### DC Cohort Hawkes ####
+
+drawRealIntensityPaper(current_event_time,
+                       yupper=y.upper, color="black",line.width=2,title.line=title.line,
+                       title_name="DC-HP",
+                       title.cex=title.cex, max.x=observe_period, box.col="black")
+drawHawkesIntensityPaper(lambda0=hawkes.par_dc[1],
+                         alpha=hawkes.par_dc[2],
+                         beta=hawkes.par_dc[3],
+                         events=current_event_time, termination=observe_period)
+
+#### DC C-MMHP ####
+drawRealIntensityPaper(current_event_time, object=c_mmhp_par,title.line=title.line,
+                       simulation=list(x=c(0,c_mmhp.est.latent$x.hat),
+                                       z=c_mmhp.est.latent$z.hat),
+                       yupper=y.upper, color="black", line.width=2,
+                       title_name="DC C-MMHP", title.cex=title.cex, max.x=observe_period, box.col="black")
+
+#### Sep MMHP ####
+
+drawRealIntensityPaper(current_event_time, object=sep_mmhp_par,title.line=title.line,
+                       simulation=list(x=c(0,sep_mmhp.est.latent$x.hat),
+                                       z=sep_mmhp.est.latent$z.hat),
+                       yupper=y.upper, color="black", line.width=2,
+                       title_name="I-MMHP", title.cex=title.cex, max.x=observe_period, box.col="black")
+
+
+#### then the corresponding QQ plots ####
+load(paste(data_path,cohort_names[current_cohort],
+             "/real_diag_four_models_",cohort_names[current_cohort],
+             ".RData",sep=''))
+
+#### Cohort Hawkes ####
+
+Lambda.c_hawkes.test <- Lambda_c_hawkes_matrix[current_i,current_j][[1]]
+
+p <- ppoints(length(Lambda.c_hawkes.test))    # 100 equally spaced points on (0,1), excluding endpoints
+q <- quantile(Lambda.c_hawkes.test,p=p,na.rm=TRUE) # percentiles of the sample distribution
+plot(qexp(p),q, 
+     xlab="",ylab="",xaxt="n",yaxt="n",
+     pch=1,cex=1,col="Black",ylim=c(0,8),xlim=c(0,5))
+mtext(side=1, text="TQ", line=1.6, cex=anno.cex)
+mtext(side=2, text="EQ", line=1.2, cex=anno.cex)
+Hmisc::mgp.axis(1,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+Hmisc::mgp.axis(2,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
+
+#### Cohort DC Hawkes ####
+
+Lambda.dc_hawkes.test <- Lambda_dc_hawkes_matrix[current_i,current_j][[1]]
+
+p <- ppoints(length(Lambda.dc_hawkes.test))    # 100 equally spaced points on (0,1), excluding endpoints
+q <- quantile(Lambda.dc_hawkes.test,p=p,na.rm=TRUE) # percentiles of the sample distribution
+plot(qexp(p),q, 
+     xlab="",ylab="",xaxt="n",yaxt="n",
+     pch=1,cex=1,col="Black",ylim=c(0,8),xlim=c(0,5))
+mtext(side=1, text="TQ", line=1.6, cex=anno.cex)
+mtext(side=2, text="EQ", line=1.2, cex=anno.cex)
+Hmisc::mgp.axis(1,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+Hmisc::mgp.axis(2,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
+
+
+#### DC C-MMHP ####
+Lambda.cmmhp.test <- Lambda_cmmhp_matrix[current_i,current_j][[1]]
+
+p <- ppoints(length(Lambda.cmmhp.test))    # 100 equally spaced points on (0,1), excluding endpoints
+q <- quantile(Lambda.cmmhp.test,p=p,na.rm=TRUE) # percentiles of the sample distribution
+plot(qexp(p),q, 
+     xlab="",ylab="",xaxt="n",yaxt="n",
+     pch=1,cex=1,col="Black",ylim=c(0,8),xlim=c(0,5))
+mtext(side=1, text="TQ", line=1.6, cex=anno.cex)
+mtext(side=2, text="EQ", line=1.2, cex=anno.cex)
+Hmisc::mgp.axis(1,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+Hmisc::mgp.axis(2,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
+
+
+#### I-MMHP ####
+Lambda.immhp.test <- Lambda_mmhp_matrix[current_i,current_j][[1]]
+
+p <- ppoints(length(Lambda.immhp.test))    # 100 equally spaced points on (0,1), excluding endpoints
+q <- quantile(Lambda.immhp.test,p=p,na.rm=TRUE) # percentiles of the sample distribution
+plot(qexp(p),q, 
+     xlab="",ylab="",xaxt="n",yaxt="n",
+     pch=1,cex=1,col="Black",ylim=c(0,8),xlim=c(0,5))
+mtext(side=1, text="TQ", line=1.6, cex=anno.cex)
+mtext(side=2, text="EQ", line=1.2, cex=anno.cex)
+Hmisc::mgp.axis(1,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+Hmisc::mgp.axis(2,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
+
+
+```
+
+### Cohort 3
+
+
+```{r cohort-3,cache=path_change}
+current_cohort <- 3
+clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
+return_df <- cleanObservationPeriod(current_cohort, clean_data)
+unique_pairs_df <- return_df %>% group_by(initiator, recipient) %>%
+  dplyr::summarize(count=n(),
+            observe=list(observe.id),
+            observe.length=list(observe.time),
+            no.events=list(no.events)) 
+top_pairs <- unique_pairs_df %>% arrange(desc(count))
+
+best_i <- top_pairs$initiator[1]
+best_j <- top_pairs$recipient[1]
+wind <- unlist(lapply(top_pairs$no.events,which.max))[1]
+
+win_length <- top_pairs$observe.length[[1]][wind]
+
+unique_observe_win <- unique(return_df[,c("observe.id","observe.time")])
+actual_win <- which(unique_observe_win$observe.time == win_length)
+
+no_segments <- 500
+
+current_i <- best_i #8
+current_j <- best_j #2
+current_win <- actual_win#wind 
+# this is the 18th window, not the 18th window with observations
+### that this pair have events in, which it should be
+
+# clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
+# return_df <- cleanObservationPeriod(current_cohort, clean_data)
+# unique_pairs_df <- return_df %>% group_by(initiator, recipient) %>%
+#   dplyr::summarize(count=n(),
+#             observe=list(observe.id),
+#             observe.length=list(observe.time),
+#             no.events=list(no.events))
+pair <- which(unique_pairs_df$initiator==current_i&unique_pairs_df$recipient==current_j)
+unique_observe_win <- unique(return_df[,c("observe.id","observe.time")])
+
+row_indicator <- return_df$initiator==current_i&return_df$recipient==current_j&return_df$observe.id==current_win
+row_idx <- which(return_df$initiator==current_i&return_df$recipient==current_j&return_df$observe.id==current_win)
+current_event_time <- return_df[row_indicator,"event.times"][[1]]
+observe_period <- return_df[row_indicator,"observe.time"]
+time_segment <- seq(0,observe_period,length.out=no_segments)
+
+### load the corresponding stan fits ####
+#print(current_cohort)
+
+## Cohort Hawkes ####
+# load the parameters for this pair
+load(paste(data_path, cohort_names[current_cohort],
+           "/cohort_hp_stan_result_", cohort_names[current_cohort],".RData",sep=''))
+
+# create a list to store the hawkes parameters for this
+model1_par_est <- list(lambda0=mean(sim_cohort_hp$lambda0),
+                       eta_1=mean(sim_cohort_hp$eta_1),
+                       eta_2=mean(sim_cohort_hp$eta_2),
+                       eta_3=mean(sim_cohort_hp$eta_3),
+                       beta=mean(sim_cohort_hp$beta),
+                       f=apply(sim_cohort_hp$f,2,mean))
+model1_par_matrix <- list(lambda0_matrix=matrix(model1_par_est$lambda0,
+                                                nrow=mice_number,ncol=mice_number),
+                          alpha_matrix=formMatrix(function(x,y) model1_fn$alpha.fun(x,y,
+                                                                                    model1_par_est$eta_1,
+                                                                                    model1_par_est$eta_2,
+                                                                                    model1_par_est$eta_3),
+                                                  model1_par_est$f),
+                          beta_matrix=matrix(model1_par_est$beta,
+                                             nrow=mice_number,ncol=mice_number))
+
+hawkes.par <- c(model1_par_matrix$lambda0_matrix[current_i,current_j],
+                model1_par_matrix$alpha[current_i,current_j],
+                        model1_par_matrix$beta[current_i,current_j])
+
+
+
+#### Degree Corrected Hawkes ####
+load(paste(data_path, cohort_names[current_cohort],
+           "/cohort_dchp_stan_result_", cohort_names[current_cohort],".RData",sep=''))
+
+# create a list to store the hawkes parameters for this
+model2_par_est <- list(gamma = apply(sim_cohort_dchp$gamma,2,mean),
+                       zeta = apply(sim_cohort_dchp$zeta,2,mean),
+                       #lambda0=mean(sim_cohort_dchp$lambda0),
+                       eta_1=mean(sim_cohort_dchp$eta_1),
+                       eta_2=mean(sim_cohort_dchp$eta_2),
+                       eta_3=mean(sim_cohort_dchp$eta_3),
+                       beta=mean(sim_cohort_dchp$beta),
+                       f=apply(sim_cohort_dchp$f,2,mean))
+model2_par_matrix <- list(lambda0_matrix= outer(model2_par_est$gamma,
+                                                model2_par_est$zeta,FUN = "+"),
+                          alpha_matrix=formMatrix(function(x,y) model1_fn$alpha.fun(x,y,
+                                                                                    model2_par_est$eta_1,
+                                                                                  model2_par_est$eta_2,
+                                                                                    model2_par_est$eta_3),
+                                                  model2_par_est$f),
+                          beta_matrix=matrix(model2_par_est$beta,
+                                             nrow=mice_number,ncol=mice_number))
+
+hawkes.par_dc <- c(model2_par_matrix$lambda0_matrix[current_i,current_j],
+                model2_par_matrix$alpha[current_i,current_j],
+                model2_par_matrix$beta[current_i,current_j])
+
+rm(fit_cohort_hp)
+rm(fit_cohort_dchp)
+rm(sim_cohort_hp)
+rm(sim_cohort_dchp)
+
+## Cohort MMHP
+load(paste(data_path,cohort_names[current_cohort],
+             "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
+             ".RData",sep=''))
+load(paste(data_path,cohort_names[current_cohort],
+             "/cmmhp_est_zt_",cohort_names[current_cohort],".RData",sep=''))
+
+# then adjust the parameters for c-mmhp below here also
+
+c_mmhp_par <- list(lambda1=mean(sim_cohort_mmhp$lambda1[,pair]),
+                 lambda0=mean(sim_cohort_mmhp$lambda0[,pair]),
+                 alpha=mean(sim_cohort_mmhp$alpha[,pair]),
+                 beta=mean(sim_cohort_mmhp$beta),
+                 q1=mean(sim_cohort_mmhp$q1[,pair]),
+                 q2=mean(sim_cohort_mmhp$q2[,pair]))
+
+c_mmhp.est.latent <- ifelse(apply(state_array_list[[pair]][[current_win]],
+                                1,
+                                function(x) sum(x==1)) >500,rep(1,1000),rep(2,1000))
+c_mmhp.est.latent <- interpolateLatentTrajectory(params=c_mmhp_par,
+                                               events=current_event_time,
+                                                       zt=c_mmhp.est.latent,                                         initial.state=mean(initial_state_list[[pair]][[current_win]]),
+                     termination.time=observe_period,
+                     termination.state = 2)
+
+
+rm(interpolation_array_list)
+rm(state_array_list)
+rm(initial_state_list)
+rm(termination_state_list)
+
+## Cohort MMHP
+load(paste(data_path,cohort_names[current_cohort],
+             "/sep_mmhp_stan_result_",cohort_names[current_cohort],
+             ".RData",sep=''))
+load(paste(data_path,cohort_names[current_cohort],
+             "/mmhp_est_zt_",cohort_names[current_cohort],".RData",sep=''))
+
+# then adjust the parameters for c-mmhp below here also
+
+sep_mmhp_par <- list(lambda1=mean(sim_mmhp_sep$lambda1[,pair]),
+                 lambda0=mean(sim_mmhp_sep$lambda0[,pair]),
+                 alpha=mean(sim_mmhp_sep$alpha[,pair]),
+                 beta=mean(sim_mmhp_sep$beta),
+                 q1=mean(sim_mmhp_sep$q1[,pair]),
+                 q2=mean(sim_mmhp_sep$q2[,pair]))
+
+sep_mmhp.est.latent <- ifelse(apply(state_array_list[[pair]][[current_win]],
+                                1,
+                                function(x) sum(x==1)) >500,rep(1,1000),rep(2,1000))
+sep_mmhp.est.latent <- interpolateLatentTrajectory(params=c_mmhp_par,
+                                               events=current_event_time,
+                                                       zt=sep_mmhp.est.latent,                                         initial.state=mean(initial_state_list[[pair]][[current_win]]),
+                     termination.time=observe_period,
+                     termination.state = 2)
+
+
+rm(interpolation_array_list)
+rm(state_array_list)
+rm(initial_state_list)
+rm(termination_state_list)
+
+row_indicator <- return_df$initiator==current_i&return_df$recipient==current_j&return_df$observe.id==current_win
+row_idx <- which(return_df$initiator==current_i&return_df$recipient==current_j&return_df$observe.id==current_win)
+current_event_time <- return_df[row_indicator,"event.times"][[1]]
+observe_period <- return_df[row_indicator,"observe.time"]
+no_segments <- 500
+time_segment <- seq(0,observe_period,length.out=no_segments)
+
+par(mfrow=c(2,4), oma=c(1,1,1,1), mar=c(2,3,2,1), mgp=c(0.8,0,0))
+layout(matrix(1:8,nrow=2,byrow=TRUE),widths=rep(2,4),height=c(3,3))
+anno.cex <- 1.3
+title.cex <- 2.2
+title.line <- 0.5
+y.upper <- 20
+
+
+#### Cohort Hawkes  ####
+
+drawRealIntensityPaper(current_event_time,
+                       yupper=y.upper, color="black",line.width=2,title.line=title.line,
+                       title_name="C-HP",
+                       title.cex=title.cex, max.x=observe_period, box.col="black")
+drawHawkesIntensityPaper(lambda0=hawkes.par[1],
+                         alpha=hawkes.par[2],
+                         beta=hawkes.par[3],
+                         events=current_event_time, termination=observe_period)
+
+### DC Cohort Hawkes ####
+
+drawRealIntensityPaper(current_event_time,
+                       yupper=y.upper, color="black",line.width=2,title.line=title.line,
+                       title_name="DC-HP",
+                       title.cex=title.cex, max.x=observe_period, box.col="black")
+drawHawkesIntensityPaper(lambda0=hawkes.par_dc[1],
+                         alpha=hawkes.par_dc[2],
+                         beta=hawkes.par_dc[3],
+                         events=current_event_time, termination=observe_period)
+
+#### DC C-MMHP ####
+drawRealIntensityPaper(current_event_time, object=c_mmhp_par,title.line=title.line,
+                       simulation=list(x=c(0,c_mmhp.est.latent$x.hat),
+                                       z=c_mmhp.est.latent$z.hat),
+                       yupper=y.upper, color="black", line.width=2,
+                       title_name="DC C-MMHP", title.cex=title.cex, max.x=observe_period, box.col="black")
+
+#### Sep MMHP ####
+
+drawRealIntensityPaper(current_event_time, object=sep_mmhp_par,title.line=title.line,
+                       simulation=list(x=c(0,sep_mmhp.est.latent$x.hat),
+                                       z=sep_mmhp.est.latent$z.hat),
+                       yupper=y.upper, color="black", line.width=2,
+                       title_name="I-MMHP", title.cex=title.cex, max.x=observe_period, box.col="black")
+
+
+#### then the corresponding QQ plots ####
+load(paste(data_path,cohort_names[current_cohort],
+             "/real_diag_four_models_",cohort_names[current_cohort],
+             ".RData",sep=''))
+
+#### Cohort Hawkes ####
+
+Lambda.c_hawkes.test <- Lambda_c_hawkes_matrix[current_i,current_j][[1]]
+
+p <- ppoints(length(Lambda.c_hawkes.test))    # 100 equally spaced points on (0,1), excluding endpoints
+q <- quantile(Lambda.c_hawkes.test,p=p,na.rm=TRUE) # percentiles of the sample distribution
+plot(qexp(p),q, 
+     xlab="",ylab="",xaxt="n",yaxt="n",
+     pch=1,cex=1,col="Black",ylim=c(0,8),xlim=c(0,5))
+mtext(side=1, text="TQ", line=1.6, cex=anno.cex)
+mtext(side=2, text="EQ", line=1.2, cex=anno.cex)
+Hmisc::mgp.axis(1,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+Hmisc::mgp.axis(2,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
+
+#### Cohort DC Hawkes ####
+
+Lambda.dc_hawkes.test <- Lambda_dc_hawkes_matrix[current_i,current_j][[1]]
+
+p <- ppoints(length(Lambda.dc_hawkes.test))    # 100 equally spaced points on (0,1), excluding endpoints
+q <- quantile(Lambda.dc_hawkes.test,p=p,na.rm=TRUE) # percentiles of the sample distribution
+plot(qexp(p),q, 
+     xlab="",ylab="",xaxt="n",yaxt="n",
+     pch=1,cex=1,col="Black",ylim=c(0,8),xlim=c(0,5))
+mtext(side=1, text="TQ", line=1.6, cex=anno.cex)
+mtext(side=2, text="EQ", line=1.2, cex=anno.cex)
+Hmisc::mgp.axis(1,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+Hmisc::mgp.axis(2,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
+
+
+#### DC C-MMHP ####
+Lambda.cmmhp.test <- Lambda_cmmhp_matrix[current_i,current_j][[1]]
+
+p <- ppoints(length(Lambda.cmmhp.test))    # 100 equally spaced points on (0,1), excluding endpoints
+q <- quantile(Lambda.cmmhp.test,p=p,na.rm=TRUE) # percentiles of the sample distribution
+plot(qexp(p),q, 
+     xlab="",ylab="",xaxt="n",yaxt="n",
+     pch=1,cex=1,col="Black",ylim=c(0,8),xlim=c(0,5))
+mtext(side=1, text="TQ", line=1.6, cex=anno.cex)
+mtext(side=2, text="EQ", line=1.2, cex=anno.cex)
+Hmisc::mgp.axis(1,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+Hmisc::mgp.axis(2,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
+
+
+#### I-MMHP ####
+Lambda.immhp.test <- Lambda_mmhp_matrix[current_i,current_j][[1]]
+
+p <- ppoints(length(Lambda.immhp.test))    # 100 equally spaced points on (0,1), excluding endpoints
+q <- quantile(Lambda.immhp.test,p=p,na.rm=TRUE) # percentiles of the sample distribution
+plot(qexp(p),q, 
+     xlab="",ylab="",xaxt="n",yaxt="n",
+     pch=1,cex=1,col="Black",ylim=c(0,8),xlim=c(0,5))
+mtext(side=1, text="TQ", line=1.6, cex=anno.cex)
+mtext(side=2, text="EQ", line=1.2, cex=anno.cex)
+Hmisc::mgp.axis(1,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+Hmisc::mgp.axis(2,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
+
+
+```
+
+
+
+### Cohort 4
+
+
+```{r cohort-4,cache=path_change}
+current_cohort <- 4
+clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
+return_df <- cleanObservationPeriod(current_cohort, clean_data)
+unique_pairs_df <- return_df %>% group_by(initiator, recipient) %>%
+  dplyr::summarize(count=n(),
+            observe=list(observe.id),
+            observe.length=list(observe.time),
+            no.events=list(no.events)) 
+top_pairs <- unique_pairs_df %>% arrange(desc(count))
+
+best_i <- top_pairs$initiator[1]
+best_j <- top_pairs$recipient[1]
+wind <- unlist(lapply(top_pairs$no.events,which.max))[1]
+
+win_length <- top_pairs$observe.length[[1]][wind]
+unique_observe_win <- unique(return_df[,c("observe.id","observe.time")])
+actual_win <- which(unique_observe_win$observe.time == win_length)
+
+no_segments <- 500
+
+current_i <- best_i #8
+current_j <- best_j #2
+current_win <- actual_win#wind 
+# this is the 18th window, not the 18th window with observations
+### that this pair have events in, which it should be
+
+# clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
+# return_df <- cleanObservationPeriod(current_cohort, clean_data)
+# unique_pairs_df <- return_df %>% group_by(initiator, recipient) %>%
+#   dplyr::summarize(count=n(),
+#             observe=list(observe.id),
+#             observe.length=list(observe.time),
+#             no.events=list(no.events))
+pair <- which(unique_pairs_df$initiator==current_i&unique_pairs_df$recipient==current_j)
+unique_observe_win <- unique(return_df[,c("observe.id","observe.time")])
+
+row_indicator <- return_df$initiator==current_i&return_df$recipient==current_j&return_df$observe.id==current_win
+row_idx <- which(return_df$initiator==current_i&return_df$recipient==current_j&return_df$observe.id==current_win)
+current_event_time <- return_df[row_indicator,"event.times"][[1]]
+observe_period <- return_df[row_indicator,"observe.time"]
+time_segment <- seq(0,observe_period,length.out=no_segments)
+
+### load the corresponding stan fits ####
+#print(current_cohort)
+
+## Cohort Hawkes ####
+# load the parameters for this pair
+load(paste(data_path, cohort_names[current_cohort],
+           "/cohort_hp_stan_result_", cohort_names[current_cohort],".RData",sep=''))
+
+# create a list to store the hawkes parameters for this
+model1_par_est <- list(lambda0=mean(sim_cohort_hp$lambda0),
+                       eta_1=mean(sim_cohort_hp$eta_1),
+                       eta_2=mean(sim_cohort_hp$eta_2),
+                       eta_3=mean(sim_cohort_hp$eta_3),
+                       beta=mean(sim_cohort_hp$beta),
+                       f=apply(sim_cohort_hp$f,2,mean))
+model1_par_matrix <- list(lambda0_matrix=matrix(model1_par_est$lambda0,
+                                                nrow=mice_number,ncol=mice_number),
+                          alpha_matrix=formMatrix(function(x,y) model1_fn$alpha.fun(x,y,
+                                                                                    model1_par_est$eta_1,
+                                                                                    model1_par_est$eta_2,
+                                                                                    model1_par_est$eta_3),
+                                                  model1_par_est$f),
+                          beta_matrix=matrix(model1_par_est$beta,
+                                             nrow=mice_number,ncol=mice_number))
+
+hawkes.par <- c(model1_par_matrix$lambda0_matrix[current_i,current_j],
+                model1_par_matrix$alpha[current_i,current_j],
+                        model1_par_matrix$beta[current_i,current_j])
+
+
+
+#### Degree Corrected Hawkes ####
+load(paste(data_path, cohort_names[current_cohort],
+           "/cohort_dchp_stan_result_", cohort_names[current_cohort],".RData",sep=''))
+
+# create a list to store the hawkes parameters for this
+model2_par_est <- list(gamma = apply(sim_cohort_dchp$gamma,2,mean),
+                       zeta = apply(sim_cohort_dchp$zeta,2,mean),
+                       #lambda0=mean(sim_cohort_dchp$lambda0),
+                       eta_1=mean(sim_cohort_dchp$eta_1),
+                       eta_2=mean(sim_cohort_dchp$eta_2),
+                       eta_3=mean(sim_cohort_dchp$eta_3),
+                       beta=mean(sim_cohort_dchp$beta),
+                       f=apply(sim_cohort_dchp$f,2,mean))
+model2_par_matrix <- list(lambda0_matrix= outer(model2_par_est$gamma,
+                                                model2_par_est$zeta,FUN = "+"),
+                          alpha_matrix=formMatrix(function(x,y) model1_fn$alpha.fun(x,y,
+                                                                                    model2_par_est$eta_1,
+                                                                                  model2_par_est$eta_2,
+                                                                                    model2_par_est$eta_3),
+                                                  model2_par_est$f),
+                          beta_matrix=matrix(model2_par_est$beta,
+                                             nrow=mice_number,ncol=mice_number))
+
+hawkes.par_dc <- c(model2_par_matrix$lambda0_matrix[current_i,current_j],
+                model2_par_matrix$alpha[current_i,current_j],
+                model2_par_matrix$beta[current_i,current_j])
+
+rm(fit_cohort_hp)
+rm(fit_cohort_dchp)
+rm(sim_cohort_hp)
+rm(sim_cohort_dchp)
+
+## Cohort MMHP
+load(paste(data_path,cohort_names[current_cohort],
+             "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
+             ".RData",sep=''))
+load(paste(data_path,cohort_names[current_cohort],
+             "/cmmhp_est_zt_",cohort_names[current_cohort],".RData",sep=''))
+
+# then adjust the parameters for c-mmhp below here also
+
+c_mmhp_par <- list(lambda1=mean(sim_cohort_mmhp$lambda1[,pair]),
+                 lambda0=mean(sim_cohort_mmhp$lambda0[,pair]),
+                 alpha=mean(sim_cohort_mmhp$alpha[,pair]),
+                 beta=mean(sim_cohort_mmhp$beta),
+                 q1=mean(sim_cohort_mmhp$q1[,pair]),
+                 q2=mean(sim_cohort_mmhp$q2[,pair]))
+
+c_mmhp.est.latent <- ifelse(apply(state_array_list[[pair]][[current_win]],
+                                1,
+                                function(x) sum(x==1)) >500,rep(1,1000),rep(2,1000))
+c_mmhp.est.latent <- interpolateLatentTrajectory(params=c_mmhp_par,
+                                               events=current_event_time,
+                                                       zt=c_mmhp.est.latent,                                         initial.state=mean(initial_state_list[[pair]][[current_win]]),
+                     termination.time=observe_period,
+                     termination.state = 2)
+
+
+rm(interpolation_array_list)
+rm(state_array_list)
+rm(initial_state_list)
+rm(termination_state_list)
+
+## Cohort MMHP
+load(paste(data_path,cohort_names[current_cohort],
+             "/sep_mmhp_stan_result_",cohort_names[current_cohort],
+             ".RData",sep=''))
+load(paste(data_path,cohort_names[current_cohort],
+             "/mmhp_est_zt_",cohort_names[current_cohort],".RData",sep=''))
+
+# then adjust the parameters for c-mmhp below here also
+
+sep_mmhp_par <- list(lambda1=mean(sim_mmhp_sep$lambda1[,pair]),
+                 lambda0=mean(sim_mmhp_sep$lambda0[,pair]),
+                 alpha=mean(sim_mmhp_sep$alpha[,pair]),
+                 beta=mean(sim_mmhp_sep$beta),
+                 q1=mean(sim_mmhp_sep$q1[,pair]),
+                 q2=mean(sim_mmhp_sep$q2[,pair]))
+
+sep_mmhp.est.latent <- ifelse(apply(state_array_list[[pair]][[current_win]],
+                                1,
+                                function(x) sum(x==1)) >500,rep(1,1000),rep(2,1000))
+sep_mmhp.est.latent <- interpolateLatentTrajectory(params=c_mmhp_par,
+                                               events=current_event_time,
+                                                       zt=sep_mmhp.est.latent,                                         initial.state=mean(initial_state_list[[pair]][[current_win]]),
+                     termination.time=observe_period,
+                     termination.state = 2)
+
+
+rm(interpolation_array_list)
+rm(state_array_list)
+rm(initial_state_list)
+rm(termination_state_list)
+
+row_indicator <- return_df$initiator==current_i&return_df$recipient==current_j&return_df$observe.id==current_win
+row_idx <- which(return_df$initiator==current_i&return_df$recipient==current_j&return_df$observe.id==current_win)
+current_event_time <- return_df[row_indicator,"event.times"][[1]]
+observe_period <- return_df[row_indicator,"observe.time"]
+no_segments <- 500
+time_segment <- seq(0,observe_period,length.out=no_segments)
+
+par(mfrow=c(2,4), oma=c(1,1,1,1), mar=c(2,3,2,1), mgp=c(0.8,0,0))
+layout(matrix(1:8,nrow=2,byrow=TRUE),widths=rep(2,4),height=c(3,3))
+anno.cex <- 1.3
+title.cex <- 2.2
+title.line <- 0.5
+y.upper <- 20
+
+
+#### Cohort Hawkes  ####
+
+drawRealIntensityPaper(current_event_time,
+                       yupper=y.upper, color="black",line.width=2,title.line=title.line,
+                       title_name="C-HP",
+                       title.cex=title.cex, max.x=observe_period, box.col="black")
+drawHawkesIntensityPaper(lambda0=hawkes.par[1],
+                         alpha=hawkes.par[2],
+                         beta=hawkes.par[3],
+                         events=current_event_time, termination=observe_period)
+
+### DC Cohort Hawkes ####
+
+drawRealIntensityPaper(current_event_time,
+                       yupper=y.upper, color="black",line.width=2,title.line=title.line,
+                       title_name="DC-HP",
+                       title.cex=title.cex, max.x=observe_period, box.col="black")
+drawHawkesIntensityPaper(lambda0=hawkes.par_dc[1],
+                         alpha=hawkes.par_dc[2],
+                         beta=hawkes.par_dc[3],
+                         events=current_event_time, termination=observe_period)
+
+#### DC C-MMHP ####
+drawRealIntensityPaper(current_event_time, object=c_mmhp_par,title.line=title.line,
+                       simulation=list(x=c(0,c_mmhp.est.latent$x.hat),
+                                       z=c_mmhp.est.latent$z.hat),
+                       yupper=y.upper, color="black", line.width=2,
+                       title_name="DC C-MMHP", title.cex=title.cex, max.x=observe_period, box.col="black")
+
+#### Sep MMHP ####
+
+drawRealIntensityPaper(current_event_time, object=sep_mmhp_par,title.line=title.line,
+                       simulation=list(x=c(0,sep_mmhp.est.latent$x.hat),
+                                       z=sep_mmhp.est.latent$z.hat),
+                       yupper=y.upper, color="black", line.width=2,
+                       title_name="I-MMHP", title.cex=title.cex, max.x=observe_period, box.col="black")
+
+
+#### then the corresponding QQ plots ####
+load(paste(data_path,cohort_names[current_cohort],
+             "/real_diag_four_models_",cohort_names[current_cohort],
+             ".RData",sep=''))
+
+#### Cohort Hawkes ####
+
+Lambda.c_hawkes.test <- Lambda_c_hawkes_matrix[current_i,current_j][[1]]
+
+p <- ppoints(length(Lambda.c_hawkes.test))    # 100 equally spaced points on (0,1), excluding endpoints
+q <- quantile(Lambda.c_hawkes.test,p=p,na.rm=TRUE) # percentiles of the sample distribution
+plot(qexp(p),q, 
+     xlab="",ylab="",xaxt="n",yaxt="n",
+     pch=1,cex=1,col="Black",ylim=c(0,8),xlim=c(0,5))
+mtext(side=1, text="TQ", line=1.6, cex=anno.cex)
+mtext(side=2, text="EQ", line=1.2, cex=anno.cex)
+Hmisc::mgp.axis(1,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+Hmisc::mgp.axis(2,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
+
+#### Cohort DC Hawkes ####
+
+Lambda.dc_hawkes.test <- Lambda_dc_hawkes_matrix[current_i,current_j][[1]]
+
+p <- ppoints(length(Lambda.dc_hawkes.test))    # 100 equally spaced points on (0,1), excluding endpoints
+q <- quantile(Lambda.dc_hawkes.test,p=p,na.rm=TRUE) # percentiles of the sample distribution
+plot(qexp(p),q, 
+     xlab="",ylab="",xaxt="n",yaxt="n",
+     pch=1,cex=1,col="Black",ylim=c(0,8),xlim=c(0,5))
+mtext(side=1, text="TQ", line=1.6, cex=anno.cex)
+mtext(side=2, text="EQ", line=1.2, cex=anno.cex)
+Hmisc::mgp.axis(1,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+Hmisc::mgp.axis(2,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
+
+
+#### DC C-MMHP ####
+Lambda.cmmhp.test <- Lambda_cmmhp_matrix[current_i,current_j][[1]]
+
+p <- ppoints(length(Lambda.cmmhp.test))    # 100 equally spaced points on (0,1), excluding endpoints
+q <- quantile(Lambda.cmmhp.test,p=p,na.rm=TRUE) # percentiles of the sample distribution
+plot(qexp(p),q, 
+     xlab="",ylab="",xaxt="n",yaxt="n",
+     pch=1,cex=1,col="Black",ylim=c(0,8),xlim=c(0,5))
+mtext(side=1, text="TQ", line=1.6, cex=anno.cex)
+mtext(side=2, text="EQ", line=1.2, cex=anno.cex)
+Hmisc::mgp.axis(1,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+Hmisc::mgp.axis(2,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
+
+
+#### I-MMHP ####
+Lambda.immhp.test <- Lambda_mmhp_matrix[current_i,current_j][[1]]
+
+p <- ppoints(length(Lambda.immhp.test))    # 100 equally spaced points on (0,1), excluding endpoints
+q <- quantile(Lambda.immhp.test,p=p,na.rm=TRUE) # percentiles of the sample distribution
+plot(qexp(p),q, 
+     xlab="",ylab="",xaxt="n",yaxt="n",
+     pch=1,cex=1,col="Black",ylim=c(0,8),xlim=c(0,5))
+mtext(side=1, text="TQ", line=1.6, cex=anno.cex)
+mtext(side=2, text="EQ", line=1.2, cex=anno.cex)
+Hmisc::mgp.axis(1,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+Hmisc::mgp.axis(2,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
+
+
+```
+
+
+### Cohort 5
+
+
+```{r cohort-5,cache=path_change}
+current_cohort <- 5
+clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
+return_df <- cleanObservationPeriod(current_cohort, clean_data)
+unique_pairs_df <- return_df %>% group_by(initiator, recipient) %>%
+  dplyr::summarize(count=n(),
+            observe=list(observe.id),
+            observe.length=list(observe.time),
+            no.events=list(no.events)) 
+top_pairs <- unique_pairs_df %>% arrange(desc(count))
+
+best_i <- top_pairs$initiator[1]
+best_j <- top_pairs$recipient[1]
+wind <- unlist(lapply(top_pairs$no.events,which.max))[1]
+
+win_length <- top_pairs$observe.length[[1]][wind]
+unique_observe_win <- unique(return_df[,c("observe.id","observe.time")])
+actual_win <- which(unique_observe_win$observe.time == win_length)
+
+no_segments <- 500
+
+current_i <- best_i #8
+current_j <- best_j #2
+current_win <- actual_win#wind 
+# this is the 18th window, not the 18th window with observations
+### that this pair have events in, which it should be
+
+# clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
+# return_df <- cleanObservationPeriod(current_cohort, clean_data)
+# unique_pairs_df <- return_df %>% group_by(initiator, recipient) %>%
+#   dplyr::summarize(count=n(),
+#             observe=list(observe.id),
+#             observe.length=list(observe.time),
+#             no.events=list(no.events))
+pair <- which(unique_pairs_df$initiator==current_i&unique_pairs_df$recipient==current_j)
+unique_observe_win <- unique(return_df[,c("observe.id","observe.time")])
+
+row_indicator <- return_df$initiator==current_i&return_df$recipient==current_j&return_df$observe.id==current_win
+row_idx <- which(return_df$initiator==current_i&return_df$recipient==current_j&return_df$observe.id==current_win)
+current_event_time <- return_df[row_indicator,"event.times"][[1]]
+observe_period <- return_df[row_indicator,"observe.time"]
+time_segment <- seq(0,observe_period,length.out=no_segments)
+
+### load the corresponding stan fits ####
+#print(current_cohort)
+
+## Cohort Hawkes ####
+# load the parameters for this pair
+load(paste(data_path, cohort_names[current_cohort],
+           "/cohort_hp_stan_result_", cohort_names[current_cohort],".RData",sep=''))
+
+# create a list to store the hawkes parameters for this
+model1_par_est <- list(lambda0=mean(sim_cohort_hp$lambda0),
+                       eta_1=mean(sim_cohort_hp$eta_1),
+                       eta_2=mean(sim_cohort_hp$eta_2),
+                       eta_3=mean(sim_cohort_hp$eta_3),
+                       beta=mean(sim_cohort_hp$beta),
+                       f=apply(sim_cohort_hp$f,2,mean))
+model1_par_matrix <- list(lambda0_matrix=matrix(model1_par_est$lambda0,
+                                                nrow=mice_number,ncol=mice_number),
+                          alpha_matrix=formMatrix(function(x,y) model1_fn$alpha.fun(x,y,
+                                                                                    model1_par_est$eta_1,
+                                                                                    model1_par_est$eta_2,
+                                                                                    model1_par_est$eta_3),
+                                                  model1_par_est$f),
+                          beta_matrix=matrix(model1_par_est$beta,
+                                             nrow=mice_number,ncol=mice_number))
+
+hawkes.par <- c(model1_par_matrix$lambda0_matrix[current_i,current_j],
+                model1_par_matrix$alpha[current_i,current_j],
+                        model1_par_matrix$beta[current_i,current_j])
+
+
+
+#### Degree Corrected Hawkes ####
+load(paste(data_path, cohort_names[current_cohort],
+           "/cohort_dchp_stan_result_", cohort_names[current_cohort],".RData",sep=''))
+
+# create a list to store the hawkes parameters for this
+model2_par_est <- list(gamma = apply(sim_cohort_dchp$gamma,2,mean),
+                       zeta = apply(sim_cohort_dchp$zeta,2,mean),
+                       #lambda0=mean(sim_cohort_dchp$lambda0),
+                       eta_1=mean(sim_cohort_dchp$eta_1),
+                       eta_2=mean(sim_cohort_dchp$eta_2),
+                       eta_3=mean(sim_cohort_dchp$eta_3),
+                       beta=mean(sim_cohort_dchp$beta),
+                       f=apply(sim_cohort_dchp$f,2,mean))
+model2_par_matrix <- list(lambda0_matrix= outer(model2_par_est$gamma,
+                                                model2_par_est$zeta,FUN = "+"),
+                          alpha_matrix=formMatrix(function(x,y) model1_fn$alpha.fun(x,y,
+                                                                                    model2_par_est$eta_1,
+                                                                                  model2_par_est$eta_2,
+                                                                                    model2_par_est$eta_3),
+                                                  model2_par_est$f),
+                          beta_matrix=matrix(model2_par_est$beta,
+                                             nrow=mice_number,ncol=mice_number))
+
+hawkes.par_dc <- c(model2_par_matrix$lambda0_matrix[current_i,current_j],
+                model2_par_matrix$alpha[current_i,current_j],
+                model2_par_matrix$beta[current_i,current_j])
+
+rm(fit_cohort_hp)
+rm(fit_cohort_dchp)
+rm(sim_cohort_hp)
+rm(sim_cohort_dchp)
+
+## Cohort MMHP
+load(paste(data_path,cohort_names[current_cohort],
+             "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
+             ".RData",sep=''))
+load(paste(data_path,cohort_names[current_cohort],
+             "/mmhp_est_zt_",cohort_names[current_cohort],".RData",sep=''))
+
+# then adjust the parameters for c-mmhp below here also
+
+c_mmhp_par <- list(lambda1=mean(sim_cohort_mmhp$lambda1[,pair]),
+                 lambda0=mean(sim_cohort_mmhp$lambda0[,pair]),
+                 alpha=mean(sim_cohort_mmhp$alpha[,pair]),
+                 beta=mean(sim_cohort_mmhp$beta),
+                 q1=mean(sim_cohort_mmhp$q1[,pair]),
+                 q2=mean(sim_cohort_mmhp$q2[,pair]))
+
+c_mmhp.est.latent <- ifelse(apply(state_array_list[[pair]][[current_win]],
+                                1,
+                                function(x) sum(x==1)) >500,rep(1,1000),rep(2,1000))
+c_mmhp.est.latent <- interpolateLatentTrajectory(params=c_mmhp_par,
+                                               events=current_event_time,
+                                                       zt=c_mmhp.est.latent,                                         initial.state=mean(initial_state_list[[pair]][[current_win]]),
+                     termination.time=observe_period,
+                     termination.state = 2)
+
+
+rm(interpolation_array_list)
+rm(state_array_list)
+rm(initial_state_list)
+rm(termination_state_list)
+
+## Cohort MMHP
+load(paste(data_path,cohort_names[current_cohort],
+             "/sep_mmhp_stan_result_",cohort_names[current_cohort],
+             ".RData",sep=''))
+load(paste(data_path,cohort_names[current_cohort],
+             "/cmmhp_est_zt_",cohort_names[current_cohort],".RData",sep=''))
+
+# then adjust the parameters for c-mmhp below here also
+
+sep_mmhp_par <- list(lambda1=mean(sim_mmhp_sep$lambda1[,pair]),
+                 lambda0=mean(sim_mmhp_sep$lambda0[,pair]),
+                 alpha=mean(sim_mmhp_sep$alpha[,pair]),
+                 beta=mean(sim_mmhp_sep$beta),
+                 q1=mean(sim_mmhp_sep$q1[,pair]),
+                 q2=mean(sim_mmhp_sep$q2[,pair]))
+
+sep_mmhp.est.latent <- ifelse(apply(state_array_list[[pair]][[current_win]],
+                                1,
+                                function(x) sum(x==1)) >500,rep(1,1000),rep(2,1000))
+sep_mmhp.est.latent <- interpolateLatentTrajectory(params=c_mmhp_par,
+                                               events=current_event_time,
+                                                       zt=sep_mmhp.est.latent,                                         initial.state=mean(initial_state_list[[pair]][[current_win]]),
+                     termination.time=observe_period,
+                     termination.state = 2)
+
+
+rm(interpolation_array_list)
+rm(state_array_list)
+rm(initial_state_list)
+rm(termination_state_list)
+
+row_indicator <- return_df$initiator==current_i&return_df$recipient==current_j&return_df$observe.id==current_win
+row_idx <- which(return_df$initiator==current_i&return_df$recipient==current_j&return_df$observe.id==current_win)
+current_event_time <- return_df[row_indicator,"event.times"][[1]]
+observe_period <- return_df[row_indicator,"observe.time"]
+no_segments <- 500
+time_segment <- seq(0,observe_period,length.out=no_segments)
+
+par(mfrow=c(2,4), oma=c(1,1,1,1), mar=c(2,3,2,1), mgp=c(0.8,0,0))
+layout(matrix(1:8,nrow=2,byrow=TRUE),widths=rep(2,4),height=c(3,3))
+anno.cex <- 1.3
+title.cex <- 2.2
+title.line <- 0.5
+y.upper <- 20
+
+
+#### Cohort Hawkes  ####
+
+drawRealIntensityPaper(current_event_time,
+                       yupper=y.upper, color="black",line.width=2,title.line=title.line,
+                       title_name="C-HP",
+                       title.cex=title.cex, max.x=observe_period, box.col="black")
+drawHawkesIntensityPaper(lambda0=hawkes.par[1],
+                         alpha=hawkes.par[2],
+                         beta=hawkes.par[3],
+                         events=current_event_time, termination=observe_period)
+
+### DC Cohort Hawkes ####
+
+drawRealIntensityPaper(current_event_time,
+                       yupper=y.upper, color="black",line.width=2,title.line=title.line,
+                       title_name="DC-HP",
+                       title.cex=title.cex, max.x=observe_period, box.col="black")
+drawHawkesIntensityPaper(lambda0=hawkes.par_dc[1],
+                         alpha=hawkes.par_dc[2],
+                         beta=hawkes.par_dc[3],
+                         events=current_event_time, termination=observe_period)
+
+#### DC C-MMHP ####
+drawRealIntensityPaper(current_event_time, object=c_mmhp_par,title.line=title.line,
+                       simulation=list(x=c(0,c_mmhp.est.latent$x.hat),
+                                       z=c_mmhp.est.latent$z.hat),
+                       yupper=y.upper, color="black", line.width=2,
+                       title_name="DC C-MMHP", title.cex=title.cex, max.x=observe_period, box.col="black")
+
+#### Sep MMHP ####
+
+drawRealIntensityPaper(current_event_time, object=sep_mmhp_par,title.line=title.line,
+                       simulation=list(x=c(0,sep_mmhp.est.latent$x.hat),
+                                       z=sep_mmhp.est.latent$z.hat),
+                       yupper=y.upper, color="black", line.width=2,
+                       title_name="I-MMHP", title.cex=title.cex, max.x=observe_period, box.col="black")
+
+
+#### then the corresponding QQ plots ####
+load(paste(data_path,cohort_names[current_cohort],
+             "/real_diag_four_models_",cohort_names[current_cohort],
+             ".RData",sep=''))
+
+#### Cohort Hawkes ####
+
+Lambda.c_hawkes.test <- Lambda_c_hawkes_matrix[current_i,current_j][[1]]
+
+p <- ppoints(length(Lambda.c_hawkes.test))    # 100 equally spaced points on (0,1), excluding endpoints
+q <- quantile(Lambda.c_hawkes.test,p=p,na.rm=TRUE) # percentiles of the sample distribution
+plot(qexp(p),q, 
+     xlab="",ylab="",xaxt="n",yaxt="n",
+     pch=1,cex=1,col="Black",ylim=c(0,8),xlim=c(0,5))
+mtext(side=1, text="TQ", line=1.6, cex=anno.cex)
+mtext(side=2, text="EQ", line=1.2, cex=anno.cex)
+Hmisc::mgp.axis(1,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+Hmisc::mgp.axis(2,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
+
+#### Cohort DC Hawkes ####
+
+Lambda.dc_hawkes.test <- Lambda_dc_hawkes_matrix[current_i,current_j][[1]]
+
+p <- ppoints(length(Lambda.dc_hawkes.test))    # 100 equally spaced points on (0,1), excluding endpoints
+q <- quantile(Lambda.dc_hawkes.test,p=p,na.rm=TRUE) # percentiles of the sample distribution
+plot(qexp(p),q, 
+     xlab="",ylab="",xaxt="n",yaxt="n",
+     pch=1,cex=1,col="Black",ylim=c(0,8),xlim=c(0,5))
+mtext(side=1, text="TQ", line=1.6, cex=anno.cex)
+mtext(side=2, text="EQ", line=1.2, cex=anno.cex)
+Hmisc::mgp.axis(1,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+Hmisc::mgp.axis(2,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
+
+
+#### DC C-MMHP ####
+Lambda.cmmhp.test <- Lambda_cmmhp_matrix[current_i,current_j][[1]]
+
+p <- ppoints(length(Lambda.cmmhp.test))    # 100 equally spaced points on (0,1), excluding endpoints
+q <- quantile(Lambda.cmmhp.test,p=p,na.rm=TRUE) # percentiles of the sample distribution
+plot(qexp(p),q, 
+     xlab="",ylab="",xaxt="n",yaxt="n",
+     pch=1,cex=1,col="Black",ylim=c(0,8),xlim=c(0,5))
+mtext(side=1, text="TQ", line=1.6, cex=anno.cex)
+mtext(side=2, text="EQ", line=1.2, cex=anno.cex)
+Hmisc::mgp.axis(1,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+Hmisc::mgp.axis(2,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
+
+
+#### I-MMHP ####
+Lambda.immhp.test <- Lambda_mmhp_matrix[current_i,current_j][[1]]
+
+p <- ppoints(length(Lambda.immhp.test))    # 100 equally spaced points on (0,1), excluding endpoints
+q <- quantile(Lambda.immhp.test,p=p,na.rm=TRUE) # percentiles of the sample distribution
+plot(qexp(p),q, 
+     xlab="",ylab="",xaxt="n",yaxt="n",
+     pch=1,cex=1,col="Black",ylim=c(0,8),xlim=c(0,5))
+mtext(side=1, text="TQ", line=1.6, cex=anno.cex)
+mtext(side=2, text="EQ", line=1.2, cex=anno.cex)
+Hmisc::mgp.axis(1,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+Hmisc::mgp.axis(2,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
+
+```
+
+
+
+### Cohort 6
+
+
+```{r cohort-6,cache=path_change}
+current_cohort <- 6
+clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
+return_df <- cleanObservationPeriod(current_cohort, clean_data)
+unique_pairs_df <- return_df %>% group_by(initiator, recipient) %>%
+  dplyr::summarize(count=n(),
+            observe=list(observe.id),
+            observe.length=list(observe.time),
+            no.events=list(no.events)) 
+top_pairs <- unique_pairs_df %>% arrange(desc(count))
+
+best_i <- top_pairs$initiator[1]
+best_j <- top_pairs$recipient[1]
+wind <- unlist(lapply(top_pairs$no.events,which.max))[1]
+
+win_length <- top_pairs$observe.length[[1]][wind]
+unique_observe_win <- unique(return_df[,c("observe.id","observe.time")])
+actual_win <- which(unique_observe_win$observe.time == win_length)
+
+no_segments <- 500
+
+current_i <- best_i #8
+current_j <- best_j #2
+current_win <- actual_win#wind 
+# this is the 18th window, not the 18th window with observations
+### that this pair have events in, which it should be
+
+# clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
+# return_df <- cleanObservationPeriod(current_cohort, clean_data)
+# unique_pairs_df <- return_df %>% group_by(initiator, recipient) %>%
+#   dplyr::summarize(count=n(),
+#             observe=list(observe.id),
+#             observe.length=list(observe.time),
+#             no.events=list(no.events))
+pair <- which(unique_pairs_df$initiator==current_i&unique_pairs_df$recipient==current_j)
+unique_observe_win <- unique(return_df[,c("observe.id","observe.time")])
+
+row_indicator <- return_df$initiator==current_i&return_df$recipient==current_j&return_df$observe.id==current_win
+row_idx <- which(return_df$initiator==current_i&return_df$recipient==current_j&return_df$observe.id==current_win)
+current_event_time <- return_df[row_indicator,"event.times"][[1]]
+observe_period <- return_df[row_indicator,"observe.time"]
+time_segment <- seq(0,observe_period,length.out=no_segments)
+
+### load the corresponding stan fits ####
+#print(current_cohort)
+
+## Cohort Hawkes ####
+# load the parameters for this pair
+load(paste(data_path, cohort_names[current_cohort],
+           "/cohort_hp_stan_result_", cohort_names[current_cohort],".RData",sep=''))
+
+# create a list to store the hawkes parameters for this
+model1_par_est <- list(lambda0=mean(sim_cohort_hp$lambda0),
+                       eta_1=mean(sim_cohort_hp$eta_1),
+                       eta_2=mean(sim_cohort_hp$eta_2),
+                       eta_3=mean(sim_cohort_hp$eta_3),
+                       beta=mean(sim_cohort_hp$beta),
+                       f=apply(sim_cohort_hp$f,2,mean))
+model1_par_matrix <- list(lambda0_matrix=matrix(model1_par_est$lambda0,
+                                                nrow=mice_number,ncol=mice_number),
+                          alpha_matrix=formMatrix(function(x,y) model1_fn$alpha.fun(x,y,
+                                                                                    model1_par_est$eta_1,
+                                                                                    model1_par_est$eta_2,
+                                                                                    model1_par_est$eta_3),
+                                                  model1_par_est$f),
+                          beta_matrix=matrix(model1_par_est$beta,
+                                             nrow=mice_number,ncol=mice_number))
+
+hawkes.par <- c(model1_par_matrix$lambda0_matrix[current_i,current_j],
+                model1_par_matrix$alpha[current_i,current_j],
+                        model1_par_matrix$beta[current_i,current_j])
+
+
+
+#### Degree Corrected Hawkes ####
+load(paste(data_path, cohort_names[current_cohort],
+           "/cohort_dchp_stan_result_", cohort_names[current_cohort],".RData",sep=''))
+
+# create a list to store the hawkes parameters for this
+model2_par_est <- list(gamma = apply(sim_cohort_dchp$gamma,2,mean),
+                       zeta = apply(sim_cohort_dchp$zeta,2,mean),
+                       #lambda0=mean(sim_cohort_dchp$lambda0),
+                       eta_1=mean(sim_cohort_dchp$eta_1),
+                       eta_2=mean(sim_cohort_dchp$eta_2),
+                       eta_3=mean(sim_cohort_dchp$eta_3),
+                       beta=mean(sim_cohort_dchp$beta),
+                       f=apply(sim_cohort_dchp$f,2,mean))
+model2_par_matrix <- list(lambda0_matrix= outer(model2_par_est$gamma,
+                                                model2_par_est$zeta,FUN = "+"),
+                          alpha_matrix=formMatrix(function(x,y) model1_fn$alpha.fun(x,y,
+                                                                                    model2_par_est$eta_1,
+                                                                                  model2_par_est$eta_2,
+                                                                                    model2_par_est$eta_3),
+                                                  model2_par_est$f),
+                          beta_matrix=matrix(model2_par_est$beta,
+                                             nrow=mice_number,ncol=mice_number))
+
+hawkes.par_dc <- c(model2_par_matrix$lambda0_matrix[current_i,current_j],
+                model2_par_matrix$alpha[current_i,current_j],
+                model2_par_matrix$beta[current_i,current_j])
+
+rm(fit_cohort_hp)
+rm(fit_cohort_dchp)
+rm(sim_cohort_hp)
+rm(sim_cohort_dchp)
+
+## Cohort MMHP
+load(paste(data_path,cohort_names[current_cohort],
+             "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
+             ".RData",sep=''))
+load(paste(data_path,cohort_names[current_cohort],
+             "/mmhp_est_zt_",cohort_names[current_cohort],".RData",sep=''))
+
+# then adjust the parameters for c-mmhp below here also
+
+c_mmhp_par <- list(lambda1=mean(sim_cohort_mmhp$lambda1[,pair]),
+                 lambda0=mean(sim_cohort_mmhp$lambda0[,pair]),
+                 alpha=mean(sim_cohort_mmhp$alpha[,pair]),
+                 beta=mean(sim_cohort_mmhp$beta),
+                 q1=mean(sim_cohort_mmhp$q1[,pair]),
+                 q2=mean(sim_cohort_mmhp$q2[,pair]))
+
+c_mmhp.est.latent <- ifelse(apply(state_array_list[[pair]][[current_win]],
+                                1,
+                                function(x) sum(x==1)) >500,rep(1,1000),rep(2,1000))
+c_mmhp.est.latent <- interpolateLatentTrajectory(params=c_mmhp_par,
+                                               events=current_event_time,
+                                                       zt=c_mmhp.est.latent,                                         initial.state=mean(initial_state_list[[pair]][[current_win]]),
+                     termination.time=observe_period,
+                     termination.state = 2)
+
+
+rm(interpolation_array_list)
+rm(state_array_list)
+rm(initial_state_list)
+rm(termination_state_list)
+
+## Cohort MMHP
+load(paste(data_path,cohort_names[current_cohort],
+             "/sep_mmhp_stan_result_",cohort_names[current_cohort],
+             ".RData",sep=''))
+load(paste(data_path,cohort_names[current_cohort],
+             "/cmmhp_est_zt_",cohort_names[current_cohort],".RData",sep=''))
+
+# then adjust the parameters for c-mmhp below here also
+
+sep_mmhp_par <- list(lambda1=mean(sim_mmhp_sep$lambda1[,pair]),
+                 lambda0=mean(sim_mmhp_sep$lambda0[,pair]),
+                 alpha=mean(sim_mmhp_sep$alpha[,pair]),
+                 beta=mean(sim_mmhp_sep$beta),
+                 q1=mean(sim_mmhp_sep$q1[,pair]),
+                 q2=mean(sim_mmhp_sep$q2[,pair]))
+
+sep_mmhp.est.latent <- ifelse(apply(state_array_list[[pair]][[current_win]],
+                                1,
+                                function(x) sum(x==1)) >500,rep(1,1000),rep(2,1000))
+sep_mmhp.est.latent <- interpolateLatentTrajectory(params=c_mmhp_par,
+                                               events=current_event_time,
+                                                       zt=sep_mmhp.est.latent,                                         initial.state=mean(initial_state_list[[pair]][[current_win]]),
+                     termination.time=observe_period,
+                     termination.state = 2)
+
+
+rm(interpolation_array_list)
+rm(state_array_list)
+rm(initial_state_list)
+rm(termination_state_list)
+
+row_indicator <- return_df$initiator==current_i&return_df$recipient==current_j&return_df$observe.id==current_win
+row_idx <- which(return_df$initiator==current_i&return_df$recipient==current_j&return_df$observe.id==current_win)
+current_event_time <- return_df[row_indicator,"event.times"][[1]]
+observe_period <- return_df[row_indicator,"observe.time"]
+no_segments <- 500
+time_segment <- seq(0,observe_period,length.out=no_segments)
+
+par(mfrow=c(2,4), oma=c(1,1,1,1), mar=c(2,3,2,1), mgp=c(0.8,0,0))
+layout(matrix(1:8,nrow=2,byrow=TRUE),widths=rep(2,4),height=c(3,3))
+anno.cex <- 1.3
+title.cex <- 2.2
+title.line <- 0.5
+y.upper <- 20
+
+
+#### Cohort Hawkes  ####
+
+drawRealIntensityPaper(current_event_time,
+                       yupper=y.upper, color="black",line.width=2,title.line=title.line,
+                       title_name="C-HP",
+                       title.cex=title.cex, max.x=observe_period, box.col="black")
+drawHawkesIntensityPaper(lambda0=hawkes.par[1],
+                         alpha=hawkes.par[2],
+                         beta=hawkes.par[3],
+                         events=current_event_time, termination=observe_period)
+
+### DC Cohort Hawkes ####
+
+drawRealIntensityPaper(current_event_time,
+                       yupper=y.upper, color="black",line.width=2,title.line=title.line,
+                       title_name="DC-HP",
+                       title.cex=title.cex, max.x=observe_period, box.col="black")
+drawHawkesIntensityPaper(lambda0=hawkes.par_dc[1],
+                         alpha=hawkes.par_dc[2],
+                         beta=hawkes.par_dc[3],
+                         events=current_event_time, termination=observe_period)
+
+#### DC C-MMHP ####
+drawRealIntensityPaper(current_event_time, object=c_mmhp_par,title.line=title.line,
+                       simulation=list(x=c(0,c_mmhp.est.latent$x.hat),
+                                       z=c_mmhp.est.latent$z.hat),
+                       yupper=y.upper, color="black", line.width=2,
+                       title_name="DC C-MMHP", title.cex=title.cex, max.x=observe_period, box.col="black")
+
+#### Sep MMHP ####
+
+drawRealIntensityPaper(current_event_time, object=sep_mmhp_par,title.line=title.line,
+                       simulation=list(x=c(0,sep_mmhp.est.latent$x.hat),
+                                       z=sep_mmhp.est.latent$z.hat),
+                       yupper=y.upper, color="black", line.width=2,
+                       title_name="I-MMHP", title.cex=title.cex, max.x=observe_period, box.col="black")
+
+
+#### then the corresponding QQ plots ####
+load(paste(data_path,cohort_names[current_cohort],
+             "/real_diag_four_models_",cohort_names[current_cohort],
+             ".RData",sep=''))
+
+#### Cohort Hawkes ####
+
+Lambda.c_hawkes.test <- Lambda_c_hawkes_matrix[current_i,current_j][[1]]
+
+p <- ppoints(length(Lambda.c_hawkes.test))    # 100 equally spaced points on (0,1), excluding endpoints
+q <- quantile(Lambda.c_hawkes.test,p=p,na.rm=TRUE) # percentiles of the sample distribution
+plot(qexp(p),q, 
+     xlab="",ylab="",xaxt="n",yaxt="n",
+     pch=1,cex=1,col="Black",ylim=c(0,8),xlim=c(0,5))
+mtext(side=1, text="TQ", line=1.6, cex=anno.cex)
+mtext(side=2, text="EQ", line=1.2, cex=anno.cex)
+Hmisc::mgp.axis(1,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+Hmisc::mgp.axis(2,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
+
+#### Cohort DC Hawkes ####
+
+Lambda.dc_hawkes.test <- Lambda_dc_hawkes_matrix[current_i,current_j][[1]]
+
+p <- ppoints(length(Lambda.dc_hawkes.test))    # 100 equally spaced points on (0,1), excluding endpoints
+q <- quantile(Lambda.dc_hawkes.test,p=p,na.rm=TRUE) # percentiles of the sample distribution
+plot(qexp(p),q, 
+     xlab="",ylab="",xaxt="n",yaxt="n",
+     pch=1,cex=1,col="Black",ylim=c(0,8),xlim=c(0,5))
+mtext(side=1, text="TQ", line=1.6, cex=anno.cex)
+mtext(side=2, text="EQ", line=1.2, cex=anno.cex)
+Hmisc::mgp.axis(1,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+Hmisc::mgp.axis(2,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
+
+
+#### DC C-MMHP ####
+Lambda.cmmhp.test <- Lambda_cmmhp_matrix[current_i,current_j][[1]]
+
+p <- ppoints(length(Lambda.cmmhp.test))    # 100 equally spaced points on (0,1), excluding endpoints
+q <- quantile(Lambda.cmmhp.test,p=p,na.rm=TRUE) # percentiles of the sample distribution
+plot(qexp(p),q, 
+     xlab="",ylab="",xaxt="n",yaxt="n",
+     pch=1,cex=1,col="Black",ylim=c(0,8),xlim=c(0,5))
+mtext(side=1, text="TQ", line=1.6, cex=anno.cex)
+mtext(side=2, text="EQ", line=1.2, cex=anno.cex)
+Hmisc::mgp.axis(1,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+Hmisc::mgp.axis(2,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
+
+
+#### I-MMHP ####
+Lambda.immhp.test <- Lambda_mmhp_matrix[current_i,current_j][[1]]
+
+p <- ppoints(length(Lambda.immhp.test))    # 100 equally spaced points on (0,1), excluding endpoints
+q <- quantile(Lambda.immhp.test,p=p,na.rm=TRUE) # percentiles of the sample distribution
+plot(qexp(p),q, 
+     xlab="",ylab="",xaxt="n",yaxt="n",
+     pch=1,cex=1,col="Black",ylim=c(0,8),xlim=c(0,5))
+mtext(side=1, text="TQ", line=1.6, cex=anno.cex)
+mtext(side=2, text="EQ", line=1.2, cex=anno.cex)
+Hmisc::mgp.axis(1,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+Hmisc::mgp.axis(2,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
+
+```
+
+
+
+### Cohort 7
+
+
+```{r cohort-7,cache=path_change}
+y.upper <- 80
+current_cohort <- 7
+clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
+return_df <- cleanObservationPeriod(current_cohort, clean_data)
+unique_pairs_df <- return_df %>% group_by(initiator, recipient) %>%
+  dplyr::summarize(count=n(),
+            observe=list(observe.id),
+            observe.length=list(observe.time),
+            no.events=list(no.events)) 
+top_pairs <- unique_pairs_df %>% arrange(desc(count))
+
+best_i <- top_pairs$initiator[1]
+best_j <- top_pairs$recipient[1]
+wind <- unlist(lapply(top_pairs$no.events,which.max))[1]
+
+win_length <- top_pairs$observe.length[[1]][wind]
+unique_observe_win <- unique(return_df[,c("observe.id","observe.time")])
+actual_win <- which(unique_observe_win$observe.time == win_length)
+
+no_segments <- 500
+
+current_i <- best_i #8
+current_j <- best_j #2
+current_win <- actual_win#wind 
+# this is the 18th window, not the 18th window with observations
+### that this pair have events in, which it should be
+
+# clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
+# return_df <- cleanObservationPeriod(current_cohort, clean_data)
+# unique_pairs_df <- return_df %>% group_by(initiator, recipient) %>%
+#   dplyr::summarize(count=n(),
+#             observe=list(observe.id),
+#             observe.length=list(observe.time),
+#             no.events=list(no.events))
+pair <- which(unique_pairs_df$initiator==current_i&unique_pairs_df$recipient==current_j)
+unique_observe_win <- unique(return_df[,c("observe.id","observe.time")])
+
+row_indicator <- return_df$initiator==current_i&return_df$recipient==current_j&return_df$observe.id==current_win
+row_idx <- which(return_df$initiator==current_i&return_df$recipient==current_j&return_df$observe.id==current_win)
+current_event_time <- return_df[row_indicator,"event.times"][[1]]
+observe_period <- return_df[row_indicator,"observe.time"]
+time_segment <- seq(0,observe_period,length.out=no_segments)
+
+### load the corresponding stan fits ####
+#print(current_cohort)
+
+## Cohort Hawkes ####
+# load the parameters for this pair
+load(paste(data_path, cohort_names[current_cohort],
+           "/cohort_hp_stan_result_", cohort_names[current_cohort],".RData",sep=''))
+
+# create a list to store the hawkes parameters for this
+model1_par_est <- list(lambda0=mean(sim_cohort_hp$lambda0),
+                       eta_1=mean(sim_cohort_hp$eta_1),
+                       eta_2=mean(sim_cohort_hp$eta_2),
+                       eta_3=mean(sim_cohort_hp$eta_3),
+                       beta=mean(sim_cohort_hp$beta),
+                       f=apply(sim_cohort_hp$f,2,mean))
+model1_par_matrix <- list(lambda0_matrix=matrix(model1_par_est$lambda0,
+                                                nrow=mice_number,ncol=mice_number),
+                          alpha_matrix=formMatrix(function(x,y) model1_fn$alpha.fun(x,y,
+                                                                                    model1_par_est$eta_1,
+                                                                                    model1_par_est$eta_2,
+                                                                                    model1_par_est$eta_3),
+                                                  model1_par_est$f),
+                          beta_matrix=matrix(model1_par_est$beta,
+                                             nrow=mice_number,ncol=mice_number))
+
+hawkes.par <- c(model1_par_matrix$lambda0_matrix[current_i,current_j],
+                model1_par_matrix$alpha[current_i,current_j],
+                        model1_par_matrix$beta[current_i,current_j])
+
+
+
+#### Degree Corrected Hawkes ####
+load(paste(data_path, cohort_names[current_cohort],
+           "/cohort_dchp_stan_result_", cohort_names[current_cohort],".RData",sep=''))
+
+# create a list to store the hawkes parameters for this
+model2_par_est <- list(gamma = apply(sim_cohort_dchp$gamma,2,mean),
+                       zeta = apply(sim_cohort_dchp$zeta,2,mean),
+                       #lambda0=mean(sim_cohort_dchp$lambda0),
+                       eta_1=mean(sim_cohort_dchp$eta_1),
+                       eta_2=mean(sim_cohort_dchp$eta_2),
+                       eta_3=mean(sim_cohort_dchp$eta_3),
+                       beta=mean(sim_cohort_dchp$beta),
+                       f=apply(sim_cohort_dchp$f,2,mean))
+model2_par_matrix <- list(lambda0_matrix= outer(model2_par_est$gamma,
+                                                model2_par_est$zeta,FUN = "+"),
+                          alpha_matrix=formMatrix(function(x,y) model1_fn$alpha.fun(x,y,
+                                                                                    model2_par_est$eta_1,
+                                                                                  model2_par_est$eta_2,
+                                                                                    model2_par_est$eta_3),
+                                                  model2_par_est$f),
+                          beta_matrix=matrix(model2_par_est$beta,
+                                             nrow=mice_number,ncol=mice_number))
+
+hawkes.par_dc <- c(model2_par_matrix$lambda0_matrix[current_i,current_j],
+                model2_par_matrix$alpha[current_i,current_j],
+                model2_par_matrix$beta[current_i,current_j])
+
+rm(fit_cohort_hp)
+rm(fit_cohort_dchp)
+rm(sim_cohort_hp)
+rm(sim_cohort_dchp)
+
+## Cohort MMHP
+load(paste(data_path,cohort_names[current_cohort],
+             "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
+             ".RData",sep=''))
+load(paste(data_path,cohort_names[current_cohort],
+             "/mmhp_est_zt_",cohort_names[current_cohort],".RData",sep=''))
+
+# then adjust the parameters for c-mmhp below here also
+
+c_mmhp_par <- list(lambda1=mean(sim_cohort_mmhp$lambda1[,pair]),
+                 lambda0=mean(sim_cohort_mmhp$lambda0[,pair]),
+                 alpha=mean(sim_cohort_mmhp$alpha[,pair]),
+                 beta=mean(sim_cohort_mmhp$beta),
+                 q1=mean(sim_cohort_mmhp$q1[,pair]),
+                 q2=mean(sim_cohort_mmhp$q2[,pair]))
+
+c_mmhp.est.latent <- ifelse(apply(state_array_list[[pair]][[current_win]],
+                                1,
+                                function(x) sum(x==1)) >500,rep(1,1000),rep(2,1000))
+c_mmhp.est.latent <- interpolateLatentTrajectory(params=c_mmhp_par,
+                                               events=current_event_time,
+                                                       zt=c_mmhp.est.latent,                                         initial.state=mean(initial_state_list[[pair]][[current_win]]),
+                     termination.time=observe_period,
+                     termination.state = 2)
+
+
+rm(interpolation_array_list)
+rm(state_array_list)
+rm(initial_state_list)
+rm(termination_state_list)
+
+## Cohort MMHP
+load(paste(data_path,cohort_names[current_cohort],
+             "/sep_mmhp_stan_result_",cohort_names[current_cohort],
+             ".RData",sep=''))
+load(paste(data_path,cohort_names[current_cohort],
+             "/cmmhp_est_zt_",cohort_names[current_cohort],".RData",sep=''))
+
+# then adjust the parameters for c-mmhp below here also
+
+sep_mmhp_par <- list(lambda1=mean(sim_mmhp_sep$lambda1[,pair]),
+                 lambda0=mean(sim_mmhp_sep$lambda0[,pair]),
+                 alpha=mean(sim_mmhp_sep$alpha[,pair]),
+                 beta=mean(sim_mmhp_sep$beta),
+                 q1=mean(sim_mmhp_sep$q1[,pair]),
+                 q2=mean(sim_mmhp_sep$q2[,pair]))
+
+sep_mmhp.est.latent <- ifelse(apply(state_array_list[[pair]][[current_win]],
+                                1,
+                                function(x) sum(x==1)) >500,rep(1,1000),rep(2,1000))
+sep_mmhp.est.latent <- interpolateLatentTrajectory(params=c_mmhp_par,
+                                               events=current_event_time,
+                                                       zt=sep_mmhp.est.latent,                                         initial.state=mean(initial_state_list[[pair]][[current_win]]),
+                     termination.time=observe_period,
+                     termination.state = 2)
+
+
+rm(interpolation_array_list)
+rm(state_array_list)
+rm(initial_state_list)
+rm(termination_state_list)
+
+row_indicator <- return_df$initiator==current_i&return_df$recipient==current_j&return_df$observe.id==current_win
+row_idx <- which(return_df$initiator==current_i&return_df$recipient==current_j&return_df$observe.id==current_win)
+current_event_time <- return_df[row_indicator,"event.times"][[1]]
+observe_period <- return_df[row_indicator,"observe.time"]
+no_segments <- 500
+time_segment <- seq(0,observe_period,length.out=no_segments)
+
+par(mfrow=c(2,4), oma=c(1,1,1,1), mar=c(2,3,2,1), mgp=c(0.8,0,0))
+layout(matrix(1:8,nrow=2,byrow=TRUE),widths=rep(2,4),height=c(3,3))
+anno.cex <- 1.3
+title.cex <- 2.2
+title.line <- 0.5
+
+
+
+#### Cohort Hawkes  ####
+
+drawRealIntensityPaper(current_event_time,
+                       yupper=y.upper, color="black",line.width=2,title.line=title.line,
+                       title_name="C-HP",
+                       title.cex=title.cex, max.x=observe_period, box.col="black")
+drawHawkesIntensityPaper(lambda0=hawkes.par[1],
+                         alpha=hawkes.par[2],
+                         beta=hawkes.par[3],
+                         events=current_event_time, termination=observe_period)
+
+### DC Cohort Hawkes ####
+
+drawRealIntensityPaper(current_event_time,
+                       yupper=y.upper, color="black",line.width=2,title.line=title.line,
+                       title_name="DC-HP",
+                       title.cex=title.cex, max.x=observe_period, box.col="black")
+drawHawkesIntensityPaper(lambda0=hawkes.par_dc[1],
+                         alpha=hawkes.par_dc[2],
+                         beta=hawkes.par_dc[3],
+                         events=current_event_time, termination=observe_period)
+
+#### DC C-MMHP ####
+drawRealIntensityPaper(current_event_time, object=c_mmhp_par,title.line=title.line,
+                       simulation=list(x=c(0,c_mmhp.est.latent$x.hat),
+                                       z=c_mmhp.est.latent$z.hat),
+                       yupper=y.upper, color="black", line.width=2,
+                       title_name="DC C-MMHP", title.cex=title.cex, max.x=observe_period, box.col="black")
+
+#### Sep MMHP ####
+
+drawRealIntensityPaper(current_event_time, object=sep_mmhp_par,title.line=title.line,
+                       simulation=list(x=c(0,sep_mmhp.est.latent$x.hat),
+                                       z=sep_mmhp.est.latent$z.hat),
+                       yupper=y.upper, color="black", line.width=2,
+                       title_name="I-MMHP", title.cex=title.cex, max.x=observe_period, box.col="black")
+
+
+#### then the corresponding QQ plots ####
+load(paste(data_path,cohort_names[current_cohort],
+             "/real_diag_four_models_",cohort_names[current_cohort],
+             ".RData",sep=''))
+
+#### Cohort Hawkes ####
+
+Lambda.c_hawkes.test <- Lambda_c_hawkes_matrix[current_i,current_j][[1]]
+
+p <- ppoints(length(Lambda.c_hawkes.test))    # 100 equally spaced points on (0,1), excluding endpoints
+q <- quantile(Lambda.c_hawkes.test,p=p,na.rm=TRUE) # percentiles of the sample distribution
+plot(qexp(p),q, 
+     xlab="",ylab="",xaxt="n",yaxt="n",
+     pch=1,cex=1,col="Black",ylim=c(0,8),xlim=c(0,5))
+mtext(side=1, text="TQ", line=1.6, cex=anno.cex)
+mtext(side=2, text="EQ", line=1.2, cex=anno.cex)
+Hmisc::mgp.axis(1,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+Hmisc::mgp.axis(2,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
+
+#### Cohort DC Hawkes ####
+
+Lambda.dc_hawkes.test <- Lambda_dc_hawkes_matrix[current_i,current_j][[1]]
+
+p <- ppoints(length(Lambda.dc_hawkes.test))    # 100 equally spaced points on (0,1), excluding endpoints
+q <- quantile(Lambda.dc_hawkes.test,p=p,na.rm=TRUE) # percentiles of the sample distribution
+plot(qexp(p),q, 
+     xlab="",ylab="",xaxt="n",yaxt="n",
+     pch=1,cex=1,col="Black",ylim=c(0,8),xlim=c(0,5))
+mtext(side=1, text="TQ", line=1.6, cex=anno.cex)
+mtext(side=2, text="EQ", line=1.2, cex=anno.cex)
+Hmisc::mgp.axis(1,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+Hmisc::mgp.axis(2,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
+
+
+#### DC C-MMHP ####
+Lambda.cmmhp.test <- Lambda_cmmhp_matrix[current_i,current_j][[1]]
+
+p <- ppoints(length(Lambda.cmmhp.test))    # 100 equally spaced points on (0,1), excluding endpoints
+q <- quantile(Lambda.cmmhp.test,p=p,na.rm=TRUE) # percentiles of the sample distribution
+plot(qexp(p),q, 
+     xlab="",ylab="",xaxt="n",yaxt="n",
+     pch=1,cex=1,col="Black",ylim=c(0,8),xlim=c(0,5))
+mtext(side=1, text="TQ", line=1.6, cex=anno.cex)
+mtext(side=2, text="EQ", line=1.2, cex=anno.cex)
+Hmisc::mgp.axis(1,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+Hmisc::mgp.axis(2,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
+
+
+#### I-MMHP ####
+Lambda.immhp.test <- Lambda_mmhp_matrix[current_i,current_j][[1]]
+
+p <- ppoints(length(Lambda.immhp.test))    # 100 equally spaced points on (0,1), excluding endpoints
+q <- quantile(Lambda.immhp.test,p=p,na.rm=TRUE) # percentiles of the sample distribution
+plot(qexp(p),q, 
+     xlab="",ylab="",xaxt="n",yaxt="n",
+     pch=1,cex=1,col="Black",ylim=c(0,8),xlim=c(0,5))
+mtext(side=1, text="TQ", line=1.6, cex=anno.cex)
+mtext(side=2, text="EQ", line=1.2, cex=anno.cex)
+Hmisc::mgp.axis(1,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+Hmisc::mgp.axis(2,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
+
+```
+
+
+
+### Cohort 8
+
+
+```{r cohort-8,cache=path_change}
+current_cohort <- 8
+clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
+return_df <- cleanObservationPeriod(current_cohort, clean_data)
+unique_pairs_df <- return_df %>% group_by(initiator, recipient) %>%
+  dplyr::summarize(count=n(),
+            observe=list(observe.id),
+            observe.length=list(observe.time),
+            no.events=list(no.events)) 
+top_pairs <- unique_pairs_df %>% arrange(desc(count))
+
+best_i <- top_pairs$initiator[1]
+best_j <- top_pairs$recipient[1]
+wind <- unlist(lapply(top_pairs$no.events,which.max))[1]
+
+win_length <- top_pairs$observe.length[[1]][wind]
+unique_observe_win <- unique(return_df[,c("observe.id","observe.time")])
+actual_win <- which(unique_observe_win$observe.time == win_length)
+
+no_segments <- 500
+
+current_i <- best_i #8
+current_j <- best_j #2
+current_win <- actual_win#wind 
+# this is the 18th window, not the 18th window with observations
+### that this pair have events in, which it should be
+
+# clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
+# return_df <- cleanObservationPeriod(current_cohort, clean_data)
+# unique_pairs_df <- return_df %>% group_by(initiator, recipient) %>%
+#   dplyr::summarize(count=n(),
+#             observe=list(observe.id),
+#             observe.length=list(observe.time),
+#             no.events=list(no.events))
+pair <- which(unique_pairs_df$initiator==current_i&unique_pairs_df$recipient==current_j)
+unique_observe_win <- unique(return_df[,c("observe.id","observe.time")])
+
+row_indicator <- return_df$initiator==current_i&return_df$recipient==current_j&return_df$observe.id==current_win
+row_idx <- which(return_df$initiator==current_i&return_df$recipient==current_j&return_df$observe.id==current_win)
+current_event_time <- return_df[row_indicator,"event.times"][[1]]
+observe_period <- return_df[row_indicator,"observe.time"]
+time_segment <- seq(0,observe_period,length.out=no_segments)
+
+### load the corresponding stan fits ####
+#print(current_cohort)
+
+## Cohort Hawkes ####
+# load the parameters for this pair
+load(paste(data_path, cohort_names[current_cohort],
+           "/cohort_hp_stan_result_", cohort_names[current_cohort],".RData",sep=''))
+
+# create a list to store the hawkes parameters for this
+model1_par_est <- list(lambda0=mean(sim_cohort_hp$lambda0),
+                       eta_1=mean(sim_cohort_hp$eta_1),
+                       eta_2=mean(sim_cohort_hp$eta_2),
+                       eta_3=mean(sim_cohort_hp$eta_3),
+                       beta=mean(sim_cohort_hp$beta),
+                       f=apply(sim_cohort_hp$f,2,mean))
+model1_par_matrix <- list(lambda0_matrix=matrix(model1_par_est$lambda0,
+                                                nrow=mice_number,ncol=mice_number),
+                          alpha_matrix=formMatrix(function(x,y) model1_fn$alpha.fun(x,y,
+                                                                                    model1_par_est$eta_1,
+                                                                                    model1_par_est$eta_2,
+                                                                                    model1_par_est$eta_3),
+                                                  model1_par_est$f),
+                          beta_matrix=matrix(model1_par_est$beta,
+                                             nrow=mice_number,ncol=mice_number))
+
+hawkes.par <- c(model1_par_matrix$lambda0_matrix[current_i,current_j],
+                model1_par_matrix$alpha[current_i,current_j],
+                        model1_par_matrix$beta[current_i,current_j])
+
+
+
+#### Degree Corrected Hawkes ####
+load(paste(data_path, cohort_names[current_cohort],
+           "/cohort_dchp_stan_result_", cohort_names[current_cohort],".RData",sep=''))
+
+# create a list to store the hawkes parameters for this
+model2_par_est <- list(gamma = apply(sim_cohort_dchp$gamma,2,mean),
+                       zeta = apply(sim_cohort_dchp$zeta,2,mean),
+                       #lambda0=mean(sim_cohort_dchp$lambda0),
+                       eta_1=mean(sim_cohort_dchp$eta_1),
+                       eta_2=mean(sim_cohort_dchp$eta_2),
+                       eta_3=mean(sim_cohort_dchp$eta_3),
+                       beta=mean(sim_cohort_dchp$beta),
+                       f=apply(sim_cohort_dchp$f,2,mean))
+model2_par_matrix <- list(lambda0_matrix= outer(model2_par_est$gamma,
+                                                model2_par_est$zeta,FUN = "+"),
+                          alpha_matrix=formMatrix(function(x,y) model1_fn$alpha.fun(x,y,
+                                                                                    model2_par_est$eta_1,
+                                                                                  model2_par_est$eta_2,
+                                                                                    model2_par_est$eta_3),
+                                                  model2_par_est$f),
+                          beta_matrix=matrix(model2_par_est$beta,
+                                             nrow=mice_number,ncol=mice_number))
+
+hawkes.par_dc <- c(model2_par_matrix$lambda0_matrix[current_i,current_j],
+                model2_par_matrix$alpha[current_i,current_j],
+                model2_par_matrix$beta[current_i,current_j])
+
+rm(fit_cohort_hp)
+rm(fit_cohort_dchp)
+rm(sim_cohort_hp)
+rm(sim_cohort_dchp)
+
+## Cohort MMHP
+load(paste(data_path,cohort_names[current_cohort],
+             "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
+             ".RData",sep=''))
+load(paste(data_path,cohort_names[current_cohort],
+             "/mmhp_est_zt_",cohort_names[current_cohort],".RData",sep=''))
+
+# then adjust the parameters for c-mmhp below here also
+
+c_mmhp_par <- list(lambda1=mean(sim_cohort_mmhp$lambda1[,pair]),
+                 lambda0=mean(sim_cohort_mmhp$lambda0[,pair]),
+                 alpha=mean(sim_cohort_mmhp$alpha[,pair]),
+                 beta=mean(sim_cohort_mmhp$beta),
+                 q1=mean(sim_cohort_mmhp$q1[,pair]),
+                 q2=mean(sim_cohort_mmhp$q2[,pair]))
+
+c_mmhp.est.latent <- ifelse(apply(state_array_list[[pair]][[current_win]],
+                                1,
+                                function(x) sum(x==1)) >500,rep(1,1000),rep(2,1000))
+c_mmhp.est.latent <- interpolateLatentTrajectory(params=c_mmhp_par,
+                                               events=current_event_time,
+                                                       zt=c_mmhp.est.latent,                                         initial.state=mean(initial_state_list[[pair]][[current_win]]),
+                     termination.time=observe_period,
+                     termination.state = 2)
+
+
+rm(interpolation_array_list)
+rm(state_array_list)
+rm(initial_state_list)
+rm(termination_state_list)
+
+## Cohort MMHP
+load(paste(data_path,cohort_names[current_cohort],
+             "/sep_mmhp_stan_result_",cohort_names[current_cohort],
+             ".RData",sep=''))
+load(paste(data_path,cohort_names[current_cohort],
+             "/cmmhp_est_zt_",cohort_names[current_cohort],".RData",sep=''))
+
+# then adjust the parameters for c-mmhp below here also
+
+sep_mmhp_par <- list(lambda1=mean(sim_mmhp_sep$lambda1[,pair]),
+                 lambda0=mean(sim_mmhp_sep$lambda0[,pair]),
+                 alpha=mean(sim_mmhp_sep$alpha[,pair]),
+                 beta=mean(sim_mmhp_sep$beta),
+                 q1=mean(sim_mmhp_sep$q1[,pair]),
+                 q2=mean(sim_mmhp_sep$q2[,pair]))
+
+sep_mmhp.est.latent <- ifelse(apply(state_array_list[[pair]][[current_win]],
+                                1,
+                                function(x) sum(x==1)) >500,rep(1,1000),rep(2,1000))
+sep_mmhp.est.latent <- interpolateLatentTrajectory(params=c_mmhp_par,
+                                               events=current_event_time,
+                                                       zt=sep_mmhp.est.latent,                                         initial.state=mean(initial_state_list[[pair]][[current_win]]),
+                     termination.time=observe_period,
+                     termination.state = 2)
+
+
+rm(interpolation_array_list)
+rm(state_array_list)
+rm(initial_state_list)
+rm(termination_state_list)
+
+row_indicator <- return_df$initiator==current_i&return_df$recipient==current_j&return_df$observe.id==current_win
+row_idx <- which(return_df$initiator==current_i&return_df$recipient==current_j&return_df$observe.id==current_win)
+current_event_time <- return_df[row_indicator,"event.times"][[1]]
+observe_period <- return_df[row_indicator,"observe.time"]
+no_segments <- 500
+time_segment <- seq(0,observe_period,length.out=no_segments)
+
+par(mfrow=c(2,4), oma=c(1,1,1,1), mar=c(2,3,2,1), mgp=c(0.8,0,0))
+layout(matrix(1:8,nrow=2,byrow=TRUE),widths=rep(2,4),height=c(3,3))
+anno.cex <- 1.3
+title.cex <- 2.2
+title.line <- 0.5
+y.upper <- 20
+
+
+#### Cohort Hawkes  ####
+
+drawRealIntensityPaper(current_event_time,
+                       yupper=y.upper, color="black",line.width=2,title.line=title.line,
+                       title_name="C-HP",
+                       title.cex=title.cex, max.x=observe_period, box.col="black")
+drawHawkesIntensityPaper(lambda0=hawkes.par[1],
+                         alpha=hawkes.par[2],
+                         beta=hawkes.par[3],
+                         events=current_event_time, termination=observe_period)
+
+### DC Cohort Hawkes ####
+
+drawRealIntensityPaper(current_event_time,
+                       yupper=y.upper, color="black",line.width=2,title.line=title.line,
+                       title_name="DC-HP",
+                       title.cex=title.cex, max.x=observe_period, box.col="black")
+drawHawkesIntensityPaper(lambda0=hawkes.par_dc[1],
+                         alpha=hawkes.par_dc[2],
+                         beta=hawkes.par_dc[3],
+                         events=current_event_time, termination=observe_period)
+
+#### DC C-MMHP ####
+drawRealIntensityPaper(current_event_time, object=c_mmhp_par,title.line=title.line,
+                       simulation=list(x=c(0,c_mmhp.est.latent$x.hat),
+                                       z=c_mmhp.est.latent$z.hat),
+                       yupper=y.upper, color="black", line.width=2,
+                       title_name="DC C-MMHP", title.cex=title.cex, max.x=observe_period, box.col="black")
+
+#### Sep MMHP ####
+
+drawRealIntensityPaper(current_event_time, object=sep_mmhp_par,title.line=title.line,
+                       simulation=list(x=c(0,sep_mmhp.est.latent$x.hat),
+                                       z=sep_mmhp.est.latent$z.hat),
+                       yupper=y.upper, color="black", line.width=2,
+                       title_name="I-MMHP", title.cex=title.cex, max.x=observe_period, box.col="black")
+
+
+#### then the corresponding QQ plots ####
+load(paste(data_path,cohort_names[current_cohort],
+             "/real_diag_four_models_",cohort_names[current_cohort],
+             ".RData",sep=''))
+
+#### Cohort Hawkes ####
+
+Lambda.c_hawkes.test <- Lambda_c_hawkes_matrix[current_i,current_j][[1]]
+
+p <- ppoints(length(Lambda.c_hawkes.test))    # 100 equally spaced points on (0,1), excluding endpoints
+q <- quantile(Lambda.c_hawkes.test,p=p,na.rm=TRUE) # percentiles of the sample distribution
+plot(qexp(p),q, 
+     xlab="",ylab="",xaxt="n",yaxt="n",
+     pch=1,cex=1,col="Black",ylim=c(0,8),xlim=c(0,5))
+mtext(side=1, text="TQ", line=1.6, cex=anno.cex)
+mtext(side=2, text="EQ", line=1.2, cex=anno.cex)
+Hmisc::mgp.axis(1,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+Hmisc::mgp.axis(2,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
+
+#### Cohort DC Hawkes ####
+
+Lambda.dc_hawkes.test <- Lambda_dc_hawkes_matrix[current_i,current_j][[1]]
+
+p <- ppoints(length(Lambda.dc_hawkes.test))    # 100 equally spaced points on (0,1), excluding endpoints
+q <- quantile(Lambda.dc_hawkes.test,p=p,na.rm=TRUE) # percentiles of the sample distribution
+plot(qexp(p),q, 
+     xlab="",ylab="",xaxt="n",yaxt="n",
+     pch=1,cex=1,col="Black",ylim=c(0,8),xlim=c(0,5))
+mtext(side=1, text="TQ", line=1.6, cex=anno.cex)
+mtext(side=2, text="EQ", line=1.2, cex=anno.cex)
+Hmisc::mgp.axis(1,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+Hmisc::mgp.axis(2,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
+
+
+#### DC C-MMHP ####
+Lambda.cmmhp.test <- Lambda_cmmhp_matrix[current_i,current_j][[1]]
+
+p <- ppoints(length(Lambda.cmmhp.test))    # 100 equally spaced points on (0,1), excluding endpoints
+q <- quantile(Lambda.cmmhp.test,p=p,na.rm=TRUE) # percentiles of the sample distribution
+plot(qexp(p),q, 
+     xlab="",ylab="",xaxt="n",yaxt="n",
+     pch=1,cex=1,col="Black",ylim=c(0,8),xlim=c(0,5))
+mtext(side=1, text="TQ", line=1.6, cex=anno.cex)
+mtext(side=2, text="EQ", line=1.2, cex=anno.cex)
+Hmisc::mgp.axis(1,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+Hmisc::mgp.axis(2,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
+
+
+#### I-MMHP ####
+Lambda.immhp.test <- Lambda_mmhp_matrix[current_i,current_j][[1]]
+
+p <- ppoints(length(Lambda.immhp.test))    # 100 equally spaced points on (0,1), excluding endpoints
+q <- quantile(Lambda.immhp.test,p=p,na.rm=TRUE) # percentiles of the sample distribution
+plot(qexp(p),q, 
+     xlab="",ylab="",xaxt="n",yaxt="n",
+     pch=1,cex=1,col="Black",ylim=c(0,8),xlim=c(0,5))
+mtext(side=1, text="TQ", line=1.6, cex=anno.cex)
+mtext(side=2, text="EQ", line=1.2, cex=anno.cex)
+Hmisc::mgp.axis(1,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+Hmisc::mgp.axis(2,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
+
+```
+
+
+
+### Cohort 9
+
+
+```{r cohort-9,cache=path_change}
+y.upper <- 60
+current_cohort <- 9
+clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
+return_df <- cleanObservationPeriod(current_cohort, clean_data)
+unique_pairs_df <- return_df %>% group_by(initiator, recipient) %>%
+  dplyr::summarize(count=n(),
+            observe=list(observe.id),
+            observe.length=list(observe.time),
+            no.events=list(no.events)) 
+top_pairs <- unique_pairs_df %>% arrange(desc(count))
+
+best_i <- top_pairs$initiator[1]
+best_j <- top_pairs$recipient[1]
+wind <- unlist(lapply(top_pairs$no.events,which.max))[1]
+
+win_length <- top_pairs$observe.length[[1]][wind]
+unique_observe_win <- unique(return_df[,c("observe.id","observe.time")])
+actual_win <- which(unique_observe_win$observe.time == win_length)
+
+no_segments <- 500
+
+current_i <- best_i #8
+current_j <- best_j #2
+current_win <- actual_win[1]#wind 
+# this is the 18th window, not the 18th window with observations
+### that this pair have events in, which it should be
+
+# clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
+# return_df <- cleanObservationPeriod(current_cohort, clean_data)
+# unique_pairs_df <- return_df %>% group_by(initiator, recipient) %>%
+#   dplyr::summarize(count=n(),
+#             observe=list(observe.id),
+#             observe.length=list(observe.time),
+#             no.events=list(no.events))
+pair <- which(unique_pairs_df$initiator==current_i&unique_pairs_df$recipient==current_j)
+unique_observe_win <- unique(return_df[,c("observe.id","observe.time")])
+
+row_indicator <- return_df$initiator==current_i&return_df$recipient==current_j&return_df$observe.id==current_win
+row_idx <- which(return_df$initiator==current_i&return_df$recipient==current_j&return_df$observe.id==current_win)
+current_event_time <- return_df[row_indicator,"event.times"][[1]]
+observe_period <- return_df[row_indicator,"observe.time"]
+time_segment <- seq(0,observe_period,length.out=no_segments)
+
+### load the corresponding stan fits ####
+#print(current_cohort)
+
+## Cohort Hawkes ####
+# load the parameters for this pair
+load(paste(data_path, cohort_names[current_cohort],
+           "/cohort_hp_stan_result_", cohort_names[current_cohort],".RData",sep=''))
+
+# create a list to store the hawkes parameters for this
+model1_par_est <- list(lambda0=mean(sim_cohort_hp$lambda0),
+                       eta_1=mean(sim_cohort_hp$eta_1),
+                       eta_2=mean(sim_cohort_hp$eta_2),
+                       eta_3=mean(sim_cohort_hp$eta_3),
+                       beta=mean(sim_cohort_hp$beta),
+                       f=apply(sim_cohort_hp$f,2,mean))
+model1_par_matrix <- list(lambda0_matrix=matrix(model1_par_est$lambda0,
+                                                nrow=mice_number,ncol=mice_number),
+                          alpha_matrix=formMatrix(function(x,y) model1_fn$alpha.fun(x,y,
+                                                                                    model1_par_est$eta_1,
+                                                                                    model1_par_est$eta_2,
+                                                                                    model1_par_est$eta_3),
+                                                  model1_par_est$f),
+                          beta_matrix=matrix(model1_par_est$beta,
+                                             nrow=mice_number,ncol=mice_number))
+
+hawkes.par <- c(model1_par_matrix$lambda0_matrix[current_i,current_j],
+                model1_par_matrix$alpha[current_i,current_j],
+                        model1_par_matrix$beta[current_i,current_j])
+
+
+
+#### Degree Corrected Hawkes ####
+load(paste(data_path, cohort_names[current_cohort],
+           "/cohort_dchp_stan_result_", cohort_names[current_cohort],".RData",sep=''))
+
+# create a list to store the hawkes parameters for this
+model2_par_est <- list(gamma = apply(sim_cohort_dchp$gamma,2,mean),
+                       zeta = apply(sim_cohort_dchp$zeta,2,mean),
+                       #lambda0=mean(sim_cohort_dchp$lambda0),
+                       eta_1=mean(sim_cohort_dchp$eta_1),
+                       eta_2=mean(sim_cohort_dchp$eta_2),
+                       eta_3=mean(sim_cohort_dchp$eta_3),
+                       beta=mean(sim_cohort_dchp$beta),
+                       f=apply(sim_cohort_dchp$f,2,mean))
+model2_par_matrix <- list(lambda0_matrix= outer(model2_par_est$gamma,
+                                                model2_par_est$zeta,FUN = "+"),
+                          alpha_matrix=formMatrix(function(x,y) model1_fn$alpha.fun(x,y,
+                                                                                    model2_par_est$eta_1,
+                                                                                  model2_par_est$eta_2,
+                                                                                    model2_par_est$eta_3),
+                                                  model2_par_est$f),
+                          beta_matrix=matrix(model2_par_est$beta,
+                                             nrow=mice_number,ncol=mice_number))
+
+hawkes.par_dc <- c(model2_par_matrix$lambda0_matrix[current_i,current_j],
+                model2_par_matrix$alpha[current_i,current_j],
+                model2_par_matrix$beta[current_i,current_j])
+
+rm(fit_cohort_hp)
+rm(fit_cohort_dchp)
+rm(sim_cohort_hp)
+rm(sim_cohort_dchp)
+
+## Cohort MMHP
+load(paste(data_path,cohort_names[current_cohort],
+             "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
+             ".RData",sep=''))
+load(paste(data_path,cohort_names[current_cohort],
+             "/mmhp_est_zt_",cohort_names[current_cohort],".RData",sep=''))
+
+# then adjust the parameters for c-mmhp below here also
+
+c_mmhp_par <- list(lambda1=mean(sim_cohort_mmhp$lambda1[,pair]),
+                 lambda0=mean(sim_cohort_mmhp$lambda0[,pair]),
+                 alpha=mean(sim_cohort_mmhp$alpha[,pair]),
+                 beta=mean(sim_cohort_mmhp$beta),
+                 q1=mean(sim_cohort_mmhp$q1[,pair]),
+                 q2=mean(sim_cohort_mmhp$q2[,pair]))
+
+c_mmhp.est.latent <- ifelse(apply(state_array_list[[pair]][[current_win]],
+                                1,
+                                function(x) sum(x==1)) >500,rep(1,1000),rep(2,1000))
+c_mmhp.est.latent <- interpolateLatentTrajectory(params=c_mmhp_par,
+                                               events=current_event_time,
+                                                       zt=c_mmhp.est.latent,                                         initial.state=mean(initial_state_list[[pair]][[current_win]]),
+                     termination.time=observe_period,
+                     termination.state = 2)
+
+
+rm(interpolation_array_list)
+rm(state_array_list)
+rm(initial_state_list)
+rm(termination_state_list)
+
+## Cohort MMHP
+load(paste(data_path,cohort_names[current_cohort],
+             "/sep_mmhp_stan_result_",cohort_names[current_cohort],
+             ".RData",sep=''))
+load(paste(data_path,cohort_names[current_cohort],
+             "/cmmhp_est_zt_",cohort_names[current_cohort],".RData",sep=''))
+
+# then adjust the parameters for c-mmhp below here also
+
+sep_mmhp_par <- list(lambda1=mean(sim_mmhp_sep$lambda1[,pair]),
+                 lambda0=mean(sim_mmhp_sep$lambda0[,pair]),
+                 alpha=mean(sim_mmhp_sep$alpha[,pair]),
+                 beta=mean(sim_mmhp_sep$beta),
+                 q1=mean(sim_mmhp_sep$q1[,pair]),
+                 q2=mean(sim_mmhp_sep$q2[,pair]))
+
+sep_mmhp.est.latent <- ifelse(apply(state_array_list[[pair]][[current_win]],
+                                1,
+                                function(x) sum(x==1)) >500,rep(1,1000),rep(2,1000))
+sep_mmhp.est.latent <- interpolateLatentTrajectory(params=c_mmhp_par,
+                                               events=current_event_time,
+                                                       zt=sep_mmhp.est.latent,                                         initial.state=mean(initial_state_list[[pair]][[current_win]]),
+                     termination.time=observe_period,
+                     termination.state = 2)
+
+
+rm(interpolation_array_list)
+rm(state_array_list)
+rm(initial_state_list)
+rm(termination_state_list)
+
+row_indicator <- return_df$initiator==current_i&return_df$recipient==current_j&return_df$observe.id==current_win
+row_idx <- which(return_df$initiator==current_i&return_df$recipient==current_j&return_df$observe.id==current_win)
+current_event_time <- return_df[row_indicator,"event.times"][[1]]
+observe_period <- return_df[row_indicator,"observe.time"]
+no_segments <- 500
+time_segment <- seq(0,observe_period,length.out=no_segments)
+
+par(mfrow=c(2,4), oma=c(1,1,1,1), mar=c(2,3,2,1), mgp=c(0.8,0,0))
+layout(matrix(1:8,nrow=2,byrow=TRUE),widths=rep(2,4),height=c(3,3))
+anno.cex <- 1.3
+title.cex <- 2.2
+title.line <- 0.5
+#y.upper <- 20
+
+
+#### Cohort Hawkes  ####
+
+drawRealIntensityPaper(current_event_time,
+                       yupper=y.upper, color="black",line.width=2,title.line=title.line,
+                       title_name="C-HP",
+                       title.cex=title.cex, max.x=observe_period, box.col="black")
+drawHawkesIntensityPaper(lambda0=hawkes.par[1],
+                         alpha=hawkes.par[2],
+                         beta=hawkes.par[3],
+                         events=current_event_time, termination=observe_period)
+
+### DC Cohort Hawkes ####
+
+drawRealIntensityPaper(current_event_time,
+                       yupper=y.upper, color="black",line.width=2,title.line=title.line,
+                       title_name="DC-HP",
+                       title.cex=title.cex, max.x=observe_period, box.col="black")
+drawHawkesIntensityPaper(lambda0=hawkes.par_dc[1],
+                         alpha=hawkes.par_dc[2],
+                         beta=hawkes.par_dc[3],
+                         events=current_event_time, termination=observe_period)
+
+#### DC C-MMHP ####
+drawRealIntensityPaper(current_event_time, object=c_mmhp_par,title.line=title.line,
+                       simulation=list(x=c(0,c_mmhp.est.latent$x.hat),
+                                       z=c_mmhp.est.latent$z.hat),
+                       yupper=y.upper, color="black", line.width=2,
+                       title_name="DC C-MMHP", title.cex=title.cex, max.x=observe_period, box.col="black")
+
+#### Sep MMHP ####
+
+drawRealIntensityPaper(current_event_time, object=sep_mmhp_par,title.line=title.line,
+                       simulation=list(x=c(0,sep_mmhp.est.latent$x.hat),
+                                       z=sep_mmhp.est.latent$z.hat),
+                       yupper=y.upper, color="black", line.width=2,
+                       title_name="I-MMHP", title.cex=title.cex, max.x=observe_period, box.col="black")
+
+
+#### then the corresponding QQ plots ####
+load(paste(data_path,cohort_names[current_cohort],
+             "/real_diag_four_models_",cohort_names[current_cohort],
+             ".RData",sep=''))
+
+#### Cohort Hawkes ####
+
+Lambda.c_hawkes.test <- Lambda_c_hawkes_matrix[current_i,current_j][[1]]
+
+p <- ppoints(length(Lambda.c_hawkes.test))    # 100 equally spaced points on (0,1), excluding endpoints
+q <- quantile(Lambda.c_hawkes.test,p=p,na.rm=TRUE) # percentiles of the sample distribution
+plot(qexp(p),q, 
+     xlab="",ylab="",xaxt="n",yaxt="n",
+     pch=1,cex=1,col="Black",ylim=c(0,8),xlim=c(0,5))
+mtext(side=1, text="TQ", line=1.6, cex=anno.cex)
+mtext(side=2, text="EQ", line=1.2, cex=anno.cex)
+Hmisc::mgp.axis(1,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+Hmisc::mgp.axis(2,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
+
+#### Cohort DC Hawkes ####
+
+Lambda.dc_hawkes.test <- Lambda_dc_hawkes_matrix[current_i,current_j][[1]]
+
+p <- ppoints(length(Lambda.dc_hawkes.test))    # 100 equally spaced points on (0,1), excluding endpoints
+q <- quantile(Lambda.dc_hawkes.test,p=p,na.rm=TRUE) # percentiles of the sample distribution
+plot(qexp(p),q, 
+     xlab="",ylab="",xaxt="n",yaxt="n",
+     pch=1,cex=1,col="Black",ylim=c(0,8),xlim=c(0,5))
+mtext(side=1, text="TQ", line=1.6, cex=anno.cex)
+mtext(side=2, text="EQ", line=1.2, cex=anno.cex)
+Hmisc::mgp.axis(1,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+Hmisc::mgp.axis(2,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
+
+
+#### DC C-MMHP ####
+Lambda.cmmhp.test <- Lambda_cmmhp_matrix[current_i,current_j][[1]]
+
+p <- ppoints(length(Lambda.cmmhp.test))    # 100 equally spaced points on (0,1), excluding endpoints
+q <- quantile(Lambda.cmmhp.test,p=p,na.rm=TRUE) # percentiles of the sample distribution
+plot(qexp(p),q, 
+     xlab="",ylab="",xaxt="n",yaxt="n",
+     pch=1,cex=1,col="Black",ylim=c(0,8),xlim=c(0,5))
+mtext(side=1, text="TQ", line=1.6, cex=anno.cex)
+mtext(side=2, text="EQ", line=1.2, cex=anno.cex)
+Hmisc::mgp.axis(1,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+Hmisc::mgp.axis(2,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
+
+
+#### I-MMHP ####
+Lambda.immhp.test <- Lambda_mmhp_matrix[current_i,current_j][[1]]
+
+p <- ppoints(length(Lambda.immhp.test))    # 100 equally spaced points on (0,1), excluding endpoints
+q <- quantile(Lambda.immhp.test,p=p,na.rm=TRUE) # percentiles of the sample distribution
+plot(qexp(p),q, 
+     xlab="",ylab="",xaxt="n",yaxt="n",
+     pch=1,cex=1,col="Black",ylim=c(0,8),xlim=c(0,5))
+mtext(side=1, text="TQ", line=1.6, cex=anno.cex)
+mtext(side=2, text="EQ", line=1.2, cex=anno.cex)
+Hmisc::mgp.axis(1,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+Hmisc::mgp.axis(2,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
+
+```
+
+
+
+### Cohort 10
+
+
+```{r cohort-10,cache=path_change}
+current_cohort <- 10
+clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
+return_df <- cleanObservationPeriod(current_cohort, clean_data)
+unique_pairs_df <- return_df %>% group_by(initiator, recipient) %>%
+  dplyr::summarize(count=n(),
+            observe=list(observe.id),
+            observe.length=list(observe.time),
+            no.events=list(no.events)) 
+top_pairs <- unique_pairs_df %>% arrange(desc(count))
+
+best_i <- top_pairs$initiator[1]
+best_j <- top_pairs$recipient[1]
+wind <- unlist(lapply(top_pairs$no.events,which.max))[1]
+
+win_length <- top_pairs$observe.length[[1]][wind]
+unique_observe_win <- unique(return_df[,c("observe.id","observe.time")])
+actual_win <- which(unique_observe_win$observe.time == win_length)
+
+no_segments <- 500
+
+current_i <- best_i #8
+current_j <- best_j #2
+current_win <- actual_win#wind 
+# this is the 18th window, not the 18th window with observations
+### that this pair have events in, which it should be
+
+# clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
+# return_df <- cleanObservationPeriod(current_cohort, clean_data)
+# unique_pairs_df <- return_df %>% group_by(initiator, recipient) %>%
+#   dplyr::summarize(count=n(),
+#             observe=list(observe.id),
+#             observe.length=list(observe.time),
+#             no.events=list(no.events))
+pair <- which(unique_pairs_df$initiator==current_i&unique_pairs_df$recipient==current_j)
+unique_observe_win <- unique(return_df[,c("observe.id","observe.time")])
+
+row_indicator <- return_df$initiator==current_i&return_df$recipient==current_j&return_df$observe.id==current_win
+row_idx <- which(return_df$initiator==current_i&return_df$recipient==current_j&return_df$observe.id==current_win)
+current_event_time <- return_df[row_indicator,"event.times"][[1]]
+observe_period <- return_df[row_indicator,"observe.time"]
+time_segment <- seq(0,observe_period,length.out=no_segments)
+
+### load the corresponding stan fits ####
+#print(current_cohort)
+
+## Cohort Hawkes ####
+# load the parameters for this pair
+load(paste(data_path, cohort_names[current_cohort],
+           "/cohort_hp_stan_result_", cohort_names[current_cohort],".RData",sep=''))
+
+# create a list to store the hawkes parameters for this
+model1_par_est <- list(lambda0=mean(sim_cohort_hp$lambda0),
+                       eta_1=mean(sim_cohort_hp$eta_1),
+                       eta_2=mean(sim_cohort_hp$eta_2),
+                       eta_3=mean(sim_cohort_hp$eta_3),
+                       beta=mean(sim_cohort_hp$beta),
+                       f=apply(sim_cohort_hp$f,2,mean))
+model1_par_matrix <- list(lambda0_matrix=matrix(model1_par_est$lambda0,
+                                                nrow=mice_number,ncol=mice_number),
+                          alpha_matrix=formMatrix(function(x,y) model1_fn$alpha.fun(x,y,
+                                                                                    model1_par_est$eta_1,
+                                                                                    model1_par_est$eta_2,
+                                                                                    model1_par_est$eta_3),
+                                                  model1_par_est$f),
+                          beta_matrix=matrix(model1_par_est$beta,
+                                             nrow=mice_number,ncol=mice_number))
+
+hawkes.par <- c(model1_par_matrix$lambda0_matrix[current_i,current_j],
+                model1_par_matrix$alpha[current_i,current_j],
+                        model1_par_matrix$beta[current_i,current_j])
+
+
+
+#### Degree Corrected Hawkes ####
+load(paste(data_path, cohort_names[current_cohort],
+           "/cohort_dchp_stan_result_", cohort_names[current_cohort],".RData",sep=''))
+
+# create a list to store the hawkes parameters for this
+model2_par_est <- list(gamma = apply(sim_cohort_dchp$gamma,2,mean),
+                       zeta = apply(sim_cohort_dchp$zeta,2,mean),
+                       #lambda0=mean(sim_cohort_dchp$lambda0),
+                       eta_1=mean(sim_cohort_dchp$eta_1),
+                       eta_2=mean(sim_cohort_dchp$eta_2),
+                       eta_3=mean(sim_cohort_dchp$eta_3),
+                       beta=mean(sim_cohort_dchp$beta),
+                       f=apply(sim_cohort_dchp$f,2,mean))
+model2_par_matrix <- list(lambda0_matrix= outer(model2_par_est$gamma,
+                                                model2_par_est$zeta,FUN = "+"),
+                          alpha_matrix=formMatrix(function(x,y) model1_fn$alpha.fun(x,y,
+                                                                                    model2_par_est$eta_1,
+                                                                                  model2_par_est$eta_2,
+                                                                                    model2_par_est$eta_3),
+                                                  model2_par_est$f),
+                          beta_matrix=matrix(model2_par_est$beta,
+                                             nrow=mice_number,ncol=mice_number))
+
+hawkes.par_dc <- c(model2_par_matrix$lambda0_matrix[current_i,current_j],
+                model2_par_matrix$alpha[current_i,current_j],
+                model2_par_matrix$beta[current_i,current_j])
+
+rm(fit_cohort_hp)
+rm(fit_cohort_dchp)
+rm(sim_cohort_hp)
+rm(sim_cohort_dchp)
+
+## Cohort MMHP
+load(paste(data_path,cohort_names[current_cohort],
+             "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
+             ".RData",sep=''))
+load(paste(data_path,cohort_names[current_cohort],
+             "/mmhp_est_zt_",cohort_names[current_cohort],".RData",sep=''))
+
+# then adjust the parameters for c-mmhp below here also
+
+c_mmhp_par <- list(lambda1=mean(sim_cohort_mmhp$lambda1[,pair]),
+                 lambda0=mean(sim_cohort_mmhp$lambda0[,pair]),
+                 alpha=mean(sim_cohort_mmhp$alpha[,pair]),
+                 beta=mean(sim_cohort_mmhp$beta),
+                 q1=mean(sim_cohort_mmhp$q1[,pair]),
+                 q2=mean(sim_cohort_mmhp$q2[,pair]))
+
+c_mmhp.est.latent <- ifelse(apply(state_array_list[[pair]][[current_win]],
+                                1,
+                                function(x) sum(x==1)) >500,rep(1,1000),rep(2,1000))
+c_mmhp.est.latent <- interpolateLatentTrajectory(params=c_mmhp_par,
+                                               events=current_event_time,
+                                                       zt=c_mmhp.est.latent,                                         initial.state=mean(initial_state_list[[pair]][[current_win]]),
+                     termination.time=observe_period,
+                     termination.state = 2)
+
+
+rm(interpolation_array_list)
+rm(state_array_list)
+rm(initial_state_list)
+rm(termination_state_list)
+
+## Cohort MMHP
+load(paste(data_path,cohort_names[current_cohort],
+             "/sep_mmhp_stan_result_",cohort_names[current_cohort],
+             ".RData",sep=''))
+load(paste(data_path,cohort_names[current_cohort],
+             "/cmmhp_est_zt_",cohort_names[current_cohort],".RData",sep=''))
+
+# then adjust the parameters for c-mmhp below here also
+
+sep_mmhp_par <- list(lambda1=mean(sim_mmhp_sep$lambda1[,pair]),
+                 lambda0=mean(sim_mmhp_sep$lambda0[,pair]),
+                 alpha=mean(sim_mmhp_sep$alpha[,pair]),
+                 beta=mean(sim_mmhp_sep$beta),
+                 q1=mean(sim_mmhp_sep$q1[,pair]),
+                 q2=mean(sim_mmhp_sep$q2[,pair]))
+
+sep_mmhp.est.latent <- ifelse(apply(state_array_list[[pair]][[current_win]],
+                                1,
+                                function(x) sum(x==1)) >500,rep(1,1000),rep(2,1000))
+sep_mmhp.est.latent <- interpolateLatentTrajectory(params=c_mmhp_par,
+                                               events=current_event_time,
+                                                       zt=sep_mmhp.est.latent,                                         initial.state=mean(initial_state_list[[pair]][[current_win]]),
+                     termination.time=observe_period,
+                     termination.state = 2)
+
+
+rm(interpolation_array_list)
+rm(state_array_list)
+rm(initial_state_list)
+rm(termination_state_list)
+
+row_indicator <- return_df$initiator==current_i&return_df$recipient==current_j&return_df$observe.id==current_win
+row_idx <- which(return_df$initiator==current_i&return_df$recipient==current_j&return_df$observe.id==current_win)
+current_event_time <- return_df[row_indicator,"event.times"][[1]]
+observe_period <- return_df[row_indicator,"observe.time"]
+no_segments <- 500
+time_segment <- seq(0,observe_period,length.out=no_segments)
+
+par(mfrow=c(2,4), oma=c(1,1,1,1), mar=c(2,3,2,1), mgp=c(0.8,0,0))
+layout(matrix(1:8,nrow=2,byrow=TRUE),widths=rep(2,4),height=c(3,3))
+anno.cex <- 1.3
+title.cex <- 2.2
+title.line <- 0.5
+y.upper <- 20
+
+
+#### Cohort Hawkes  ####
+
+drawRealIntensityPaper(current_event_time,
+                       yupper=y.upper, color="black",line.width=2,title.line=title.line,
+                       title_name="C-HP",
+                       title.cex=title.cex, max.x=observe_period, box.col="black")
+drawHawkesIntensityPaper(lambda0=hawkes.par[1],
+                         alpha=hawkes.par[2],
+                         beta=hawkes.par[3],
+                         events=current_event_time, termination=observe_period)
+
+### DC Cohort Hawkes ####
+
+drawRealIntensityPaper(current_event_time,
+                       yupper=y.upper, color="black",line.width=2,title.line=title.line,
+                       title_name="DC-HP",
+                       title.cex=title.cex, max.x=observe_period, box.col="black")
+drawHawkesIntensityPaper(lambda0=hawkes.par_dc[1],
+                         alpha=hawkes.par_dc[2],
+                         beta=hawkes.par_dc[3],
+                         events=current_event_time, termination=observe_period)
+
+#### DC C-MMHP ####
+drawRealIntensityPaper(current_event_time, object=c_mmhp_par,title.line=title.line,
+                       simulation=list(x=c(0,c_mmhp.est.latent$x.hat),
+                                       z=c_mmhp.est.latent$z.hat),
+                       yupper=y.upper, color="black", line.width=2,
+                       title_name="DC C-MMHP", title.cex=title.cex, max.x=observe_period, box.col="black")
+
+#### Sep MMHP ####
+
+drawRealIntensityPaper(current_event_time, object=sep_mmhp_par,title.line=title.line,
+                       simulation=list(x=c(0,sep_mmhp.est.latent$x.hat),
+                                       z=sep_mmhp.est.latent$z.hat),
+                       yupper=y.upper, color="black", line.width=2,
+                       title_name="I-MMHP", title.cex=title.cex, max.x=observe_period, box.col="black")
+
+
+#### then the corresponding QQ plots ####
+load(paste(data_path,cohort_names[current_cohort],
+             "/real_diag_four_models_",cohort_names[current_cohort],
+             ".RData",sep=''))
+
+#### Cohort Hawkes ####
+
+Lambda.c_hawkes.test <- Lambda_c_hawkes_matrix[current_i,current_j][[1]]
+
+p <- ppoints(length(Lambda.c_hawkes.test))    # 100 equally spaced points on (0,1), excluding endpoints
+q <- quantile(Lambda.c_hawkes.test,p=p,na.rm=TRUE) # percentiles of the sample distribution
+plot(qexp(p),q, 
+     xlab="",ylab="",xaxt="n",yaxt="n",
+     pch=1,cex=1,col="Black",ylim=c(0,8),xlim=c(0,5))
+mtext(side=1, text="TQ", line=1.6, cex=anno.cex)
+mtext(side=2, text="EQ", line=1.2, cex=anno.cex)
+Hmisc::mgp.axis(1,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+Hmisc::mgp.axis(2,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
+
+#### Cohort DC Hawkes ####
+
+Lambda.dc_hawkes.test <- Lambda_dc_hawkes_matrix[current_i,current_j][[1]]
+
+p <- ppoints(length(Lambda.dc_hawkes.test))    # 100 equally spaced points on (0,1), excluding endpoints
+q <- quantile(Lambda.dc_hawkes.test,p=p,na.rm=TRUE) # percentiles of the sample distribution
+plot(qexp(p),q, 
+     xlab="",ylab="",xaxt="n",yaxt="n",
+     pch=1,cex=1,col="Black",ylim=c(0,8),xlim=c(0,5))
+mtext(side=1, text="TQ", line=1.6, cex=anno.cex)
+mtext(side=2, text="EQ", line=1.2, cex=anno.cex)
+Hmisc::mgp.axis(1,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+Hmisc::mgp.axis(2,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
+
+
+#### DC C-MMHP ####
+Lambda.cmmhp.test <- Lambda_cmmhp_matrix[current_i,current_j][[1]]
+
+p <- ppoints(length(Lambda.cmmhp.test))    # 100 equally spaced points on (0,1), excluding endpoints
+q <- quantile(Lambda.cmmhp.test,p=p,na.rm=TRUE) # percentiles of the sample distribution
+plot(qexp(p),q, 
+     xlab="",ylab="",xaxt="n",yaxt="n",
+     pch=1,cex=1,col="Black",ylim=c(0,8),xlim=c(0,5))
+mtext(side=1, text="TQ", line=1.6, cex=anno.cex)
+mtext(side=2, text="EQ", line=1.2, cex=anno.cex)
+Hmisc::mgp.axis(1,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+Hmisc::mgp.axis(2,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
+
+
+#### I-MMHP ####
+Lambda.immhp.test <- Lambda_mmhp_matrix[current_i,current_j][[1]]
+
+p <- ppoints(length(Lambda.immhp.test))    # 100 equally spaced points on (0,1), excluding endpoints
+q <- quantile(Lambda.immhp.test,p=p,na.rm=TRUE) # percentiles of the sample distribution
+plot(qexp(p),q, 
+     xlab="",ylab="",xaxt="n",yaxt="n",
+     pch=1,cex=1,col="Black",ylim=c(0,8),xlim=c(0,5))
+mtext(side=1, text="TQ", line=1.6, cex=anno.cex)
+mtext(side=2, text="EQ", line=1.2, cex=anno.cex)
+Hmisc::mgp.axis(1,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+Hmisc::mgp.axis(2,mgp=c(0,0.1,0),at=c(0:8),cex.axis=1,lwd=0,lwd.ticks=1)
+qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
+
+```
+
+

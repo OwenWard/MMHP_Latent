@@ -1,0 +1,639 @@
+---
+title: "Degree Priors"
+author: "Owen Ward"
+date: '`r Sys.Date()`'
+output:
+  html_document:
+    toc: true
+    toc_depth: 2
+    toc_float: true
+    number_sections: FALSE
+    code_folding: hide
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+data_path <- "../output/"
+
+func_dir <- "../lib/"
+
+library(rstan)
+Sys.setenv(LOCAL_CPPFLAGS = '-march=corei7 -mtune=corei7')
+options(mc.cores = parallel::detectCores())
+library(tidyverse)
+library(R.utils)
+library(fields)
+library(bayesplot)
+library(compete)
+library(RColorBrewer)
+source(paste(func_dir,'naiveRankHierarchy.R',sep = ""))
+source(paste(func_dir,'expertRankHierarchy.R',sep = ""))
+source(paste(func_dir,'cleanData.R',sep = "")) 
+source(paste(func_dir,'prepareDataStan.R',sep = "")) 
+source(paste(func_dir,'inferLatentMmhp.R',sep = ""))
+source(paste(func_dir,'plotUtil.R',sep = "")) 
+source(paste(func_dir,'mmhp.R',sep = ""))
+source(paste(func_dir,'uniHawkes.R',sep = ""))
+source(paste(func_dir,'simulatePrediction.R',sep = ""))
+source(paste(func_dir,'myGlicko.R',sep = ""))
+source(paste(func_dir,'matrixPlotParameter.R',sep = ""))
+source(paste(func_dir,'residualStructureScore.R',sep = ""))
+source("https://gist.githubusercontent.com/jalapic/6ca3ece44bdcdc522bb735f183aa0ca0/raw/1a07f469eff08117121b6cbebcd22fb7569e3ee8/compete_extra.R")
+
+
+source("C:/Users/owenw/Dropbox/with Owen/code/part3/lib/intensityPlot.R")
+source("C:/Users/owenw/Dropbox/with Owen/code/part3/lib/uniHawkes.R")
+
+theme_set(theme_minimal())
+
+model1_fn <- list(alpha.fun = function(x,y,eta1,eta2,eta3){return(eta1*x*y*exp(-eta2*abs(x-y))/(1+exp(-eta3*(x-y))))})
+
+
+```
+
+
+```{r mice_setup,include=FALSE,echo=FALSE, cache=TRUE}
+cohort_names <- paste("cohort",c(9,10,12,15,16,17,18,37,38,45),sep='')
+cohort_short_names <- paste("C",c(9,10,12,15,16,17,18,37,38,45),sep='')
+cut_off <- 3
+mice_number <- 12
+
+full_data <- readRDS("../data/mice.RData")
+# A=c9, B=c10, C=c12, D=c15, E=c16, F=c17, G=c18, H=c37, I=c38. J=c45
+cohort_names <- paste("cohort",c(9,10,12,15,16,17,18,37,38,45),sep='')
+cohort_short_names <- paste("C",c(9,10,12,15,16,17,18,37,38,45),sep='')
+cut_off <- 3
+mice_number <- 12
+
+# Define the cohorts will be fitted
+fit_cohorts <- c(1:10)
+naive_rank_10 <- list()
+expert_rank_10 <- list()
+for(current_cohort in fit_cohorts){
+  naive_rank_10[[current_cohort]] <- naiveRankHierarchy(full_data[[cohort_names[current_cohort]]])
+  expert_rank_10[[current_cohort]] <- expertRankHierarchy(full_data[[cohort_names[current_cohort]]])
+}
+
+
+```
+
+
+
+While the currently implemented degree corrected C-MMHP model gives
+good overall results, the `double_exponential` priors used for the degree 
+rate parameters `gamma` and `zeta` lead to issues with mixing of these
+chains. As such, we wish to identify a better choice of prior here
+and see how this effects the downstream tasks performed.
+
+
+# Run for longer
+
+The simplest solution to these mixing issues is to fit the same model,
+but adapting some of the stan fit parameters to avoid issues with sampling.
+
+In particular, we consider
+
+- `adapt_delta = 0.999`
+- `max_treedepth = 15`
+
+These makes this fit even more computationally demanding. Only several
+cohorts were able to complete, for which the overall results looked similar.
+
+Diagnostic plots will be included.
+
+```{r}
+orig_data_path <- "../output/"
+
+
+lognor_path <- "C:/Users/owenw/Google Drive/Tian/Current_Projects/MMHP_Latent/output_folders/output_lognor/"
+
+long_run_path <- "C:/Users/owenw/Google Drive/Tian/Current_Projects/MMHP_Latent/output_folders/output_tree_depth/"
+
+
+current_cohort <- 8
+
+# compare long run first
+
+
+# load original fit 
+
+load(paste(orig_data_path,cohort_names[current_cohort],
+           "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
+           ".RData",sep=''))
+old_fit <- fit_cohort_mmhp
+bayesplot::rhat(old_fit)
+
+
+load(paste(long_run_path,cohort_names[current_cohort],
+           "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
+           ".RData",sep=''))
+long_fit <- fit_cohort_mmhp
+bayesplot::rhat(long_fit)
+```
+
+
+
+```{r}
+m3_pr_orig <- readRDS(paste(orig_data_path,cohort_names[current_cohort],
+                       "/cmmhp_pr_matrix_",cohort_names[current_cohort],
+                       ".RDS",sep=''))
+
+m3_pr_long <- readRDS(paste(long_run_path,cohort_names[current_cohort],
+                       "/cmmhp_pr_matrix_",cohort_names[current_cohort],
+                       ".RDS",sep=''))
+
+summary(as.vector(m3_pr_long-m3_pr_orig))
+
+#####
+m1_pr <- readRDS(paste(orig_data_path,cohort_names[current_cohort],
+                       "/chp_pr_matrix_",cohort_names[current_cohort],
+                       ".RDS",sep=''))
+
+m2_pr <- readRDS(paste(orig_data_path,cohort_names[current_cohort],
+                       "/dchp_pr_matrix_",cohort_names[current_cohort],
+                       ".RDS",sep=''))
+
+# m3_pr <- readRDS(paste(data_path,cohort_names[current_cohort],
+#                        "/cmmhp_pr_matrix_",cohort_names[current_cohort],
+#                        ".RDS",sep=''))
+
+indep_pr <- readRDS(paste(orig_data_path,cohort_names[current_cohort],
+                          "/immhp_pr_matrix_",cohort_names[current_cohort],
+                          ".RDS",sep=''))
+
+matrix_lst_plot <- list(
+  indep_pr[rev(expert_rank_10[[current_cohort]]),
+           expert_rank_10[[current_cohort]]],
+  m1_pr[rev(expert_rank_10[[current_cohort]]),
+        expert_rank_10[[current_cohort]]],
+  m2_pr[rev(expert_rank_10[[current_cohort]]),
+        expert_rank_10[[current_cohort]]],
+  m3_pr_orig[rev(expert_rank_10[[current_cohort]]),
+        expert_rank_10[[current_cohort]]]) 
+cat("Cohort ",current_cohort,"\n",sep="")
+myMultiMatrixPlot(X=matrix_lst_plot,no_matrix=4,n_row=2,
+                  xLabels=expert_rank_10[[current_cohort]],
+                  yLabels=rev(expert_rank_10[[current_cohort]]),
+                  min=-60,max=60,axis_cex=2,title_cex = 1.8,
+                  colorPalette="RdBu",if.emp=FALSE,
+                  #legend.mar=c(0.5,.5,0.5,0.5),
+                  title_lst=list("I-MMHP","C-HP","C-DCHP","DC C-MMHP"), 
+                  #title_lst = list("I-MMHP"),
+                  col_axis=c(-60,-30,0,30,60), fake_matrix=FALSE,
+                  matrix.mar=c(2.5,2.5,2.5,1)
+)
+
+matrix_lst_plot <- list(
+  indep_pr[rev(expert_rank_10[[current_cohort]]),
+           expert_rank_10[[current_cohort]]],
+  m1_pr[rev(expert_rank_10[[current_cohort]]),
+        expert_rank_10[[current_cohort]]],
+  m2_pr[rev(expert_rank_10[[current_cohort]]),
+        expert_rank_10[[current_cohort]]],
+  m3_pr_long[rev(expert_rank_10[[current_cohort]]),
+        expert_rank_10[[current_cohort]]]) 
+cat("Cohort ",current_cohort,"\n",sep="")
+myMultiMatrixPlot(X=matrix_lst_plot,no_matrix=4,n_row=2,
+                  xLabels=expert_rank_10[[current_cohort]],
+                  yLabels=rev(expert_rank_10[[current_cohort]]),
+                  min=-60,max=60,axis_cex=2,title_cex = 1.8,
+                  colorPalette="RdBu",if.emp=FALSE,
+                  #legend.mar=c(0.5,.5,0.5,0.5),
+                  title_lst=list("I-MMHP","C-HP","C-DCHP","DC C-MMHP"), 
+                  #title_lst = list("I-MMHP"),
+                  col_axis=c(-60,-30,0,30,60), fake_matrix=FALSE,
+                  matrix.mar=c(2.5,2.5,2.5,1)
+)
+
+```
+
+
+# Lognormal priors
+
+Alternatively, we consider lognormal priors for `gamma` and `zeta`. We
+consider `model_3_1_bound.stan`, with `gamma ~ lognormal(0,1)` and
+`zeta ~ lognormal(0,1)` also.
+
+
+
+```{r}
+lgnor_path <- "C:/Users/owenw/Google Drive/Tian/Current_Projects/MMHP_Latent/output_folders/output_lnor/"
+
+```
+
+
+
+```{r compare a cohort}
+current_cohort <- 3
+
+load(paste(data_path,cohort_names[current_cohort],
+           "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
+           ".RData",sep=''))
+
+orig_fit <- fit_cohort_mmhp
+orig_sim <- sim_cohort_mmhp
+
+
+load(paste(lgnor_path,cohort_names[current_cohort],
+           "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
+           ".RData",sep=''))
+
+lnor_fit <- fit_cohort_mmhp
+lnor_sim <- sim_cohort_mmhp
+
+```
+
+
+
+
+```{r}
+rstan::check_hmc_diagnostics(orig_fit)
+rstan::check_hmc_diagnostics(lnor_fit)
+```
+
+```{r}
+summary(bayesplot::rhat(orig_fit))
+summary(bayesplot::rhat(lnor_fit))
+
+```
+
+```{r}
+apply(orig_sim$f,2,mean) - apply(lnor_sim$f,2,mean)
+
+
+plot(apply(orig_sim$f,2,mean),apply(lnor_sim$f,2,mean))
+
+plot(apply(orig_sim$lambda0,2,mean),apply(lnor_sim$lambda0,2,mean))
+
+plot(apply(orig_sim$gamma,2,mean),apply(lnor_sim$gamma,2,mean))
+plot(apply(orig_sim$zeta,2,mean),apply(lnor_sim$zeta,2,mean))
+
+
+hist(apply(orig_sim$lambda0,2,mean) - apply(lnor_sim$lambda0,2,mean))
+
+```
+
+```{r}
+mean(orig_sim$w_lambda)-mean(lnor_sim$w_lambda)
+mean(lnor_sim$w_lambda)
+```
+
+This indicates.
+
+```{r}
+plot(orig_sim$w_lambda,lnor_sim$w_lambda)
+#dim(orig_sim$alpha)
+
+plot(orig_sim$alpha,lnor_sim$alpha)
+
+plot(orig_sim$beta,lnor_sim$beta)
+
+```
+
+
+
+```{r pr-matrices}
+
+for(current_cohort in 1:10) {
+  m3_pr_orig <- readRDS(paste(data_path,cohort_names[current_cohort],
+                       "/cmmhp_pr_matrix_",cohort_names[current_cohort],
+                       ".RDS",sep=''))
+
+  m3_pr_lnor <- readRDS(paste(lgnor_path,cohort_names[current_cohort],
+                         "/cmmhp_pr_matrix_",cohort_names[current_cohort],
+                         ".RDS",sep=''))
+  
+  summary(as.vector(m3_pr_lnor-m3_pr_orig))
+  
+  #####
+  m1_pr <- readRDS(paste(data_path,cohort_names[current_cohort],
+                         "/chp_pr_matrix_",cohort_names[current_cohort],
+                         ".RDS",sep=''))
+  
+  m2_pr <- readRDS(paste(data_path,cohort_names[current_cohort],
+                         "/dchp_pr_matrix_",cohort_names[current_cohort],
+                         ".RDS",sep=''))
+  
+  # m3_pr <- readRDS(paste(data_path,cohort_names[current_cohort],
+  #                        "/cmmhp_pr_matrix_",cohort_names[current_cohort],
+  #                        ".RDS",sep=''))
+  
+  indep_pr <- readRDS(paste(data_path,cohort_names[current_cohort],
+                            "/immhp_pr_matrix_",cohort_names[current_cohort],
+                            ".RDS",sep=''))
+  
+  cat("Cohort ",current_cohort,"\n",sep="")
+  
+  matrix_lst_plot <- list(
+    indep_pr[rev(expert_rank_10[[current_cohort]]),
+             expert_rank_10[[current_cohort]]],
+    m1_pr[rev(expert_rank_10[[current_cohort]]),
+          expert_rank_10[[current_cohort]]],
+    m2_pr[rev(expert_rank_10[[current_cohort]]),
+          expert_rank_10[[current_cohort]]],
+    m3_pr_orig[rev(expert_rank_10[[current_cohort]]),
+          expert_rank_10[[current_cohort]]]) 
+  #cat("Cohort ",current_cohort,"\n",sep="")
+  myMultiMatrixPlot(X=matrix_lst_plot,no_matrix=4,n_row=2,
+                    xLabels=expert_rank_10[[current_cohort]],
+                    yLabels=rev(expert_rank_10[[current_cohort]]),
+                    min=-60,max=60,axis_cex=2,title_cex = 1.8,
+                    colorPalette="RdBu",if.emp=FALSE,
+                    #legend.mar=c(0.5,.5,0.5,0.5),
+                    title_lst=list("I-MMHP","C-HP","C-DCHP","DC C-MMHP"), 
+                    #title_lst = list("I-MMHP"),
+                    col_axis=c(-60,-30,0,30,60), fake_matrix=FALSE,
+                    matrix.mar=c(2.5,2.5,2.5,1)
+  )
+  
+  matrix_lst_plot <- list(
+    indep_pr[rev(expert_rank_10[[current_cohort]]),
+             expert_rank_10[[current_cohort]]],
+    m1_pr[rev(expert_rank_10[[current_cohort]]),
+          expert_rank_10[[current_cohort]]],
+    m2_pr[rev(expert_rank_10[[current_cohort]]),
+          expert_rank_10[[current_cohort]]],
+    m3_pr_lnor[rev(expert_rank_10[[current_cohort]]),
+          expert_rank_10[[current_cohort]]]) 
+  #cat("Cohort ",current_cohort,"\n",sep="")
+  myMultiMatrixPlot(X=matrix_lst_plot,no_matrix=4,n_row=2,
+                    xLabels=expert_rank_10[[current_cohort]],
+                    yLabels=rev(expert_rank_10[[current_cohort]]),
+                    min=-60,max=60,axis_cex=2,title_cex = 1.8,
+                    colorPalette="RdBu",if.emp=FALSE,
+                    #legend.mar=c(0.5,.5,0.5,0.5),
+                    title_lst=list("I-MMHP","C-HP","C-DCHP","DC C-MMHP"), 
+                    #title_lst = list("I-MMHP"),
+                    col_axis=c(-60,-30,0,30,60), fake_matrix=FALSE,
+                    matrix.mar=c(2.5,2.5,2.5,1)
+  )
+}
+
+
+
+```
+
+# Exponential Priors
+
+
+```{r}
+exp_path <- "C:/Users/owenw/Google Drive/Tian/Current_Projects/MMHP_Latent/output_folders/output_exp/"
+
+
+```
+
+```{r}
+current_cohort <- 7
+
+load(paste(data_path,cohort_names[current_cohort],
+           "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
+           ".RData",sep=''))
+
+orig_fit <- fit_cohort_mmhp
+orig_sim <- sim_cohort_mmhp
+
+
+load(paste(exp_path,cohort_names[current_cohort],
+           "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
+           ".RData",sep=''))
+
+exp_fit <- fit_cohort_mmhp
+exp_sim <- sim_cohort_mmhp
+```
+
+
+```{r}
+summary(bayesplot::rhat(orig_fit)[-588])
+summary(bayesplot::rhat(exp_fit)[-588])
+```
+Cohorts 7 and 10 still look bad although an improvement for 9.
+
+```{r}
+apply(orig_sim$f,2,mean) - apply(exp_sim$f,2,mean)
+
+
+plot(apply(orig_sim$f,2,mean),apply(exp_sim$f,2,mean))
+
+plot(apply(orig_sim$lambda0,2,mean),apply(exp_sim$lambda0,2,mean))
+
+plot(apply(orig_sim$gamma,2,mean),apply(exp_sim$gamma,2,mean))
+plot(apply(orig_sim$zeta,2,mean),apply(exp_sim$zeta,2,mean))
+
+
+hist(apply(orig_sim$lambda0,2,mean) - apply(exp_sim$lambda0,2,mean))
+```
+
+
+
+```{r}
+fit_cohorts <- 1:10
+fit_cohorts <- fit_cohorts[c(-1,-3,-5,-6)]
+
+for(current_cohort in fit_cohorts) {
+  m3_pr_orig <- readRDS(paste(data_path,cohort_names[current_cohort],
+                       "/cmmhp_pr_matrix_",cohort_names[current_cohort],
+                       ".RDS",sep=''))
+
+  m3_pr_exp <- readRDS(paste(exp_path,cohort_names[current_cohort],
+                         "/cmmhp_pr_matrix_",cohort_names[current_cohort],
+                         ".RDS",sep=''))
+  
+  summary(as.vector(m3_pr_exp-m3_pr_orig))
+  
+  #####
+  m1_pr <- readRDS(paste(data_path,cohort_names[current_cohort],
+                         "/chp_pr_matrix_",cohort_names[current_cohort],
+                         ".RDS",sep=''))
+  
+  m2_pr <- readRDS(paste(data_path,cohort_names[current_cohort],
+                         "/dchp_pr_matrix_",cohort_names[current_cohort],
+                         ".RDS",sep=''))
+  
+  # m3_pr <- readRDS(paste(data_path,cohort_names[current_cohort],
+  #                        "/cmmhp_pr_matrix_",cohort_names[current_cohort],
+  #                        ".RDS",sep=''))
+  
+  indep_pr <- readRDS(paste(data_path,cohort_names[current_cohort],
+                            "/immhp_pr_matrix_",cohort_names[current_cohort],
+                            ".RDS",sep=''))
+  
+  cat("Cohort ",current_cohort,"\n",sep="")
+  
+  matrix_lst_plot <- list(
+    indep_pr[rev(expert_rank_10[[current_cohort]]),
+             expert_rank_10[[current_cohort]]],
+    m1_pr[rev(expert_rank_10[[current_cohort]]),
+          expert_rank_10[[current_cohort]]],
+    m2_pr[rev(expert_rank_10[[current_cohort]]),
+          expert_rank_10[[current_cohort]]],
+    m3_pr_orig[rev(expert_rank_10[[current_cohort]]),
+          expert_rank_10[[current_cohort]]]) 
+  #cat("Cohort ",current_cohort,"\n",sep="")
+  myMultiMatrixPlot(X=matrix_lst_plot,no_matrix=4,n_row=2,
+                    xLabels=expert_rank_10[[current_cohort]],
+                    yLabels=rev(expert_rank_10[[current_cohort]]),
+                    min=-60,max=60,axis_cex=2,title_cex = 1.8,
+                    colorPalette="RdBu",if.emp=FALSE,
+                    #legend.mar=c(0.5,.5,0.5,0.5),
+                    title_lst=list("I-MMHP","C-HP","C-DCHP","DC C-MMHP"), 
+                    #title_lst = list("I-MMHP"),
+                    col_axis=c(-60,-30,0,30,60), fake_matrix=FALSE,
+                    matrix.mar=c(2.5,2.5,2.5,1)
+  )
+  
+  matrix_lst_plot <- list(
+    indep_pr[rev(expert_rank_10[[current_cohort]]),
+             expert_rank_10[[current_cohort]]],
+    m1_pr[rev(expert_rank_10[[current_cohort]]),
+          expert_rank_10[[current_cohort]]],
+    m2_pr[rev(expert_rank_10[[current_cohort]]),
+          expert_rank_10[[current_cohort]]],
+    m3_pr_lnor[rev(expert_rank_10[[current_cohort]]),
+          expert_rank_10[[current_cohort]]]) 
+  #cat("Cohort ",current_cohort,"\n",sep="")
+  myMultiMatrixPlot(X=matrix_lst_plot,no_matrix=4,n_row=2,
+                    xLabels=expert_rank_10[[current_cohort]],
+                    yLabels=rev(expert_rank_10[[current_cohort]]),
+                    min=-60,max=60,axis_cex=2,title_cex = 1.8,
+                    colorPalette="RdBu",if.emp=FALSE,
+                    #legend.mar=c(0.5,.5,0.5,0.5),
+                    title_lst=list("I-MMHP","C-HP","C-DCHP","DC C-MMHP"), 
+                    #title_lst = list("I-MMHP"),
+                    col_axis=c(-60,-30,0,30,60), fake_matrix=FALSE,
+                    matrix.mar=c(2.5,2.5,2.5,1)
+  )
+}
+
+```
+
+# Inverse Gamma Prior
+
+We instead consider `inv_gamma(1,0.5)` priors for both `gamma` and `zeta`.
+
+
+```{r}
+ing_path <- "C:/Users/owenw/Google Drive/Tian/Current_Projects/MMHP_Latent/output_folders/output_invg_2/"
+
+```
+
+
+
+```{r compare a cohort inv gamma}
+current_cohort <- 5
+
+load(paste(data_path,cohort_names[current_cohort],
+           "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
+           ".RData",sep=''))
+
+orig_fit <- fit_cohort_mmhp
+orig_sim <- sim_cohort_mmhp
+
+
+load(paste(ing_path,cohort_names[current_cohort],
+           "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
+           ".RData",sep=''))
+
+ing_fit <- fit_cohort_mmhp
+ing_sim <- sim_cohort_mmhp
+
+```
+
+
+
+
+```{r}
+rstan::check_hmc_diagnostics(orig_fit)
+rstan::check_hmc_diagnostics(ing_fit)
+```
+
+```{r}
+summary(bayesplot::rhat(orig_fit))
+summary(bayesplot::rhat(ing_fit))
+```
+
+```{r}
+fit_cohorts <- 1:10
+#fit_cohorts <- fit_cohorts[c(-1,-3,-5,-6)]
+
+
+i_mmhp_path <- "C:/Users/owenw/Google Drive/Tian/Current_Projects/MMHP_Latent/output_folders/output_immhp/"
+
+for(current_cohort in fit_cohorts) {
+  m3_pr_orig <- readRDS(paste(data_path,cohort_names[current_cohort],
+                       "/cmmhp_pr_matrix_",cohort_names[current_cohort],
+                       ".RDS",sep=''))
+
+  m3_pr_ing <- readRDS(paste(ing_path,cohort_names[current_cohort],
+                         "/cmmhp_pr_matrix_",cohort_names[current_cohort],
+                         ".RDS",sep=''))
+  
+  summary(as.vector(m3_pr_exp-m3_pr_orig))
+  
+  #####
+  m1_pr <- readRDS(paste(data_path,cohort_names[current_cohort],
+                         "/chp_pr_matrix_",cohort_names[current_cohort],
+                         ".RDS",sep=''))
+  
+  m2_pr <- readRDS(paste(data_path,cohort_names[current_cohort],
+                         "/dchp_pr_matrix_",cohort_names[current_cohort],
+                         ".RDS",sep=''))
+  
+  # m3_pr <- readRDS(paste(data_path,cohort_names[current_cohort],
+  #                        "/cmmhp_pr_matrix_",cohort_names[current_cohort],
+  #                        ".RDS",sep=''))
+  
+  indep_pr <- readRDS(paste(i_mmhp_path,cohort_names[current_cohort],
+                            "/immhp_pr_matrix_",cohort_names[current_cohort],
+                            ".RDS",sep=''))
+  
+  cat("Cohort ",current_cohort,"\n",sep="")
+  
+  matrix_lst_plot <- list(
+    indep_pr[rev(expert_rank_10[[current_cohort]]),
+             expert_rank_10[[current_cohort]]],
+    m1_pr[rev(expert_rank_10[[current_cohort]]),
+          expert_rank_10[[current_cohort]]],
+    m2_pr[rev(expert_rank_10[[current_cohort]]),
+          expert_rank_10[[current_cohort]]],
+    m3_pr_orig[rev(expert_rank_10[[current_cohort]]),
+          expert_rank_10[[current_cohort]]]) 
+  #cat("Cohort ",current_cohort,"\n",sep="")
+  myMultiMatrixPlot(X=matrix_lst_plot,no_matrix=4,n_row=2,
+                    xLabels=expert_rank_10[[current_cohort]],
+                    yLabels=rev(expert_rank_10[[current_cohort]]),
+                    min=-60,max=60,axis_cex=2,title_cex = 1.8,
+                    colorPalette="RdBu",if.emp=FALSE,
+                    #legend.mar=c(0.5,.5,0.5,0.5),
+                    title_lst=list("I-MMHP","C-HP","C-DCHP","DC C-MMHP"), 
+                    #title_lst = list("I-MMHP"),
+                    col_axis=c(-60,-30,0,30,60), fake_matrix=FALSE,
+                    matrix.mar=c(2.5,2.5,2.5,1)
+  )
+  
+  matrix_lst_plot <- list(
+    indep_pr[rev(expert_rank_10[[current_cohort]]),
+             expert_rank_10[[current_cohort]]],
+    m1_pr[rev(expert_rank_10[[current_cohort]]),
+          expert_rank_10[[current_cohort]]],
+    m2_pr[rev(expert_rank_10[[current_cohort]]),
+          expert_rank_10[[current_cohort]]],
+    m3_pr_lnor[rev(expert_rank_10[[current_cohort]]),
+          expert_rank_10[[current_cohort]]]) 
+  #cat("Cohort ",current_cohort,"\n",sep="")
+  myMultiMatrixPlot(X=matrix_lst_plot,no_matrix=4,n_row=2,
+                    xLabels=expert_rank_10[[current_cohort]],
+                    yLabels=rev(expert_rank_10[[current_cohort]]),
+                    min=-60,max=60,axis_cex=2,title_cex = 1.8,
+                    colorPalette="RdBu",if.emp=FALSE,
+                    #legend.mar=c(0.5,.5,0.5,0.5),
+                    title_lst=list("I-MMHP","C-HP","C-DCHP","DC C-MMHP"), 
+                    #title_lst = list("I-MMHP"),
+                    col_axis=c(-60,-30,0,30,60), fake_matrix=FALSE,
+                    matrix.mar=c(2.5,2.5,2.5,1)
+  )
+}
+
+```
+

@@ -5,12 +5,12 @@
 
 ### code ###
 ## run this section if running on the cluster
-# source("run_scripts/cluster_setup.R")
+source("/rigel/stats/users/ogw2103/code/MMHP/MMHP_Latent/run_scripts/cluster_setup.R")
 # ### set cohort_id based on job num
-# jobid <- Sys.getenv("SLURM_ARRAY_TASK_ID")
-# jobid <- as.numeric(jobid)
-# cohort_id <- jobid
-cohort_id <- 1
+jobid <- Sys.getenv("SLURM_ARRAY_TASK_ID")
+jobid <- as.numeric(jobid)
+cohort_id <- jobid
+#cohort_id <- 1
 #####
 
 save_data_path <- "output/"
@@ -86,7 +86,7 @@ clean_data <- cleanData(raw_data = full_data[[cohort_names[current_cohort]]],
 # changed the cut off here from 0 to 1
 fit_agg_rank <- stan("lib/latent_rank_agg.stan",
                      data=list(n_matrix=clean_data$N_count),
-                     iter=1000, chains=4, control=list(adapt_delta=0.99))
+                     iter=6000, chains=4, control=list(adapt_delta=0.99))
 sim_agg_rank <- rstan::extract(fit_agg_rank)
 dir.create(paste(save_data_path, cohort_names[current_cohort],sep=''), 
            recursive = TRUE, showWarnings = FALSE)

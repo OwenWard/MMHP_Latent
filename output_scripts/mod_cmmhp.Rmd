@@ -1,0 +1,386 @@
+---
+title: "Exploring C-MMHP"
+author: "Owen Ward"
+output:
+  html_document:
+    toc: yes
+    df_print: paged
+    toc_float: yes
+    code_folding: hide
+    number_sections: true
+---
+
+<!-- The aim of this notebook is to explore some properties of the current -->
+<!-- C-MMHP model to ensure it captures the correct social dynamics present -->
+<!-- in animal interactions. -->
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,fig.height = 4,fig.width = 5)
+
+```
+
+```{r load_mice_data and packages, include=FALSE, echo=FALSE}
+library(rstan)
+Sys.setenv(LOCAL_CPPFLAGS = '-march=corei7 -mtune=corei7')
+options(mc.cores = parallel::detectCores())
+
+func_dir <- paste(here::here(),"/lib/",sep = "")
+
+output_dir <- paste(here::here(),"/output/",sep = "")
+
+orig_data_path <- "C:/Users/owenw/Google Drive/Tian/Research+JingWu/thesis_data/part2/real_data/"
+
+library(tidyverse)
+library(R.utils)
+library(fields)
+library(bayesplot)
+library(compete)
+source(paste(func_dir,'naiveRankHierarchy.R',sep = ""))
+source(paste(func_dir,'expertRankHierarchy.R',sep = ""))
+source(paste(func_dir,'cleanData.R',sep = "")) 
+source(paste(func_dir,'prepareDataStan.R',sep = "")) 
+source(paste(func_dir,'inferLatentMmhp.R',sep = ""))
+source(paste(func_dir,'plotUtil.R',sep = "")) 
+source(paste(func_dir,'mmhp.R',sep = ""))
+source(paste(func_dir,'uniHawkes.R',sep = ""))
+source(paste(func_dir,'simulatePrediction.R',sep = ""))
+source(paste(func_dir,'myGlicko.R',sep = ""))
+source(paste(func_dir,'matrixPlotParameter.R',sep = ""))
+source(paste(func_dir,'residualStructureScore.R',sep = ""))
+source("https://gist.githubusercontent.com/jalapic/6ca3ece44bdcdc522bb735f183aa0ca0/raw/1a07f469eff08117121b6cbebcd22fb7569e3ee8/compete_extra.R")
+
+
+theme_set(theme_minimal())
+
+full_data <- readRDS(paste(here::here(),"/data/mice.RData",sep = ""))
+# A=c9, B=c10, C=c12, D=c15, E=c16, F=c17, G=c18, H=c37, I=c38. J=c45
+cohort_names <- paste("cohort",c(9,10,12,15,16,17,18,37,38,45),sep='')
+cohort_short_names <- paste("C",c(9,10,12,15,16,17,18,37,38,45),sep='')
+cut_off <- 3
+mice_number <- 12
+
+# Define the cohorts will be fitted
+fit_cohorts <- c(1:10)
+naive_rank_10 <- list()
+expert_rank_10 <- list()
+out <- captureOutput(for(current_cohort in fit_cohorts){
+  naive_rank_10[[current_cohort]] <- naiveRankHierarchy(full_data[[cohort_names[current_cohort]]])
+  expert_rank_10[[current_cohort]] <- expertRankHierarchy(full_data[[cohort_names[current_cohort]]])
+})
+
+
+
+```
+
+
+
+# Plot rankings against degree corrected rates
+
+The first goal is to plot the latent ranks against the corresponding
+degree corrected rate estimates for the `C-DCHP`. 
+
+```{r load_dchp,include=FALSE,echo=FALSE}
+current_cohort <- 3
+
+load(paste(orig_data_path,cohort_names[current_cohort],
+         "/cohort_dchp_stan_result_",cohort_names[current_cohort],
+         ".RData",sep=''))
+
+
+#fit_cohort_dchp
+#sim_cohort_dchp
+
+
+#dim(sim_cohort_dchp$f)
+mean_rank <- apply(sim_cohort_dchp$f,2,mean)
+
+mean_gamma <- apply(sim_cohort_dchp$gamma,2,mean)
+mean_zeta <- apply(sim_cohort_dchp$zeta, 2, mean)
+
+mean_values <- tibble(mean_rank,mean_gamma,mean_zeta,
+                      isi = expert_rank_10[[current_cohort]])
+
+
+# mean_values %>%
+#   rename(gamma_out = mean_gamma,zeta_in = mean_zeta) %>%
+#   pivot_longer(cols = c(gamma_out,zeta_in),names_to = "out_in" ) %>%
+#   #rename(in_out = name) %>%
+#   ggplot(aes(mean_rank,value,color = out_in)) + geom_point()  +
+#   labs(title = "") + theme(legend.title = element_blank())
+# 
+# 
+# 
+# mean_values %>%
+#   rename(gamma_out = mean_gamma,zeta_in = mean_zeta) %>%
+#   pivot_longer(cols = c(gamma_out,zeta_in),names_to = "out_in" ) %>%
+#   ggplot(aes(isi,value,color =  out_in))  + geom_point()  +
+#   theme(legend.title = element_blank()) +
+#   scale_x_continuous(breaks = 1:12) + xlab("I&SI Ranking")
+
+
+mean_values %>%
+  rename(gamma_out = mean_gamma,zeta_in = mean_zeta) %>%
+  pivot_longer(cols = c(gamma_out,zeta_in),names_to = "out_in" ) %>%
+  mutate(out_in = as.factor(out_in)) %>%
+  ggplot(aes(isi,value))  + geom_point()  +
+  theme(legend.title = element_blank()) + facet_wrap(~out_in,scales="free") +
+  scale_x_continuous(breaks = 1:12) + xlab("I&SI Ranking")
+
+```
+
+
+
+
+```{r}
+for(current_cohort in 1:10){
+  #cat(paste("Cohort ",current_cohort,sep = ""))
+  load(paste(orig_data_path,cohort_names[current_cohort],
+         "/cohort_dchp_stan_result_",cohort_names[current_cohort],
+         ".RData",sep=''))
+
+
+  mean_rank <- apply(sim_cohort_dchp$f,2,mean)
+  
+  mean_gamma <- apply(sim_cohort_dchp$gamma,2,mean)
+  mean_zeta <- apply(sim_cohort_dchp$zeta, 2, mean)
+  
+  mean_values <- tibble(mean_rank,mean_gamma,mean_zeta,
+                        isi = expert_rank_10[[current_cohort]])
+  p1 <- mean_values %>%
+    rename(gamma_out = mean_gamma,zeta_in = mean_zeta) %>%
+    pivot_longer(cols = c(gamma_out,zeta_in),names_to = "out_in" ) %>%
+    mutate(out_in = as.factor(out_in)) %>%
+    ggplot(aes(isi,value))  + geom_point()  +
+    theme(legend.title = element_blank()) + facet_wrap(~out_in,scales="free") +
+    scale_x_continuous(breaks = 1:12) + xlab("I&SI Ranking") +
+    ggtitle(paste("Cohort",current_cohort,sep=""))
+  print(p1)
+  
+}
+```
+
+This does not appear to indicate any clear relationship between these degree
+corrected estimates for the out/in baseline rates and the expert
+ranking.
+
+
+# The Limiting State
+
+
+## Current Model
+
+We wish to better understand the properties captured by the current form
+of the C-MMHP model.
+
+Currently, we have that for each pair $i,j$, $q_1^{i,j}/q_{0}^{i,j}$ is the probability 
+that pair transitions out of the active/inactive state. In particular,
+
+$$
+q_1^{i,j} = \exp(-\eta_3 f_i)\hspace{1cm}   \ q_{0}^{i,j} = \exp(-\eta_3 f_j),
+$$
+and the limiting proportion of 
+time spent in the active state is $logistic(\eta_3 (f_i-f_j))$,
+i.e
+
+$$
+\frac{q_{0}^{i,j}}{q_{0}^{i,j}+q_1^{i,j}}  \equiv \frac{\exp(-\eta_3 f_j)}{\exp(-\eta_3 f_j)+\exp(-\eta_3 f_i)}.
+$$
+
+To illustrate this, lets look at the this for a $f_i$.
+
+```{r, include=FALSE,echo=FALSE,eval=FALSE}
+f_i <- 0.1
+f_x <- function(x) {
+  (exp(-eta_3*x))/( exp(-eta_3*x) + exp(-eta_3*f_i) )
+}
+
+curve(f_x,from = 0,to = 1)
+f_i
+
+```
+
+
+
+
+```{r,fig.show="hold", out.width="50%"}
+f_curr <- function(x,f_i,eta_3) {
+  (exp(-eta_3*x))/( exp(-eta_3*x) + exp(-eta_3*f_i) )
+}
+
+plot_limit <- function(f_i,eta_3) {
+  plt <- ggplot(data.frame(x = c(0,1)),aes(x)) + 
+    stat_function(fun = f_curr,
+                  args = list(f_i = f_i, eta_3 = eta_3)) + 
+    ylab("Limiting Proportion Active") +
+    xlab("f_j (Receiver Rank)") + ggtitle(paste("f_i (Send Rank) of ",f_i,sep = ""))
+  print(plt)
+}
+
+
+plot_limit(f_i = 0.9,eta_3 = 3)
+plot_limit(f_i = 0.1,eta_3 = 3)
+
+```
+
+This indicates a high probability of being in the active state when the attacking mouse
+is highly ranked. He is likely to fight with all mice.
+
+When the attacking mouse is poorly ranked, there is quite a high probability he
+will attack mice around him, but this is unlikely for mice ranked much higher.
+
+
+## Alternative Model
+
+We consider some alternative formulations for this limiting behaviour.
+
+One such modification is
+$$
+q_1^{i,j} = f_i\exp(-\eta_3 f_i) \hspace{1cm}   \ q_{0}^{i,j} = f_j\exp(-\eta_3 f_j),
+$$
+
+
+
+```{r,fig.show="hold", out.width="50%"}
+f_mod <- function(x,f_i,eta_3) {
+  (x*exp(-eta_3*x))/( x*exp(-eta_3*x) + f_i*exp(-eta_3*f_i) )
+}
+
+plot_limit_1 <- function(f_i,eta_3) {
+  plt <- ggplot(data.frame(x = c(0,1)),aes(x)) + 
+    stat_function(fun = f_mod,
+                  args = list(f_i = f_i, eta_3 = eta_3)) + 
+    ylab("Limiting Proportion Active") +
+    xlab("f_j (Receiver Rank)") + ggtitle(paste("f_i (Send Rank) of ",f_i,sep = ""))
+  print(plt)
+}
+
+
+plot_limit_1(f_i = 0.9,eta_3 = 3)
+plot_limit_1(f_i = 0.1,eta_3 = 3)
+
+
+
+```
+
+This does not seem appropriate, in that a dominant mouse is very unlikely 
+to fight a very weak mouse. Similarly, a weak mouse is more likely to fight a strong 
+mouse than an even weaker one than itself.
+
+
+## Alternative 2
+
+Another alternative is
+
+$$
+q_1^{i,j} = f_j\exp(-\eta_3 f_i) \hspace{1cm}   \ q_{0}^{i,j} = f_i\exp(-\eta_3 f_j),
+$$
+
+
+```{r, fig.show="hold", out.width="50%"}
+f_mod_2 <- function(x,f_i,eta_3) {
+  (f_i*exp(-eta_3*x))/( f_i*exp(-eta_3*x) + x*exp(-eta_3*f_i) )
+}
+
+plot_limit_2 <- function(f_i,eta_3) {
+  plt <- ggplot(data.frame(x = c(0,1)),aes(x)) + 
+    stat_function(fun = f_mod_2,
+                  args = list(f_i = f_i, eta_3 = eta_3)) + 
+    ylab("Limiting Proportion Active") +
+    xlab("f_j (Receiver Rank)") + ggtitle(paste("f_i (Send Rank) of ",f_i,sep = ""))
+  print(plt)
+}
+
+
+plot_limit_2(f_i = 0.9,eta_3 = 3)
+plot_limit_2(f_i = 0.1,eta_3 = 3)
+
+
+
+```
+
+This looks more plausible, but is perhaps similar
+(if more complex) to the first model. Here the limiting state of a weak mouse fighting
+a stronger one is more likely to be inactive, which seems to be
+an improvement.
+
+
+# The excitation parameter 
+
+
+The excitation parameter is currently defined by
+
+$$
+\alpha^{i,j} = \eta_1 f_i f_j \exp(-\eta_2 |f_i-f_j|)
+$$
+
+We can look at a contour plot of this for a range of values of $f_i,f_j$,
+as is currently in the paper.
+
+
+```{r, contour_alpha}
+f_alpha <- function(f_i,f_j,eta_1,eta_2) {
+  eta_1*f_i*f_j * exp(-eta_2*abs(f_i-f_j))
+}
+plot_alpha <- function(fun = f_alpha, grid_size = 0.1,eta_1 = 1,eta_2 = 1, ...) {
+  plt <- tibble(x = seq(0,1,by = grid_size),y = seq(0,1,by = grid_size)) %>%
+    expand(x,y) %>%
+    mutate(value = map2_dbl(x,y,fun,eta_1,eta_2,...)) %>%
+    ggplot(aes(y,x)) + geom_contour_filled(aes(z = value))  +
+    scale_x_reverse()+ 
+    xlab("f_j (Receive)") + ylab("f_i (Send)") + geom_abline(slope = -1, intercept = 0,
+                                                             col = "red")
+  print(plt)
+}
+
+
+plot_alpha(f_alpha,eta_1 = 3, eta_2 = 1,grid_size = 0.01)
+```
+
+This appears to capture desirable properties present in animal interactions.
+
+We want this to take larger values when $f_i>f_j$ than when $f_i < f_j$ although it is 
+hard to claim it is not symmetric currently. This could be due to using a different
+plot function than originally used by Jing.
+
+## Incorporate the latent state
+
+We can also plot $\alpha Z(t)$, which will capture the overall structure
+which will be seen.
+
+```{r}
+
+latent_state <- function(f_i,f_j,eta_3) {
+  exp(-eta_3*f_j)/(exp(-eta_3*f_j) + exp(-eta_3*f_i)  )
+}
+
+f_alpha_z <- function(f_i,f_j,eta_1,eta_2,eta_3) {
+  eta_1*f_i*f_j * exp(-eta_2*abs(f_i-f_j)) * latent_state(f_i,f_j,eta_3)
+}
+
+plot_alpha(fun = f_alpha_z,eta_1 = 3, eta_2 = 1,grid_size = 0.01,eta_3 = 4)
+
+```
+
+This much more clearly captures the upper triangular structure we wish to have.
+
+## With modified latent state
+
+We can repeat this with the second proposed modification above, which seemed 
+to capture the dynamics well.
+
+```{r}
+
+latent_state_2 <- function(f_i,f_j,eta_3) {
+  f_i*exp(-eta_3*f_j)/(f_i*exp(-eta_3*f_j) + f_j*exp(-eta_3*f_i)  )
+}
+
+f_alpha_z <- function(f_i,f_j,eta_1,eta_2,eta_3) {
+  eta_1*f_i*f_j * exp(-eta_2*abs(f_i-f_j)) * latent_state_2(f_i,f_j,eta_3)
+}
+
+plot_alpha(fun = f_alpha_z,eta_1 = 3, eta_2 = 1,grid_size = 0.01,eta_3 = 4)
+
+```
+
+This is almost identical to the previous plot, with perhaps a slight shift when
+both $f_i$ and $f_j$ are large.
