@@ -1,0 +1,122 @@
+---
+title: "Comments on Latent Ranking"
+author: "Owen Ward"
+date: '`r Sys.Date()`'
+output: 
+  html_document:
+    toc: true
+    toc_depth: 2
+    toc_float: true
+    number_sections: FALSE
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+data_path <- "../output/"
+
+func_dir <- "../lib/"
+
+library(rstan)
+Sys.setenv(LOCAL_CPPFLAGS = '-march=corei7 -mtune=corei7')
+options(mc.cores = parallel::detectCores())
+library(tidyverse)
+library(R.utils)
+library(fields)
+library(bayesplot)
+library(compete)
+library(RColorBrewer)
+library(ggplot2)
+source(paste(func_dir,'naiveRankHierarchy.R',sep = ""))
+source(paste(func_dir,'expertRankHierarchy.R',sep = ""))
+source(paste(func_dir,'cleanData.R',sep = "")) 
+source(paste(func_dir,'prepareDataStan.R',sep = "")) 
+source(paste(func_dir,'inferLatentMmhp.R',sep = ""))
+source(paste(func_dir,'plotUtil.R',sep = "")) 
+source(paste(func_dir,'mmhp.R',sep = ""))
+source(paste(func_dir,'uniHawkes.R',sep = ""))
+source(paste(func_dir,'simulatePrediction.R',sep = ""))
+source(paste(func_dir,'myGlicko.R',sep = ""))
+source(paste(func_dir,'matrixPlotParameter.R',sep = ""))
+source(paste(func_dir,'residualStructureScore.R',sep = ""))
+source("https://gist.githubusercontent.com/jalapic/6ca3ece44bdcdc522bb735f183aa0ca0/raw/1a07f469eff08117121b6cbebcd22fb7569e3ee8/compete_extra.R")
+
+
+#source("C:/Users/owenw/Dropbox/with Owen/code/part3/lib/intensityPlot.R")
+#source("C:/Users/owenw/Dropbox/with Owen/code/part3/lib/uniHawkes.R")
+
+theme_set(theme_minimal())
+
+model1_fn <- list(alpha.fun = function(x,y,eta1,eta2,eta3){
+  return(eta1*x*y*exp(-eta2*abs(x-y))/(1+exp(-eta3*(x-y))))}
+  )
+```
+
+
+```{r mice_setup,include=FALSE,echo=FALSE, cache=TRUE}
+cohort_names <- paste("cohort",c(9,10,12,15,16,17,18,37,38,45),sep='')
+cohort_short_names <- paste("C",c(9,10,12,15,16,17,18,37,38,45),sep='')
+cut_off <- 3
+mice_number <- 12
+
+full_data <- readRDS("../data/mice.RData")
+# A=c9, B=c10, C=c12, D=c15, E=c16, F=c17, G=c18, H=c37, I=c38. J=c45
+cohort_names <- paste("cohort",c(9,10,12,15,16,17,18,37,38,45),sep='')
+cohort_short_names <- paste("C",c(9,10,12,15,16,17,18,37,38,45),sep='')
+cut_off <- 3
+mice_number <- 12
+
+# Define the cohorts will be fitted
+fit_cohorts <- c(1:10)
+naive_rank_10 <- list()
+expert_rank_10 <- list()
+for(current_cohort in fit_cohorts){
+  naive_rank_10[[current_cohort]] <-
+    naiveRankHierarchy(full_data[[cohort_names[current_cohort]]])
+  expert_rank_10[[current_cohort]] <-
+    expertRankHierarchy(full_data[[cohort_names[current_cohort]]])
+}
+```
+
+
+# Exploring eta parameters
+
+```{r}
+for(current_cohort in 1:10) {
+  #cat("Cohort, ", current_cohort,"\n",sep="")
+  load(paste(data_path,cohort_names[current_cohort],
+             "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
+             ".RData",sep=''))
+  
+  eta <- tibble(eta_1 = sim_cohort_mmhp$eta_1,
+                eta_2 = sim_cohort_mmhp$eta_2,
+                eta_3 = sim_cohort_mmhp$eta_3)
+  p <- GGally::ggpairs(eta) + 
+    ggtitle(paste("Cohort ", current_cohort,sep=""))
+
+  print(p)
+}
+```
+
+To explore what these parameters correspond to, the model for
+the conditional intensity is given by
+
+$$
+\lambda^{i,j}(t) = \gamma_i + \zeta_j +(\lambda_1-\gamma_i-\zeta_j)Z^{i,j}(t) +
+\eta_1 f_i f_j 
+\exp(-\eta_2|f_i-f_j|)Z^{i,j}(t)\sum_{k}\exp(-\beta(t-t_{k}^{i,j})),
+$$
+where 
+$$
+q_1^{i,j} = \exp(-\eta_3 f_i),\ q_0^{i,j} = \exp(-\eta_3 f_j).
+$$
+So here, these parameters correspond to:
+- $\eta_1$ 
+
+
+
+# Are gamma/zeta associated with rankings?
+
+
+# Do closer ranked mice fight more?
