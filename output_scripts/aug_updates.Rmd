@@ -289,7 +289,7 @@ which should not contain any information.
 
 
 ```{r shuffle cohort and stan fit, slow locally}
-current_cohort <- 1
+current_cohort <- 8
 
 print(paste("Cohort",current_cohort))
 ###
@@ -301,11 +301,11 @@ expert_rank_10_curr <- expertRankHierarchy(permuted_data)
 stan_input_lst$alpha_id <- expert_rank_10_curr[1]
 stan_input_lst$delta_1 <- rep(0.5,stan_input_lst$N_til)
 
-fit_cohort_mmhp <- stan("../lib/model3_current.stan", 
-                        ## this will need to be updated
-                        data = stan_input_lst,
-                        warmup = 10, iter = 200, chains = 4, thin=4,
-                        control=list(adapt_delta=0.9,max_treedepth=15))
+# fit_cohort_mmhp <- stan("../lib/model3_current.stan", 
+#                         ## this will need to be updated
+#                         data = stan_input_lst,
+#                         warmup = 10, iter = 200, chains = 4, thin=4,
+#                         control=list(adapt_delta=0.9,max_treedepth=15))
 
 ```
 

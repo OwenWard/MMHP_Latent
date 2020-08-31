@@ -52,6 +52,10 @@ prepareData_permute_Stan <- function(current_cohort) {
 
 permute_raw <- function(current_cohort) {
   orig_raw <- full_data[[cohort_names[current_cohort]]]
+  levels(orig_raw$Actor) <- base::union(levels(orig_raw$Actor),
+                                        levels(orig_raw$Recipient))
+  levels(orig_raw$Recipient) <- base::union(levels(orig_raw$Actor),
+                                            levels(orig_raw$Recipient))
   # then just permute the actor and recipient of these,
   # excluding the start and end rows
   start_rows <- which(orig_raw$Actor == "Start")  
