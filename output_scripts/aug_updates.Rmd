@@ -279,4 +279,33 @@ There is a weak relationship between the out degree
 with an even weaker relationship between the in degree
 (baseline rate of being fought) and the latent rank.
 
-<!-- # Shuffling the data -->
+# Shuffling the data
+
+Another component of interest is ensuring that there is some 
+structure in this model that would not be captured by 
+random data. To see this, we can simply shuffle the nodes
+involved in fights and look at the corresponding model fits,
+which should not contain any information.
+
+
+```{r shuffle cohort and stan fit, slow locally}
+current_cohort <- 1
+
+print(paste("Cohort",current_cohort))
+###
+stan_input_lst <- prepareData_permute_Stan(current_cohort)
+### get the corresponding expert rank
+permuted_data <- stan_input_lst$permuted_data
+
+expert_rank_10_curr <- expertRankHierarchy(permuted_data)
+stan_input_lst$alpha_id <- expert_rank_10_curr[1]
+stan_input_lst$delta_1 <- rep(0.5,stan_input_lst$N_til)
+
+fit_cohort_mmhp <- stan("../lib/model3_current.stan", 
+                        ## this will need to be updated
+                        data = stan_input_lst,
+                        warmup = 10, iter = 200, chains = 4, thin=4,
+                        control=list(adapt_delta=0.9,max_treedepth=15))
+
+```
+
