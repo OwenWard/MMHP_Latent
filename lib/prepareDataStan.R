@@ -14,7 +14,7 @@
 ############################################################################
 prepareDataStan <- function(current_cohort){
   clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
-  return_df <- cleanObservationPeriod(current_cohort, clean_data)
+  return_df <- cleanObservationPeriod(current_cohort, full_data[[cohort_names[current_cohort]]])
   
   unique_pairs_df <- return_df %>% group_by(initiator, recipient) %>% dplyr::summarize(count=n(), observe=list(observe.id))
   unique_observe_win <- unique(return_df[,c("observe.id","observe.time","observe.start","observe.end")])
