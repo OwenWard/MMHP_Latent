@@ -288,24 +288,136 @@ involved in fights and look at the corresponding model fits,
 which should not contain any information.
 
 
-```{r shuffle cohort and stan fit, slow locally}
-current_cohort <- 8
+```{r permute the raw data, include=FALSE, eval=FALSE}
+# first want to check if permuting the raw data is doing what it should
+current_cohort <- 1
+
+orig_data <- full_data[[cohort_names[current_cohort]]]
+perm_data <- permute_raw(orig_raw = orig_data)
+
+dim(orig_data)
+dim(perm_data)
+summary(orig_data$Actor)
+summary(perm_data$Actor)
+## these look more regular, all equally likely to be an actor. good so far
+
+## then clean these and compare
+orig_clean <- cleanData(raw_data = orig_data,cut_off = 1)
+perm_clean <- cleanData(raw_data = perm_data,cut_off = 1)
+
+sum(orig_clean$N_count)
+sum(perm_clean$N_count)
+## how do these differ?, should both have 1077. unless identical times and mice?
+## rows 107,108 have same mice fighting different at identical time. that would cause it?
+## then cleanObservation Period on each of these
+orig_period <- cleanObservationPeriod(current_cohort = 1, raw_df = orig_data,
+                                      clean_data = orig_clean)
+perm_period <- cleanObservationPeriod(current_cohort = 1,raw_df = perm_data,
+                                      clean_data = perm_clean)
+
+sum(orig_period$no.events) # surely this should match with above?
+sum(perm_period$no.events)
+
+## these seem ok anyway
+```
+
+```{r further checking permutation}
+orig_stan_data <- prepareDataStan(current_cohort = 1)
+permute_stan_data <- prepareData_permute_Stan(current_cohort = 1)
+# now all pairs have an interaction
+
+```
+
+
+
+
+```{r shuffle cohort and stan fit, slow locally, include=FALSE,eval=FALSE}
+source(paste(func_dir,'permute_data.R',sep = ""))
+
+current_cohort <- 1
 
 print(paste("Cohort",current_cohort))
 ###
-stan_input_lst <- prepareData_permute_Stan(current_cohort)
+stan_input_lst <- prepareDataStan(current_cohort)
+stan_input_lst_permute <- prepareData_permute_Stan(current_cohort)
 ### get the corresponding expert rank
-permuted_data <- stan_input_lst$permuted_data
+permuted_data <- stan_input_lst_permute$permuted_data
 
 expert_rank_10_curr <- expertRankHierarchy(permuted_data)
 stan_input_lst$alpha_id <- expert_rank_10_curr[1]
 stan_input_lst$delta_1 <- rep(0.5,stan_input_lst$N_til)
+
+
+sum(stan_input_lst$Nm - stan_input_lst_permute$Nm) 
+# these should be the same size surely?
+
+# seems these are identical... good!
 
 # fit_cohort_mmhp <- stan("../lib/model3_current.stan", 
 #                         ## this will need to be updated
 #                         data = stan_input_lst,
 #                         warmup = 10, iter = 200, chains = 4, thin=4,
 #                         control=list(adapt_delta=0.9,max_treedepth=15))
+
+```
+
+
+```{r}
+real_cleaned <- cleanData(full_data[[cohort_names[current_cohort]]])
+
+permuted <- permute_raw(current_cohort)
+permuted_cleaned <- cleanData(permuted)
+
+permuted_cleaned$N_count - real_cleaned$N_count
+# these look different which is good
+
+return_df <- cleanObservationPeriod(current_cohort,
+                                    full_data[[cohort_names[current_cohort]]],
+                                    real_cleaned)
+
+per_return_df <- cleanObservationPeriod(current_cohort,permuted,permuted_cleaned)
+
+return_df$initiator - per_return_df$initiator
+# so this is the issue then possibly
+
+```
+
+
+
+
+
+
+```{r compare fits from permuted and true data}
+current_cohort <- 4
+
+## load true model fit
+load(paste(data_path,cohort_names[current_cohort],
+           "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
+           ".RData",sep=''))
+
+true_fit <- fit_cohort_mmhp
+true_post <- sim_cohort_mmhp
+
+## load permuted model fit
+load(paste(data_path,cohort_names[current_cohort],
+           "/permute_cohort_mmhp_stan_result_",cohort_names[current_cohort],
+           ".RData",sep=''))
+
+perm_fit <- fit_cohort_mmhp
+perm_post <- sim_cohort_mmhp
+
+mice_covars <- tibble(true_rank = apply(true_post$f,2,mean),
+       perm_rank = apply(perm_post$f,2,mean),
+       true_gam = apply(true_post$gamma,2,mean),
+       perm_gam = apply(perm_post$gamma,2,mean),
+       true_zeta = apply(true_post$zeta,2,mean),
+       perm_zeta = apply(perm_post$zeta,2,mean))
+
+mice_covars %>% ggplot(aes(true_rank,perm_rank)) + geom_point()
+
+mice_covars %>% ggplot(aes(true_gam,perm_gam)) + geom_point()
+
+mice_covars %>% ggplot(aes(true_zeta,perm_zeta)) + geom_point()
 
 ```
 

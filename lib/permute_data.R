@@ -1,10 +1,10 @@
 prepareData_permute_Stan <- function(current_cohort) {
   ### need to permute full_data[[cohort_names[current_cohort]]]
   ### and then go from there
-  
-  permuted <- permute_raw(current_cohort)
-  clean_data <- cleanData(permuted)
-  return_df <- cleanObservationPeriod(current_cohort, clean_data)
+  orig <- full_data[[cohort_names[current_cohort]]]
+  permuted <- permute_raw(orig)
+  clean_data_perm <- cleanData(permuted)
+  return_df <- cleanObservationPeriod(current_cohort, permuted, clean_data_perm)
   
   unique_pairs_df <- return_df %>% group_by(initiator, recipient) %>% dplyr::summarize(count=n(), observe=list(observe.id))
   unique_observe_win <- unique(return_df[,c("observe.id","observe.time","observe.start","observe.end")])
@@ -50,8 +50,8 @@ prepareData_permute_Stan <- function(current_cohort) {
 }
 
 
-permute_raw <- function(current_cohort) {
-  orig_raw <- full_data[[cohort_names[current_cohort]]]
+permute_raw <- function(orig_raw) {
+  #orig_raw <- full_data[[cohort_names[current_cohort]]]
   levels(orig_raw$Actor) <- base::union(levels(orig_raw$Actor),
                                         levels(orig_raw$Recipient))
   levels(orig_raw$Recipient) <- base::union(levels(orig_raw$Actor),

@@ -102,7 +102,7 @@ cleanData <- function(raw_data, cut_off = 3, N = 12){
 ## Output: return_df | for each pair each observation period, record the event times
 ############################################################################
 
-cleanObservationPeriod <- function(current_cohort, raw_df, mice_number=12){
+cleanObservationPeriod <- function(current_cohort, raw_df, clean_data, mice_number=12){
   # raw_df <- full_data[[cohort_names[current_cohort]]]
   # pass this as argument instead, so it can actually be modified
   return_df <- data.frame(day = numeric(),
