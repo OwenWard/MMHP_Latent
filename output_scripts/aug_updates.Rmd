@@ -321,14 +321,12 @@ sum(perm_period$no.events)
 ## these seem ok anyway
 ```
 
-```{r further checking permutation}
+```{r further checking permutation, include=FALSE, eval=FALSE}
 orig_stan_data <- prepareDataStan(current_cohort = 1)
 permute_stan_data <- prepareData_permute_Stan(current_cohort = 1)
 # now all pairs have an interaction
 
 ```
-
-
 
 
 ```{r shuffle cohort and stan fit, slow locally, include=FALSE,eval=FALSE}
@@ -361,30 +359,7 @@ sum(stan_input_lst$Nm - stan_input_lst_permute$Nm)
 
 ```
 
-
-```{r}
-real_cleaned <- cleanData(full_data[[cohort_names[current_cohort]]])
-
-permuted <- permute_raw(current_cohort)
-permuted_cleaned <- cleanData(permuted)
-
-permuted_cleaned$N_count - real_cleaned$N_count
-# these look different which is good
-
-return_df <- cleanObservationPeriod(current_cohort,
-                                    full_data[[cohort_names[current_cohort]]],
-                                    real_cleaned)
-
-per_return_df <- cleanObservationPeriod(current_cohort,permuted,permuted_cleaned)
-
-return_df$initiator - per_return_df$initiator
-# so this is the issue then possibly
-
-```
-
-
-
-
+Then we want to check these fits and compare them.
 
 
 ```{r compare fits from permuted and true data}
