@@ -363,36 +363,46 @@ Then we want to check these fits and compare them.
 
 
 ```{r compare fits from permuted and true data}
-current_cohort <- 4
+current_cohort <- 1
 
-## load true model fit
-load(paste(data_path,cohort_names[current_cohort],
-           "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
-           ".RData",sep=''))
+for(current_cohort in 1:10){
+  ## load true model fit
+  load(paste(data_path,cohort_names[current_cohort],
+             "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
+             ".RData",sep=''))
+  
+  true_fit <- fit_cohort_mmhp
+  true_post <- sim_cohort_mmhp
+  
+  ## load permuted model fit
+  load(paste(data_path,cohort_names[current_cohort],
+             "/permute_cohort_mmhp_stan_result_",cohort_names[current_cohort],
+             ".RData",sep=''))
+  
+  perm_fit <- fit_cohort_mmhp
+  perm_post <- sim_cohort_mmhp
+  
+  mice_covars <- tibble(true_rank = apply(true_post$f,2,mean),
+         perm_rank = apply(perm_post$f,2,mean),
+         true_gam = apply(true_post$gamma,2,mean),
+         perm_gam = apply(perm_post$gamma,2,mean),
+         true_zeta = apply(true_post$zeta,2,mean),
+         perm_zeta = apply(perm_post$zeta,2,mean))
+  
+  p <- mice_covars %>% ggplot(aes(true_rank,perm_rank)) + geom_point() +
+    ggtitle(paste("Cohort ",current_cohort,sep = ""))
+  
+  q <- mice_covars %>% ggplot(aes(true_gam,perm_gam)) + geom_point()
+  
+  r <- mice_covars %>% ggplot(aes(true_zeta,perm_zeta)) + geom_point()
+  
+  grid.arrange(p,q,r, nrow = 1)
+}
 
-true_fit <- fit_cohort_mmhp
-true_post <- sim_cohort_mmhp
-
-## load permuted model fit
-load(paste(data_path,cohort_names[current_cohort],
-           "/permute_cohort_mmhp_stan_result_",cohort_names[current_cohort],
-           ".RData",sep=''))
-
-perm_fit <- fit_cohort_mmhp
-perm_post <- sim_cohort_mmhp
-
-mice_covars <- tibble(true_rank = apply(true_post$f,2,mean),
-       perm_rank = apply(perm_post$f,2,mean),
-       true_gam = apply(true_post$gamma,2,mean),
-       perm_gam = apply(perm_post$gamma,2,mean),
-       true_zeta = apply(true_post$zeta,2,mean),
-       perm_zeta = apply(perm_post$zeta,2,mean))
-
-mice_covars %>% ggplot(aes(true_rank,perm_rank)) + geom_point()
-
-mice_covars %>% ggplot(aes(true_gam,perm_gam)) + geom_point()
-
-mice_covars %>% ggplot(aes(true_zeta,perm_zeta)) + geom_point()
 
 ```
-
+There does appear to be little to no structure in the estimated parameters 
+after this permutation. For example, all `gamma` and `zeta` parameters display 
+similar values, compared to the range seen in the original data. Similarly,
+there is little to no correlation in the rankings 
+obtained from the true events and the permuted events.
