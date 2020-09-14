@@ -15,7 +15,7 @@ parameters{
   real<lower=0> eta_1;
   real<lower=0> eta_2;
   real<lower=0> eta_3;
-  real<lower=0> beta;
+  real<lower=0> beta_delta;
 }
 transformed parameters{
   real<lower=0> lambda1;
@@ -23,6 +23,8 @@ transformed parameters{
   vector[N_til] q1; // P(initial state = 1)
   vector[N_til] q2; // P(initial state = 1)
   vector[N_til] alpha; // P(initial state = 1)
+  real alpha_max;
+  real beta;
 
   lambda1 = lambda0*(1+r_lambda1);
   log_delta[1] = log(0.5);
@@ -33,6 +35,8 @@ transformed parameters{
     q1[i] = exp(-eta_3*f[I_fit[i]]);
     q2[i] = exp(-eta_3*f[J_fit[i]]);
   }
+  alpha_max = max(alpha);
+  beta = alpha_max*(1+beta_delta);
 }
 model{
   row_vector[2] forward[max_Nm]; // Forward variables from forward-backward algorithm
@@ -59,7 +63,7 @@ model{
   //priors
   lambda0 ~ lognormal(0,2);
   r_lambda1 ~ lognormal(0,2);
-  beta ~ lognormal(0,2);
+  beta_delta ~ lognormal(0,2);
   eta_1 ~ lognormal(0,1);
   eta_2 ~ lognormal(0,1);
   eta_3 ~ lognormal(0,1);//normal(5,1);
