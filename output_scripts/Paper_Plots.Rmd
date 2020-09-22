@@ -414,7 +414,7 @@ for(m in c(1:3)){
 
 
 ```{r prepare data for 4b,cache=TRUE}
-plot.s <- 7#9
+plot.s <- 9#7#9
 plot.i <- 4
 plot.j <- 5
 
@@ -429,14 +429,17 @@ time.segment <- seq(0,tail(temp.t,1),length.out=5000)
 ### Preprocess the model inference result
 ## model 1
 #########
-model1_par_est <- list(lambda0=mean(sim_model3_stan_sim1[[plot.s]]$lambda0[1001:2000]),
+model1_par_est <- list(lambda0 =
+                         mean(sim_model3_stan_sim1[[plot.s]]$lambda0[1001:2000]),
                        eta_1=mean(sim_model3_stan_sim1[[plot.s]]$eta_1[1001:2000]),
                        eta_2=mean(sim_model3_stan_sim1[[plot.s]]$eta_2[1001:2000]),
                        eta_3=mean(sim_model3_stan_sim1[[plot.s]]$eta_3[1001:2000]),
                        beta=mean(sim_model3_stan_sim1[[plot.s]]$beta[1001:2000]),
                        f=apply(sim_model3_stan_sim1[[plot.s]]$f[1001:2000,],2,mean))
-lambda.m1<-uniHawkesIntensityNumeric(object=list(lambda0=model1_par_est$lambda0,
-                                     alpha=model1_fn$alpha.fun(model1_par_est$f[plot.i],
+lambda.m1<-uniHawkesIntensityNumeric(object=list(lambda0 = 
+                                                   model1_par_est$lambda0,
+                                    alpha =
+                                      model1_fn$alpha.fun(model1_par_est$f[plot.i],
                                     model1_par_est$f[plot.j],
                                     model1_par_est$eta_1,
                                     model1_par_est$eta_2,
@@ -448,8 +451,10 @@ lambda.m1<-uniHawkesIntensityNumeric(object=list(lambda0=model1_par_est$lambda0,
 
 ## model2
 #############
-model2_par_est <- list(gamma=apply(sim_model3_stan_sim2[[plot.s]]$gamma[1001:2000,],2,mean),
-                       zeta=apply(sim_model3_stan_sim2[[plot.s]]$zeta[1001:2000,],2,mean),
+model2_par_est <- list(gamma=apply(sim_model3_stan_sim2[[plot.s]]$gamma[1001:2000,],
+                                   2,mean),
+                    zeta = 
+                      apply(sim_model3_stan_sim2[[plot.s]]$zeta[1001:2000,],2,mean),
                        eta_1=mean(sim_model3_stan_sim2[[plot.s]]$eta_1[1001:2000]),
                        eta_2=mean(sim_model3_stan_sim2[[plot.s]]$eta_2[1001:2000]),
                        eta_3=mean(sim_model3_stan_sim2[[plot.s]]$eta_3[1001:2000]),
@@ -519,13 +524,14 @@ lambda.true <- mmhpTrueIntensityNumeric(params=object_true,
 
 ```{r fig4b-recover-latent-states}
 y.ub <- c(20,20,20)#c(130,72,31)
+x_events <- 135#150
 #model_colors <- c("steelblue", "goldenrod2", "firebrick2")
 model_colors <- viridis::viridis(3)
 layout(matrix(c(1:6), 6, 1), heights=rep(c(2.5,1),3))
 layout(matrix(c(1:6), 6, 1), heights=rep(c(7.5,1),3))
-my.xlim <- 200#130
-my.long.x <- 205#134.5
-legend.x <- c(135,135,135)
+my.xlim <- 140#160#200#130
+my.long.x <- 140#205#134.5
+legend.x <- c(50,50,50)#c(135,135,135)
 legend.y <- #c(34,32,32)
 legend.y <- c(20,12,15)#c(62,37,18)#c(22,22,22)
 legend.cex <- 1.5 #3
@@ -595,9 +601,9 @@ delta.positive[delta.positive<0] <- 0
 delta.negative <- delta.lambda
 delta.negative[delta.negative>0] <- 0
 ### hiding these for now ###
-polygon(c(0,lambda.true$time.vec,200),
+polygon(c(0,lambda.true$time.vec,x_events),#200
         c(0,delta.negative,0),col=negative.col,border=NA)
-polygon(c(0,lambda.true$time.vec,200),
+polygon(c(0,lambda.true$time.vec,x_events),#200
         c(0,delta.positive,0),col=positive.col,border=NA)
 
 axis(1,at=c(-2,my.long.x),col="gray35",
@@ -621,7 +627,9 @@ drawHawkesIntensityPaper(lambda0=model2_par_est$gamma[plot.i]+
                                                    model2_par_est$eta_3),
                          beta=model2_par_est$beta,
                          events=test.mmhp$tau,
-                         color=add.alpha(model_colors[2], alpha=line.alpha[2]),line.width=line.wdth[2])
+                         color=add.alpha(model_colors[2],
+                                         alpha=line.alpha[2]),
+                         line.width=line.wdth[2])
 legend(legend.x[2],legend.y[2],"C-DCHP",
        col = model_colors[2],
        y.intersp=0.88,x.intersp=0.1,bty = "n",
@@ -630,7 +638,7 @@ legend(legend.x[2],legend.y[2],"C-DCHP",
 axis(1,at=c(-2,my.long.x),col="gray35",
      line=0.5,tick=T,labels=rep("",2),lwd=0.5,lwd.ticks=0,lty=3)
 
-legend(10,legend.y[2],c("State 1/0 events","State change point"),
+legend(10,legend.y[2],c("State 0/1 events","State change point"),
        col = c(NA,"red"),
        y.intersp=0.85,x.intersp=-0.1, bty = "n",
        pch = c(NA,4), pt.cex = c(NA,2), cex=legend.cex,
@@ -649,8 +657,10 @@ delta.positive <- delta.lambda
 delta.positive[delta.positive<0] <- 0
 delta.negative <- delta.lambda
 delta.negative[delta.negative>0] <- 0
-polygon(c(0,lambda.true$time.vec,200), c(0,delta.negative,0),col=negative.col,border=NA)
-polygon(c(0,lambda.true$time.vec,200), c(0,delta.positive,0),col=positive.col,border=NA)
+polygon(c(0,lambda.true$time.vec,x_events), #200
+        c(0,delta.negative,0),col=negative.col,border=NA)
+polygon(c(0,lambda.true$time.vec,x_events), #200
+        c(0,delta.positive,0),col=positive.col,border=NA)
 # segments(0,0,my.xlim,0,col="gray45")
 ## draw box
 axis(1,at=c(-2,my.long.x),col="gray35",
@@ -700,8 +710,10 @@ delta.positive[delta.positive<0] <- 0
 delta.negative <- delta.lambda
 delta.negative[delta.negative>0] <- 0
 ### hiding these for now
-polygon(c(0,lambda.true$time.vec,200), c(0,delta.negative,0),col=negative.col,border=NA)
-polygon(c(0,lambda.true$time.vec,200), c(0,delta.positive,0),col=positive.col,border=NA)
+polygon(c(0,lambda.true$time.vec,x_events), # 200 
+        c(0,delta.negative,0),col=negative.col,border=NA)
+polygon(c(0,lambda.true$time.vec,x_events), # 200 
+        c(0,delta.positive,0),col=positive.col,border=NA)
 # segments(0,0,my.xlim,0,col="gray45")
 ## draw box
 axis(1,at=c(-2,my.long.x),col="gray35",
@@ -986,10 +998,6 @@ p1
 ```
 ## Figure 6b: Spearman rank correlation
 
-<!-- Not completed. This would need the rankings to be -->
-<!-- rerun for all cohorts. -->
-
-
 
 
 ```{r fig-6b-overall-rank-correlation}
@@ -1042,10 +1050,7 @@ p2_slides
 
 # Figure 7: Pearson residual matrices
 
-<!-- Here is where I need to be a bit more careful about using the correct fits. -->
-<!-- Currently using all from Jing's saved output. -->
 
-<!-- In the process of updating this to compute the PR for C-mmhp and I-mmhp on the cluster and simply load those matrices. -->
 
 ```{r fig-7-prMatrix-Cohort5, fig.height=7}
 current_cohort <- 5
@@ -1170,7 +1175,7 @@ p3 <- temp_plot_df %>%
   facet_grid(cols=vars(day)) +
   xlab("Prediction horizon (day)") + 
   ylab("Frobenius norm of error") +
-  ylim(0, 150) +
+  ylim(0, 150) + # aren't infinite but >150 and <200
   NULL
 p3
 ```
