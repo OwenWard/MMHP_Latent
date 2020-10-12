@@ -160,25 +160,31 @@ for(k in 1:mice_number){
     pair <- which(unique_pairs_df$initiator==i&unique_pairs_df$recipient==j)
     if(length(pair)>0){
       param_mean <- list(lambda0=mean(sim_cohort_hp$lambda0),
-                         alpha=model1_fn$alpha.fun(f_est[i],f_est[j],
-                                                   eta1_mean,eta2_mean,eta3_mean),
+                         alpha=model1_fn$alpha.fun(f_est[i],
+                                                   f_est[j],
+                                                   eta1_mean,
+                                                   eta2_mean,
+                                                   eta3_mean),
                          beta=mean(sim_cohort_hp$beta))
       current_window_vec <- unique_pairs_df$observe[[pair]]
       all_Lambda <- numeric(0)
       for(cur in c(1:length(current_window_vec))){ ## check length > 2
         cur_win <- current_window_vec[cur]
         current_event_time <- return_df[return_df$initiator==i&
-                                          return_df$recipient==j&
-                                          return_df$observe.id==cur_win,"event.times"][[1]]
+                                          return_df$recipient == j &
+                            return_df$observe.id==cur_win,"event.times"][[1]]
         current_obs_time <- return_df[return_df$initiator==i&
                                         return_df$recipient==j&
-                                        return_df$observe.id==cur_win,"observe.time"]
-        Lambda_vec <- uniHawkesCompensator(object=param_mean, events=c(current_event_time,current_obs_time))
+                            return_df$observe.id==cur_win,"observe.time"]
+        Lambda_vec <- uniHawkesCompensator(object = param_mean,
+                              events = c(current_event_time,
+                                         current_obs_time))
         all_Lambda <- c(all_Lambda,Lambda_vec)
         n_matrix[i,j] <- n_matrix[i,j] + length(current_event_time)
       }
       if(length(all_Lambda)>0){
-        ks.stat.matrix[i,j] <-  ks.test(all_Lambda,"pexp",rate=1/mean(all_Lambda))$statistic
+        ks.stat.matrix[i,j] <-  ks.test(all_Lambda,"pexp",
+                                        rate = 1/mean(all_Lambda))$statistic
         Lambda_matrix[i,j][[1]] <- all_Lambda
       }
     }
@@ -201,21 +207,26 @@ col.vec.vir <- vir_cols[match(values,sorted_vals)]
 ####
 par(oma = c(6,4,4,1), mar=rep(0,4),
     mgp = c(0, .2, 0))
-layout(cbind(matrix(data=c(1:(12*12)), nrow=12, ncol=12, byrow = TRUE),rep(12*12+1,12)), 
+layout(cbind(matrix(data=c(1:(12*12)), nrow = 12, ncol = 12, 
+                    byrow = TRUE),rep(12*12+1,12)), 
        widths=c(rep(1,12),2), heights=rep(1,12))
 for(i in expert_rank_10[[current_cohort]]){
   for(j in expert_rank_10[[current_cohort]]){
     if(ks.stat.matrix[i,j]==0){
-      plot(0,0,xlim=c(0,5),ylim=c(0,5),type="n", xlab="", ylab="", axes = FALSE, frame=TRUE)
-      rect(par('usr')[1],par('usr')[3],par('usr')[2],par('usr')[4], border = 0, col = 'white')
+      plot(0,0,xlim=c(0,5),ylim=c(0,5),type="n", xlab="", ylab="", 
+           axes = FALSE, frame=TRUE)
+      rect(par('usr')[1],par('usr')[3],par('usr')[2],par('usr')[4],
+           border = 0, col = 'white')
     }else{
       Lambda.test <- Lambda_matrix[i,j][[1]]
       curve(pexp(x,1/mean(Lambda.test)), min(Lambda.test), max(Lambda.test),
             ylab="",xlab="",axes = FALSE, frame=TRUE)
-      rect(par('usr')[1],par('usr')[3],par('usr')[2],par('usr')[4], border = 0, col = col.vec.vir[matrixToVecIdx(i,j,mice_number)])
+      rect(par('usr')[1],par('usr')[3],par('usr')[2],par('usr')[4], 
+           border = 0, col = col.vec.vir[matrixToVecIdx(i,j,mice_number)])
       curve(pexp(x,1/mean(Lambda.test)), min(Lambda.test), max(Lambda.test),
             ylab="",xlab="",axes = FALSE, frame=TRUE,add=TRUE, lwd=2)
-      plot(ecdf(Lambda.test), add=TRUE, do.points=FALSE, verticals=TRUE,col="red", lwd=2)
+      plot(ecdf(Lambda.test), add = TRUE, do.points = FALSE,
+           verticals = TRUE, col = "red", lwd = 2)
     }
   }
 }
@@ -242,9 +253,11 @@ axis(4, at=c(0,0.3,0.6), labels=c(0,0.3,0.6), las= HORIZONTAL<-1,
 
 mtext(text=expert_rank_10[[current_cohort]], side=1, line=1.8, outer=TRUE, cex=1.8,
       at=1/14*c(1:12)-1/22)
-mtext(text=expert_rank_10[[current_cohort]], side=2, line=0.5, outer=TRUE, cex=1.8,
-      at=1/12*c(12:1)-1/20, las=2)
-mtext(text="(b)", side=3, line=1.4, outer=TRUE, cex=2.2,
+mtext(text = expert_rank_10[[current_cohort]],
+      side = 2, line = 0.5, outer = TRUE, cex = 1.8,
+      at =1/12*c(12:1)-1/20, las = 2)
+mtext(text = "(b)", side = 3, line = 1.4, outer = TRUE,
+      cex = 2.2,
       at=0.45, font=2)
 #dev.off()
 ```
@@ -264,14 +277,18 @@ gamma_mean <- apply(sim_cohort_dchp$gamma,2,mean)
 zeta_mean <- apply(sim_cohort_dchp$zeta,2,mean)
 
 # social matrix plot
-latent_social_matrix <- gamma_mean%*%t(rep(1,mice_number))+rep(1,mice_number)%*%t(zeta_mean)
+latent_social_matrix <- gamma_mean %*%
+  t(rep(1,mice_number)) + rep(1,mice_number) %*% t(zeta_mean)
 
-# png(paste(plot_path,"/lambda0_",cohort_names[current_cohort],".png",sep=''),
+# png(paste(plot_path,"/lambda0_",
+# cohort_names[current_cohort],".png",sep=''),
 #     width=400, height=300)
-matrixPlotParameter(latent_social_matrix[rev(expert_rank_10[[current_cohort]]),
+matrixPlotParameter(latent_social_matrix[
+  rev(expert_rank_10[[current_cohort]]),
                                          expert_rank_10[[current_cohort]]],
                     xLabels=expert_rank_10[[current_cohort]],
-                    yLabels=rev(expert_rank_10[[current_cohort]]),title="(a)")
+                    yLabels=rev(expert_rank_10[[current_cohort]]),
+                    title = "(a)" )
 # mtext(text=c(1,2,11,6,7,9), side=1, line=-0.35, outer=TRUE, cex=1.3,
 #       at=1/17.8*seq(2,12,2)+0.09)
 #dev.off()
@@ -342,6 +359,213 @@ mtext("K-S statistics", cex=1.5, side=2, line=1.5)
 mgp.axis(1,mgp=c(0,0.3,0),at=seq(0,120,10),cex.axis=1,lwd=0,lwd.ticks=0.1)
 mgp.axis(2,mgp=c(0,0.1,0),at=seq(-0.2,0.6,0.2),cex.axis=1,lwd=0,lwd.ticks=0.8)
 ```
+
+# Redone Figure 3
+
+As discussed, it would be interesting to redo figure 3b
+to show the lack of fit in model 2 for one specific pair. This can be somewhat
+extracted from the diagnostics file.
+
+
+We actually want the empirical CDF plot here.
+
+
+
+```{r fig_3b_update, fig.height=7}
+# 2 -> 11 might be good here
+current_cohort <- 5
+clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
+return_df <- cleanObservationPeriod(current_cohort, clean_data)
+unique_pairs_df <- return_df %>% group_by(initiator, recipient) %>%
+  dplyr::summarize(count=n(),
+            observe=list(observe.id),
+            observe.length=list(observe.time),
+            no.events=list(no.events)) 
+top_pairs <- unique_pairs_df %>% arrange(desc(count))
+
+best_i <- top_pairs$initiator[8]
+best_j <- top_pairs$recipient[8]
+
+current_i <- best_i #8
+current_j <- best_j #2
+
+### then plots ####
+# par(mfrow = c(1, 2), oma = c(1, 1, 1, 1),
+#      mar = c(2, 3, 2, 1), mgp = c(0.8,0,0))
+# layout(matrix(1:8,nrow=2,byrow=TRUE),widths=rep(2,4),height=c(3,3))
+anno.cex <- 1.3
+title.cex <- 2.2
+title.line <- 0.5
+y.upper <- 20
+#### then the corresponding QQ plot ####
+load(paste(data_path,cohort_names[current_cohort],
+             "/real_diag_four_models_",cohort_names[current_cohort],
+             ".RData",sep=''))
+Lambda.dc_hawkes.test <- Lambda_dc_hawkes_matrix[current_i,current_j][[1]]
+
+p <- ppoints(length(Lambda.dc_hawkes.test))
+# 100 equally spaced points on (0,1), excluding endpoints
+q <- quantile(Lambda.dc_hawkes.test,p=p,na.rm=TRUE)
+# percentiles of the sample distribution
+plot(qexp(p),q,
+     xlab="",ylab="",xaxt="n",yaxt="n",
+     pch=1, cex=1, col=viridis::viridis(1), ylim=c(0,1), xlim=c(0,4.5))
+mtext(side = 1, text = "Theoretical", line=1.6, cex=anno.cex)
+mtext(side = 2, text = "Empirical", line = 1.2, cex = anno.cex)
+mtext(side = 3, text = "(b)", line = 0.8, cex = 1.6, font = 2)
+# Hmisc::mgp.axis(1,mgp=c(0,0.1,0),at=c(0:5),cex.axis=1,lwd=0,lwd.ticks=1)
+# Hmisc::mgp.axis(2,mgp=c(0,0.1,0),at=c(0:1),cex.axis=1,lwd=0,lwd.ticks=1)
+qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5)
+
+### Empirical CDF ####
+
+plot(ecdf(Lambda.dc_hawkes.test), do.points = FALSE,
+     verticals = TRUE, col = viridis::viridis(1), lwd = 2, 
+     xlab = "", ylab = "", xaxt = "n", yaxt = "n",
+     main = "", col.01line = NULL)
+curve(pexp(x,1/mean(Lambda.dc_hawkes.test)),
+      min(Lambda.dc_hawkes.test), max(Lambda.dc_hawkes.test),
+      ylab = "", xlab = "", axes = FALSE,
+      add = TRUE, lwd = 2)
+
+```
+
+```{r repeat entire fig2b for model 2}
+current_cohort <- 5
+
+load(paste(data_path,cohort_names[current_cohort],
+             "/real_diag_four_models_",cohort_names[current_cohort],
+             ".RData",sep=''))
+
+load(paste(data_path,cohort_names[current_cohort],
+           "/cohort_dchp_stan_result_",cohort_names[current_cohort],
+           ".RData",sep=''))
+eta1_mean <- mean(sim_cohort_dchp$eta_1)
+eta2_mean <- mean(sim_cohort_dchp$eta_2)
+eta3_mean <- mean(sim_cohort_dchp$eta_3)
+f_est <- apply(sim_cohort_dchp$f,2,mean)
+clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
+return_df <- cleanObservationPeriod(current_cohort, clean_data)
+unique_pairs_df <- return_df %>% group_by(initiator, recipient) %>%
+  dplyr::summarize(count=n(),
+                   observe=list(observe.id),
+                   observe.length=list(observe.time),
+                   no.events=list(no.events))
+unique_observe_win <- unique(return_df[,c("observe.id","observe.time")])
+
+ks.stat.matrix <- matrix(0,ncol=mice_number,nrow=mice_number)
+n_matrix <- matrix(0,ncol=mice_number,nrow=mice_number)
+Lambda_matrix <- matrix(list(),nrow=mice_number,ncol=mice_number)
+for(k in 1:mice_number){
+  for(l in c(1:mice_number)[-k]){
+    i<-expert_rank_10[[current_cohort]][k]
+    j<-expert_rank_10[[current_cohort]][l]
+    pair <- which(unique_pairs_df$initiator==i&unique_pairs_df$recipient==j)
+    if(length(pair)>0){
+      param_mean <- list(lambda0=mean(sim_cohort_dchp$lambda0[,pair]),
+                         alpha=model1_fn$alpha.fun(f_est[i],
+                                                   f_est[j],
+                                                   eta1_mean,
+                                                   eta2_mean,
+                                                   eta3_mean),
+                         beta=mean(sim_cohort_dchp$beta))
+      current_window_vec <- unique_pairs_df$observe[[pair]]
+      all_Lambda <- numeric(0)
+      for(cur in c(1:length(current_window_vec))){ ## check length > 2
+        cur_win <- current_window_vec[cur]
+        current_event_time <- return_df[return_df$initiator==i&
+                                          return_df$recipient == j &
+                            return_df$observe.id==cur_win,"event.times"][[1]]
+        current_obs_time <- return_df[return_df$initiator==i&
+                                        return_df$recipient==j&
+                            return_df$observe.id==cur_win,"observe.time"]
+        Lambda_vec <- uniHawkesCompensator(object = param_mean,
+                              events = c(current_event_time,
+                                         current_obs_time))
+        all_Lambda <- c(all_Lambda,Lambda_vec)
+        n_matrix[i,j] <- n_matrix[i,j] + length(current_event_time)
+      }
+      if(length(all_Lambda)>0){
+        ks.stat.matrix[i,j] <-  ks.test(all_Lambda,"pexp",
+                                        rate = 1/mean(all_Lambda))$statistic
+        Lambda_matrix[i,j][[1]] <- all_Lambda
+      }
+    }
+  }
+}
+
+
+# -------------- KS plot (stat)
+col.vec <- cRamp(as.vector(ks.stat.matrix))
+## need to do some sort of transformation between these here
+vir_cols <- viridis::viridis(length((as.vector(ks.stat.matrix))))
+#order(as.vector(ks.stat.matrix),method = "")
+
+values <- as.vector(ks.stat.matrix)
+sorted_vals <- sort(ks.stat.matrix)
+#match(values,sorted_vals)
+col.vec.vir <- vir_cols[match(values,sorted_vals)]
+
+####
+par(oma = c(6,4,4,1), mar=rep(0,4),
+    mgp = c(0, .2, 0))
+layout(cbind(matrix(data=c(1:(12*12)), nrow = 12, ncol = 12, 
+                    byrow = TRUE),rep(12*12+1,12)), 
+       widths=c(rep(1,12),2), heights=rep(1,12))
+for(i in expert_rank_10[[current_cohort]]){
+  for(j in expert_rank_10[[current_cohort]]){
+    if(ks.stat.matrix[i,j]==0){
+      plot(0,0,xlim=c(0,5),ylim=c(0,5),type="n", xlab="", ylab="", 
+           axes = FALSE, frame=TRUE)
+      rect(par('usr')[1],par('usr')[3],par('usr')[2],par('usr')[4],
+           border = 0, col = 'white')
+    }else{
+      Lambda.test <- Lambda_matrix[i,j][[1]]
+      curve(pexp(x,1/mean(Lambda.test)), min(Lambda.test), max(Lambda.test),
+            ylab="",xlab="",axes = FALSE, frame=TRUE)
+      rect(par('usr')[1],par('usr')[3],par('usr')[2],par('usr')[4], 
+           border = 0, col = col.vec.vir[matrixToVecIdx(i,j,mice_number)])
+      curve(pexp(x,1/mean(Lambda.test)), min(Lambda.test), max(Lambda.test),
+            ylab="",xlab="",axes = FALSE, frame=TRUE,add=TRUE, lwd=2)
+      plot(ecdf(Lambda.test), add = TRUE, do.points = FALSE,
+           verticals = TRUE, col = "red", lwd = 2)
+    }
+  }
+}
+par(mar = c(0,2,0,3),mgp=c(0,0.8,0))
+
+col_obj <- list(x.vec = seq(0,max(as.vector(ks.stat.matrix)),
+                            length.out = 100),
+                col.vec = viridis(100))
+
+temp <- cLegend(as.vector(ks.stat.matrix))
+
+image(1, col_obj$x.vec,
+      matrix(data=col_obj$x.vec, 
+             ncol=length(col_obj$x.vec),nrow=1),
+      col=col_obj$col.vec,
+      xlab="",ylab="",axes=FALSE)
+axis(4, at=c(0,0.3,0.6), labels=c(0,0.3,0.6), las= HORIZONTAL<-1,
+     cex.axis=2.4)
+
+mtext(text=expert_rank_10[[current_cohort]], side=1,
+      line=1.8, outer=TRUE, cex=1.8,
+      at=1/14*c(1:12)-1/22)
+mtext(text = expert_rank_10[[current_cohort]],
+      side = 2, line = 0.5, outer = TRUE, cex = 1.8,
+      at =1/12*c(12:1)-1/20, las = 2)
+mtext(text = "(b)", side = 3, line = 1.4, outer = TRUE,
+      cex = 2.2,
+      at=0.45, font=2)
+
+```
+
+
+
+
+This is good because it shows the most active animal, shows that individual
+out rate too large for this interaction. Just need to make this more
+like the plots in 2b.
 
 
 # Figure 4:
@@ -1667,7 +1891,8 @@ for (t in 1:length(task.types)){
   temp_vec <- rep(NA,2000)
   cur_real_rank <- real.gl$history[,day_end_idx[t],1]
   for(s in c(1:2000)){
-    temp_result <- cor.test(sim_dsnl$x[s,t,], cur_real_rank, method = "spearman")
+    temp_result <- cor.test(sim_dsnl$x[s,t,], cur_real_rank,
+                            method = "spearman")
     temp_vec[s] <- temp_result$estimate
   }
   data.tbl$sub.type[(1:2000)+(t-1)*2000] <- sub.types[1]  
@@ -1693,7 +1918,8 @@ for (t in 1:length(task.types)){
   temp_vec <- rep(NA,2000)
   cur_real_rank <- real.gl$history[,day_end_idx[t],1]
   for(s in c(1:2000)){
-    temp_result <- cor.test(sim_dsnl_inactive$x[s,t,], cur_real_rank, method = "spearman")
+    temp_result <- cor.test(sim_dsnl_inactive$x[s,t,], 
+                            cur_real_rank, method = "spearman")
     temp_vec[s] <- temp_result$estimate
   }
   data.tbl$sub.type[(1:2000)+(t-1)*2000+42000*2] <- sub.types[3]  
@@ -1710,28 +1936,38 @@ data.tbl$task.type <- factor(data.tbl$task.type);
 
 ```{r fig-10b-rank-correlation}
 par(mar=c(3,5,3,1))
-cx <- 2;  # cex for axis label text; default is 1. bigger numbers make the text bigger, smaller, smaller.  
+cx <- 1.75  # cex for axis label text; 
+# default is 1. bigger numbers make the text bigger, smaller, smaller.  
 x.ttl <- ""; # blank x-axis label  
-y.ttl <- "rank correlation (expert rank)";  
+y.ttl <- "rank corr. (expert rank)";  
 ttl <- "(b)";  
-#y.lim <- c(min(data.tbl$data.value), max(data.tbl$data.value)+.5); # y-axis limits. +2 at top to give room for legend  
+#y.lim <- c(min(data.tbl$data.value), max(data.tbl$data.value)+.5);
+# y-axis limits. +2 at top to give room for legend  
 y.lim <- c(-1,1.2)    
 x.lim <- c(0.5, (length(task.types))) 
 cols <- c('paleturquoise4', 'lightgreen', 'cornsilk')
 shifts <- c(-0.25, 0, 0.25)
  
-plot(x=0, y=0, xlim=x.lim, ylim=y.lim, xaxt='n', col='white', xlab=x.ttl, ylab=y.ttl, main=ttl, cex.main=cx*1.3, cex.axis=cx, cex.lab=cx); 
-axis(side=1, at=1:length(task.types), labels=task.types, cex.axis=cx, cex.lab=cx)  # put on the x-axis labels  
+plot(x = 0, y = 0, xlim = x.lim, ylim = y.lim, xaxt='n',
+     col = 'white', xlab = x.ttl,
+     ylab = y.ttl, main = ttl,
+     cex.main = cx*1.3, cex.axis = cx, cex.lab = cx); 
+axis(side = 1, at = 1:length(task.types), labels = task.types,
+     cex.axis=cx, cex.lab=cx)  # put on the x-axis labels  
 grid(nx=NA, ny=NULL, col='darkgrey');  
 lines(x=c(-1,100), y=c(0,0), col='darkgrey');  
 for (t.id in 1:length(task.types)) {  
   for (i in 1:length(sub.types)) {  # t.id <- 1; i <- 1;   
-   inds <- which(data.tbl$sub.type == sub.types[i] & data.tbl$task.type == task.types[t.id])
-   boxplot(data.tbl$data.value[inds], at=t.id+shifts[i], col=cols[i], add=TRUE, 
-           xaxt='n', yaxt='n', bty='n', boxwex=0.35, outpch = 20, outcex = 0.5) 
+   inds <- which(data.tbl$sub.type == sub.types[i] & 
+                   data.tbl$task.type == task.types[t.id])
+   boxplot(data.tbl$data.value[inds], at=t.id+shifts[i],
+           col=cols[i], add=TRUE, 
+           xaxt='n', yaxt='n', bty='n', boxwex=0.35,
+           outpch = 20, outcex = 0.5) 
   }  
 }  
-legend(x='top', legend=sub.types, fill=cols, horiz=TRUE, cex=cx, bg='white', bty='n')  
+legend(x='top', legend = sub.types, fill=cols,
+       horiz = TRUE, cex = cx, bg = 'white', bty = 'n')  
 box()
 ```
 
