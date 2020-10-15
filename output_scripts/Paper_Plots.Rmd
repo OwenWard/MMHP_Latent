@@ -17,6 +17,7 @@ knitr::opts_chunk$set(echo = TRUE, fig.path = "paper_figure/",
                       warning = FALSE)
 
 slides_plots <- FALSE
+current_cohort <- 5
 ```
 
 ```{r load_packages, include=FALSE}
@@ -70,16 +71,17 @@ mice_number <- 12
 fit_cohorts <- c(1:10)
 naive_rank_10 <- list()
 expert_rank_10 <- list()
-out <- captureOutput(for(current_cohort in fit_cohorts){
-  naive_rank_10[[current_cohort]] <- naiveRankHierarchy(full_data[[cohort_names[current_cohort]]])
-  expert_rank_10[[current_cohort]] <- expertRankHierarchy(full_data[[cohort_names[current_cohort]]])
+out <- captureOutput(for(curr_cohort in fit_cohorts){
+  naive_rank_10[[curr_cohort]] <- naiveRankHierarchy(full_data[[cohort_names[curr_cohort]]])
+  expert_rank_10[[curr_cohort]] <- expertRankHierarchy(full_data[[cohort_names[curr_cohort]]])
 })
 
 
 ```
 
 ```{r define_functions}
-model1_fn <- list(alpha.fun = function(x,y,eta1,eta2,eta3){return(eta1*x*y*exp(-eta2*abs(x-y))/(1+exp(-eta3*(x-y))))})
+model1_fn <- list(alpha.fun = function(x,y,eta1,eta2,eta3){return(eta1*x*y*exp(-eta2*abs(x-y))/(1 +
+                                                        exp(-eta3*(x-y))))})
 
 model3_fn <- list(alpha.fun = function(x,y,eta1,eta2){return(eta1*x*y*exp(-eta2*abs(x-y)))},
                   q1.fun = function(x,y,eta3){return(exp(-eta3*x))},
@@ -132,7 +134,7 @@ my.image.plot(seq(0,1,0.01), seq(0,1,0.01), z_plot,
 
 
 ```{r fig-2b-diag-plot,echo=FALSE,warning=FALSE}
-current_cohort <- 5
+# current_cohort <- 5
 
 load(paste(data_path,cohort_names[current_cohort],
            "/cohort_hp_stan_result_",cohort_names[current_cohort],
@@ -231,7 +233,7 @@ for(i in expert_rank_10[[current_cohort]]){
   }
 }
 par(mar = c(0,2,0,3),mgp=c(0,0.8,0))
-
+m1_ks <- ks.stat.matrix
 col_obj <- list(x.vec = seq(0,max(as.vector(ks.stat.matrix)),length.out = 100),
                 col.vec = viridis(100))
 
@@ -247,7 +249,7 @@ image(1, col_obj$x.vec,
       matrix(data=col_obj$x.vec, 
              ncol=length(col_obj$x.vec),nrow=1),
       col=col_obj$col.vec,
-      xlab="",ylab="",axes=FALSE)
+      xlab="",ylab="", axes = FALSE)
 axis(4, at=c(0,0.3,0.6), labels=c(0,0.3,0.6), las= HORIZONTAL<-1,
      cex.axis=2.4)
 
@@ -268,7 +270,7 @@ mtext(text = "(b)", side = 3, line = 1.4, outer = TRUE,
 
 
 ```{r fig-3a-baseline-rate}
-current_cohort <- 5
+# current_cohort <- 5
 
 load(paste(data_path,cohort_names[current_cohort],
            "/cohort_dchp_stan_result_",cohort_names[current_cohort],
@@ -296,7 +298,7 @@ matrixPlotParameter(latent_social_matrix[
 ## Figure 3b: Ranking Comparison
 
 ```{r fig-3b-rank-comparison}
-current_cohort <- 5
+# current_cohort <- 5
 
 colors_plot <- viridis(2)
 load(paste(data_path,cohort_names[current_cohort],
@@ -373,7 +375,7 @@ We actually want the empirical CDF plot here.
 
 ```{r fig_3b_update, fig.height=7}
 # 2 -> 11 might be good here
-current_cohort <- 5
+# current_cohort <- 5
 clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
 return_df <- cleanObservationPeriod(current_cohort, clean_data)
 unique_pairs_df <- return_df %>% group_by(initiator, recipient) %>%
@@ -425,13 +427,13 @@ plot(ecdf(Lambda.dc_hawkes.test), do.points = FALSE,
      main = "", col.01line = NULL)
 curve(pexp(x,1/mean(Lambda.dc_hawkes.test)),
       min(Lambda.dc_hawkes.test), max(Lambda.dc_hawkes.test),
-      ylab = "", xlab = "", axes = FALSE,
+      ylab = "", xlab = "",
       add = TRUE, lwd = 2)
 
 ```
 
 ```{r repeat entire fig2b for model 2}
-current_cohort <- 5
+# current_cohort <- 5
 
 load(paste(data_path,cohort_names[current_cohort],
              "/real_diag_four_models_",cohort_names[current_cohort],
@@ -494,6 +496,7 @@ for(k in 1:mice_number){
   }
 }
 
+m2_ks <- ks.stat.matrix
 
 # -------------- KS plot (stat)
 col.vec <- cRamp(as.vector(ks.stat.matrix))
@@ -560,6 +563,73 @@ mtext(text = "(b)", side = 3, line = 1.4, outer = TRUE,
 
 ```
 
+```{r}
+ks_diff <-  (m2_ks - m1_ks)/m1_ks
+ks_diff[is.nan(ks_diff)] <- 0
+# -------------- KS plot (stat)
+col.vec <- cRamp(as.vector(ks_diff))
+## need to do some sort of transformation between these here
+vir_cols <- viridis::viridis(length((as.vector(ks_diff))))
+#order(as.vector(ks.stat.matrix),method = "")
+
+values <- as.vector(ks_diff)
+sorted_vals <- sort(ks_diff)
+#match(values,sorted_vals)
+col.vec.vir <- vir_cols[match(values,sorted_vals)]
+
+####
+par(oma = c(6,4,4,1), mar=rep(0,4),
+    mgp = c(0, .2, 0))
+layout(cbind(matrix(data=c(1:(12*12)), nrow = 12, ncol = 12, 
+                    byrow = TRUE),rep(12*12+1,12)), 
+       widths=c(rep(1,12),2), heights=rep(1,12))
+for(i in expert_rank_10[[current_cohort]]){
+  for(j in expert_rank_10[[current_cohort]]){
+    if(ks_diff[i,j]==0){
+      plot(0,0,xlim=c(0,5),ylim=c(0,5),type="n", xlab="", ylab="", 
+           axes = FALSE, frame=TRUE)
+      rect(par('usr')[1],par('usr')[3],par('usr')[2],par('usr')[4],
+           border = 0, col = 'white')
+    }else{
+      Lambda.test <- Lambda_matrix[i,j][[1]]
+      curve(pexp(x,1/mean(Lambda.test)), min(Lambda.test), max(Lambda.test),
+            ylab="",xlab="",axes = FALSE, frame=TRUE)
+      rect(par('usr')[1],par('usr')[3],par('usr')[2],par('usr')[4],
+           border = 0, col = col.vec.vir[matrixToVecIdx(i,j,mice_number)])
+      # curve(pexp(x,1/mean(Lambda.test)), min(Lambda.test), max(Lambda.test),
+      #       ylab="",xlab="",axes = FALSE, frame=TRUE,add=TRUE, lwd=2)
+      # plot(ecdf(Lambda.test), add = TRUE, do.points = FALSE,
+      #      verticals = TRUE, col = "red", lwd = 2)
+    }
+  }
+}
+par(mar = c(0,2,0,3),mgp=c(0,0.8,0))
+
+col_obj <- list(x.vec = seq(min(as.vector(ks_diff)),max(as.vector(ks_diff)),
+                            length.out = 100),
+                col.vec = viridis(100))
+
+# temp <- cLegend(as.vector(ks_diff))
+
+image(1, col_obj$x.vec,
+      matrix(data=col_obj$x.vec, 
+             ncol=length(col_obj$x.vec),nrow=1),
+      col=col_obj$col.vec,
+      xlab="",ylab="")
+# axis(4, at=c(-0.2,0,0.2), labels=c(-0.2,0,0.2), las= HORIZONTAL<-1,
+#      cex.axis=2.4)
+
+mtext(text=expert_rank_10[[current_cohort]], side=1,
+      line=1.8, outer=TRUE, cex=1.8,
+      at=1/14*c(1:12)-1/22)
+mtext(text = expert_rank_10[[current_cohort]],
+      side = 2, line = 0.5, outer = TRUE, cex = 1.8,
+      at =1/12*c(12:1)-1/20, las = 2)
+mtext(text = "(M2 - M1)/M1", side = 3, line = 1.4, outer = TRUE,
+      cex = 2.2,
+      at=0.45, font=2)
+
+```
 
 
 
@@ -1164,7 +1234,7 @@ mtext(text=c(5:1), side=1, line=1, outer=TRUE, cex=2,
 
 ```{r fig-6a-rank-vs-isi}
 ### Rank Comparison for Single Cohort ####
-current_cohort <- 5
+# current_cohort <- 5
 
 load(paste(data_path,cohort_names[current_cohort],
            "/agg_rank_stan_result_",cohort_names[current_cohort],
@@ -1277,7 +1347,7 @@ p2_slides
 
 
 ```{r fig-7-prMatrix-Cohort5, fig.height=7}
-current_cohort <- 5
+# current_cohort <- 5
 
 m1_pr <- readRDS(paste(data_path,cohort_names[current_cohort],
                    "/chp_pr_matrix_",cohort_names[current_cohort],
@@ -1321,7 +1391,7 @@ myMultiMatrixPlot(X=matrix_lst_plot,no_matrix=4,n_row=2,
 ```
 
 ```{r fig_pr_slides, fig.height=3, fig.width=7, include=slides_plots,eval=slides_plots}
-current_cohort <- 5
+# current_cohort <- 5
 
 m1_pr <- readRDS(paste(data_path,cohort_names[current_cohort],
                    "/chp_pr_matrix_",cohort_names[current_cohort],
@@ -1375,7 +1445,7 @@ myMultiMatrixPlot(X=matrix_lst_plot,no_matrix=3,n_row=1,
 
 ```{r fig-8a-frob-norm-cohort5}
 load("../output/plot_N_predict.RData")
-current_cohort <- 5# cohort 1 looks worse than rest
+# current_cohort <- 5# cohort 1 looks worse than rest
 
 temp_plot_df <- predict_day_norm_df_lst[[current_cohort]]
 temp_plot_df$method <- factor(temp_plot_df$method,
@@ -1407,7 +1477,7 @@ p3
 
 ```{r fig-pred-cohort-slides, include=slides_plots,eval=slides_plots, fig.height=3}
 load("../output/plot_N_predict.RData")
-current_cohort <- 5# cohort 1 looks worse than rest
+# current_cohort <- 5# cohort 1 looks worse than rest
 # 3 looks nice
 
 temp_plot_df <- predict_day_norm_df_lst[[current_cohort]]
@@ -1547,7 +1617,7 @@ p4_slides
 
 ```{r fig-9a-spearman-rank-cohort1}
 load("../output/plot_rank_predict.RData")
-current_cohort <- 5
+# current_cohort <- 5
 temp_plot_df <- predict_day_rank_df_lst[[current_cohort]]
 temp_plot_df$method <- factor(temp_plot_df$method,
                               levels = c("mmhp","dsnl","m1","m2","m3"),
@@ -1575,7 +1645,7 @@ p5
 
 ```{r fig-pred-cor, eval=slides_plots,include=slides_plots,fig.height=3}
 load("../output/plot_rank_predict.RData")
-current_cohort <- 5
+# current_cohort <- 5
 temp_plot_df <- predict_day_rank_df_lst[[current_cohort]]
 temp_plot_df$method <- factor(temp_plot_df$method,
                               levels = c("mmhp","dsnl","m1","m2","m3"),
@@ -1645,7 +1715,7 @@ p6
 ```{r construct data for plot, results='hide',message=FALSE,cache=TRUE}
 library(PlayerRatings)
 
-current_cohort <- 5
+# current_cohort <- 5
 
 load(paste(data_path,cohort_names[current_cohort],
            "/predict_simulation_",cohort_names[current_cohort],
@@ -1785,7 +1855,7 @@ rm(fit_cohort_mmhp)
 ```{r process for state separation cohort5,eval=FALSE}
 # only run this once and save the results
 # this doesn't need to be rerun ever, even if the stan fits change
-current_cohort <- 5
+# current_cohort <- 5
 
 load(paste(data_path,cohort_names[current_cohort],
              "/cmmhp_est_zt_",cohort_names[current_cohort],
@@ -1861,7 +1931,7 @@ rm(initial_state_list)
 
 ```{r process data for plot 10b}
 library(PlayerRatings)
-current_cohort <- 5
+# current_cohort <- 5
 load(paste(data_path,cohort_names[current_cohort],
            "/dsnl_poisson_stan_result_",cohort_names[current_cohort],
            ".RData",sep=''))
