@@ -563,7 +563,7 @@ mtext(text = "(b)", side = 3, line = 1.4, outer = TRUE,
 
 ```
 
-```{r}
+```{r construct ks_diff}
 ks_diff <-  (m2_ks - m1_ks)/m1_ks
 ks_diff[is.nan(ks_diff)] <- 0
 # -------------- KS plot (stat)
@@ -628,6 +628,96 @@ mtext(text = expert_rank_10[[current_cohort]],
 mtext(text = "(M2 - M1)/M1", side = 3, line = 1.4, outer = TRUE,
       cex = 2.2,
       at=0.45, font=2)
+
+```
+
+```{r construct ks diff normalised by num events}
+norm_diff <- (m2_ks - m1_ks)/m1_ks
+norm_diff[is.nan(norm_diff)] <- 0
+count_mat <- matrix(0, nrow = mice_number, ncol = mice_number)
+
+for(i in expert_rank_10[[current_cohort]]) {
+  for(j in expert_rank_10[[current_cohort]]) {
+    if( norm_diff[i,j] != 0 ) {
+      num_events <- unique_pairs_df %>% 
+      filter(initiator == i & recipient == j) %>%
+      pull(count)
+      # diff[i,j] <- diff[i,j] / num_events
+      count_mat[i,j] <- num_events
+    }
+  }
+}
+
+
+tibble(diff_norm = as.vector(norm_diff),
+       events = as.vector(count_mat)) %>%
+  filter(events > 0 ) %>%
+  ggplot(aes(events,diff_norm)) + geom_point() +
+  ylab("(M2-M1)/M1") +
+  theme_minimal()
+
+# # then same plot as above with diff
+# col.vec <- cRamp(as.vector(diff))
+# ## need to do some sort of transformation between these here
+# vir_cols <- viridis::viridis(length((as.vector(diff))))
+# #order(as.vector(ks.stat.matrix),method = "")
+# 
+# values <- as.vector(diff)
+# sorted_vals <- sort(diff)
+# #match(values,sorted_vals)
+# col.vec.vir <- vir_cols[match(values,sorted_vals)]
+# 
+# ####
+# par(oma = c(6,4,4,1), mar=rep(0,4),
+#     mgp = c(0, .2, 0))
+# layout(cbind(matrix(data=c(1:(12*12)), nrow = 12, ncol = 12, 
+#                     byrow = TRUE),rep(12*12+1,12)), 
+#        widths=c(rep(1,12),2), heights=rep(1,12))
+# for(i in expert_rank_10[[current_cohort]]){
+#   for(j in expert_rank_10[[current_cohort]]){
+#     if(diff[i,j]==0){
+#       plot(0,0,xlim=c(0,5),ylim=c(0,5),type="n", xlab="", ylab="", 
+#            axes = FALSE, frame=TRUE)
+#       rect(par('usr')[1],par('usr')[3],par('usr')[2],par('usr')[4],
+#            border = 0, col = 'white')
+#     }else{
+#       Lambda.test <- Lambda_matrix[i,j][[1]]
+#       curve(pexp(x,1/mean(Lambda.test)), min(Lambda.test), max(Lambda.test),
+#             ylab="",xlab="",axes = FALSE, frame=TRUE)
+#       rect(par('usr')[1],par('usr')[3],par('usr')[2],par('usr')[4],
+#            border = 0, col = col.vec.vir[matrixToVecIdx(i,j,mice_number)])
+#       # curve(pexp(x,1/mean(Lambda.test)), min(Lambda.test), max(Lambda.test),
+#       #       ylab="",xlab="",axes = FALSE, frame=TRUE,add=TRUE, lwd=2)
+#       # plot(ecdf(Lambda.test), add = TRUE, do.points = FALSE,
+#       #      verticals = TRUE, col = "red", lwd = 2)
+#     }
+#   }
+# }
+# par(mar = c(0,2,0,3),mgp=c(0,0.8,0))
+# 
+# col_obj <- list(x.vec = seq(min(as.vector(diff)),max(as.vector(diff)),
+#                             length.out = 100),
+#                 col.vec = viridis(100))
+# 
+# # temp <- cLegend(as.vector(ks_diff))
+# 
+# image(1, col_obj$x.vec,
+#       matrix(data=col_obj$x.vec, 
+#              ncol=length(col_obj$x.vec),nrow=1),
+#       col=col_obj$col.vec,
+#       xlab="",ylab="")
+# # axis(4, at=c(-0.2,0,0.2), labels=c(-0.2,0,0.2), las= HORIZONTAL<-1,
+# #      cex.axis=2.4)
+# 
+# mtext(text=expert_rank_10[[current_cohort]], side=1,
+#       line=1.8, outer=TRUE, cex=1.8,
+#       at=1/14*c(1:12)-1/22)
+# mtext(text = expert_rank_10[[current_cohort]],
+#       side = 2, line = 0.5, outer = TRUE, cex = 1.8,
+#       at =1/12*c(12:1)-1/20, las = 2)
+# mtext(text = "M2-M1 normalised by num events", side = 3, line = 1.4, outer = TRUE,
+#       cex = 2.2,
+#       at=0.45, font=2)
 
 ```
 
