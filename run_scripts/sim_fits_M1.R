@@ -53,18 +53,12 @@ object_matrix <- list(lambda0_matrix=matrix(object_par$sim_lambda_0,
                       lambda1_matrix=matrix(object_par$sim_lambda_1,
                                             nrow=length(object_par$f_vec_1),
                                             ncol=length(object_par$f_vec_1)),
-                      ### TO DO, should this be model 1 fn here??
-                      ##### working on ####
                       alpha_matrix=formMatrix(function(x,y)
                         object_fn$alpha.fun(x,y,object_par$sim_eta_1,object_par$sim_eta_2),
                         object_par$f_vec_1),
                       beta_matrix=matrix(object_par$sim_beta,
                                          nrow=length(object_par$f_vec_1),
-                                         ncol=length(object_par$f_vec_1)),
-                      q1_matrix=formMatrix(function(x,y) object_fn$q1.fun(x,y,object_par$sim_eta_3),
-                                           object_par$f_vec_1),
-                      q2_matrix=formMatrix(function(x,y) object_fn$q0.fun(x,y,object_par$sim_eta_3),
-                                           object_par$f_vec_1))
+                                         ncol=length(object_par$f_vec_1)))
 
 # matrixPlotParameter(object_matrix$alpha_matrix)
 # object_matrix$q1_matrix
@@ -89,12 +83,12 @@ for(i in c(1:n_sim)){
 
 dir.create(data_path, recursive = TRUE, showWarnings = FALSE)
 save(object_fn, object_par, 
-     object_matrix, sim_model3_data, 
+     object_matrix, sim_model1_data, 
      file = paste(data_path,"sim_model1.RData",sep=''))
 
 
 
-### Fit each model to simulatd data ####
+### Fit each model to simulated data ####
 
 load(paste(data_path,"sim_model1.RData",sep=''))
 
