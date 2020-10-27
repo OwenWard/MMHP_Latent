@@ -97,9 +97,9 @@ save(object_fn, object_par,
 load(paste(data_path,"sim_model2.RData",sep=''))
 
 ## fit in the model
-sim_model1_stan_fit1 <- rep(list(),n_sim)
-sim_model1_stan_fit2 <- rep(list(),n_sim)
-sim_model1_stan_fit3 <- rep(list(),n_sim)
+sim_model2_stan_fit1 <- rep(list(),n_sim)
+sim_model2_stan_fit2 <- rep(list(),n_sim)
+sim_model2_stan_fit3 <- rep(list(),n_sim)
 
 model1 <- stan_model("lib/sim_model1.stan")
 model2 <- stan_model("lib/sim_model2.stan")
