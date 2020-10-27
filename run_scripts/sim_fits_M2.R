@@ -47,11 +47,12 @@ object_par <- list(sim_lambda_0=0.08,
                    sim_eta_2=0.6,
                    sim_eta_3=5,
                    sim_beta=1.5,
-                   f_vec_1=c(0.1,0.2,0.4,0.7,0.9))
+                   f_vec_1=c(0.1,0.2,0.4,0.7,0.9),
+                   gamma = c(0.05, 0.1, 0.2, 0.3, 0.4),
+                   zeta = c(0.3,0.25,0.15,0.125,0.05))
 
-object_matrix <- list(lambda0_matrix=matrix(object_par$sim_lambda_0,
-                                            nrow=length(object_par$f_vec_1),
-                                            ncol=length(object_par$f_vec_1)),
+object_matrix <- list(lambda0_matrix= outer(object_par$gamma, object_par$zeta,
+                                            FUN = " +"),
                       lambda1_matrix=matrix(object_par$sim_lambda_1,
                                             nrow=length(object_par$f_vec_1),
                                             ncol=length(object_par$f_vec_1)),
