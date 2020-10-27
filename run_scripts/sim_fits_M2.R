@@ -23,7 +23,7 @@ source('lib/drawIntensity.R')
 #source('lib/prepareDataStan.R')
 #source('lib/cleanData.R')
 # Define global variable
-n_sim <- 50
+n_sim <- 10 # to see how long it takes
 cut_off <- 3
 
 model1_fn <- list(alpha.fun = function(x,y,eta1,eta2,eta3){
@@ -86,7 +86,7 @@ for(i in c(1:n_sim)){
 
 dir.create(data_path, recursive = TRUE, showWarnings = FALSE)
 save(object_fn, object_par, 
-     object_matrix, sim_model1_data, 
+     object_matrix, sim_model2_data, 
      file = paste(data_path,"sim_model2.RData",sep=''))
 
 
