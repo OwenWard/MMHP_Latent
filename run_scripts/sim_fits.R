@@ -4,7 +4,7 @@
 #### if running on cluster ####
 source("/rigel/stats/users/ogw2103/code/MMHP/MMHP_Latent/run_scripts/cluster_setup.R")
 
-data_path <- "output/sims_long/"
+data_path <- "output/sims_m3_dc/"
 
 library(rstan)
 options(mc.cores = parallel::detectCores())
@@ -40,14 +40,15 @@ object_fn <- list(alpha.fun = function(x,y,eta1,eta2){return(eta1*x*y*exp(-eta2*
 object_par <- list(sim_lambda_0=0.08,
                    sim_lambda_1=0.15,
                    sim_eta_1=2.5,
+                   gamma_var = c(0.01, 0.02, 0.03, 0.06, 0.07),
+                   zeta_var = c(0.075, 0.02, 0.03, 0.05, 0.08),
                    sim_eta_2=0.6,
                    sim_eta_3=5,
                    sim_beta=1.5,
                    f_vec_1=c(0.1,0.2,0.4,0.7,0.9))
 
-object_matrix <- list(lambda0_matrix=matrix(object_par$sim_lambda_0,
-                                            nrow=length(object_par$f_vec_1),
-                                            ncol=length(object_par$f_vec_1)),
+object_matrix <- list(lambda0_matrix=outer(object_par$gamma_var,
+                                           object_par$zeta_var, "+"),
                       lambda1_matrix=matrix(object_par$sim_lambda_1,
                                             nrow=length(object_par$f_vec_1),
                                             ncol=length(object_par$f_vec_1)),
@@ -101,7 +102,7 @@ sim_model3_stan_fit3 <- rep(list(),n_sim)
 
 model1 <- stan_model("lib/sim_model1.stan")
 model2 <- stan_model("lib/sim_model2.stan")
-model3 <- stan_model("lib/sim_model3.stan")
+model3 <- stan_model("lib/sim_model3_dc.stan")
 
 for(i in c(1:n_sim)){
   clean_sim_data <- cleanSimulationData(raw_data=sim_model3_data[i][[1]], 

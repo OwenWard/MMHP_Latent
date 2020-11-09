@@ -7,7 +7,7 @@ output:
     toc: true
     toc_depth: 2
     toc_float: true
-    number_sections: FALSE
+    number_sections: TRUE
     code_folding: hide
 ---
 
@@ -103,7 +103,7 @@ object_matrix <- list(lambda0_matrix = matrix(object_par$sim_lambda_0,
 
 ```
 
-
+## Simulated data from original model
 
 ```{r sim data from c-mmhp, cache=TRUE}
 sim_model3_data <- simulateLatentMMHP(lambda0_matrix = object_matrix$lambda0_matrix,
@@ -119,7 +119,7 @@ clean_sim_data <- cleanSimulationData(raw_data = sim_model3_data,
 ```
 
 
-```{r recover cmmhp model, cache=TRUE}
+```{r recover cmmhp model, eval=FALSE ,cache=TRUE}
 # model3 <- stan_model(here("lib","sim_model3.stan"))
 model3 <- cmdstan_model(here("lib","sim_model3.stan"))
 data_list <- list(max_Nm=max(clean_sim_data$N_count),
@@ -136,17 +136,24 @@ data_list <- list(max_Nm=max(clean_sim_data$N_count),
                     max_interevent = clean_sim_data$max_interevent)
 
 model3_stan_fit <- model3$sample(data = data_list,
-                                iter_warmup = 500,
-                                iter_sampling = 500,
+                                seed = 123,
+                                iter_warmup = 50,
+                                iter_sampling = 50,
                                 chains = 4, 
                                 parallel_chains = 4,
                                 refresh = 100)
+model3_stan_fit$save_object(file = here("output", "rank_sims", 
+                                        "rmd_stan",
+                                        "model_3_stan_fit.RDS"))
 
 ```
 
 
 
 ```{r extract stan fit}
+model3_stan_fit <- readRDS(here("output", "rank_sims", 
+                                        "rmd_stan",
+                                        "model_3_stan_fit.RDS"))
 stanfit <- rstan::read_stan_csv(model3_stan_fit$output_files())
 
 stansims <- rstan::extract(stanfit)
@@ -205,7 +212,7 @@ clean_sim_data_dc <- cleanSimulationData(raw_data = sim_model3_data_dc,
 ```
 
 
-```{r fit dc mmhp, cache=TRUE}
+```{r fit dc mmhp, eval=FALSE}
 model3_dc <- cmdstan_model(here("lib","sim_model3_dc.stan"))
 data_list_dc <- list(max_Nm = max(clean_sim_data_dc$N_count),
                     N_til = length(clean_sim_data_dc$I_fit),
@@ -229,6 +236,15 @@ model3_dc_stan_fit <- model3_dc$sample(data = data_list_dc,
                                 parallel_chains = 4,
                                 refresh = 100)
 
+model3_dc_stan_fit$save_object(file = here("output", "rank_sims", 
+                                        "rmd_stan",
+                                        "model_3_dc_stan_fit.RDS"))
+```
+
+```{r load dc stan fit}
+model3_dc_stan_fit <- readRDS(here("output", "rank_sims", 
+                                        "rmd_stan",
+                                        "model_3_dc_stan_fit.RDS"))
 stanfit_dc <- rstan::read_stan_csv(model3_dc_stan_fit$output_files())
 stansims_dc <- rstan::extract(stanfit_dc)
 ## truth is .1, .2, .4, .7, .9
@@ -251,9 +267,10 @@ isi_rank_dc
 true_rank <- c(1:5)
 
 table(true_rank, m3_rank)
-table(true_rank, isi_rank)
-table(isi_rank, m3_rank)
+table(true_rank, isi_rank_dc)
+table(isi_rank_dc, m3_rank)
 ```
 
 So when we consider this degree corrected model we also
-correctly recover the latent ranking order in this simulation.
+correctly recover the latent ranking order in this simulation from 
+both the stan fit and the I&SI model.
