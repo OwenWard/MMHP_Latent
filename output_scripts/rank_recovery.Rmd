@@ -136,8 +136,8 @@ data_list <- list(max_Nm=max(clean_sim_data$N_count),
                     max_interevent = clean_sim_data$max_interevent)
 
 model3_stan_fit <- model3$sample(data = data_list,
-                                num_warmup = 500,
-                                num_samples = 500,
+                                iter_warmup = 500,
+                                iter_sampling = 500,
                                 chains = 4, 
                                 parallel_chains = 4,
                                 refresh = 100)
@@ -153,6 +153,10 @@ stansims <- rstan::extract(stanfit)
 ## truth is .1, .2, .4, .7, .9
 apply(stansims$f, 2, mean)
 apply(stansims$f, 2, sd)
+
+# most important is the order
+m3_rank <- order(apply(stansims$f, 2, mean))
+#order(apply(stansims$f, 2, sd))
 ```
 
 
@@ -161,5 +165,95 @@ count_data <- get_wl_matrix(df = cbind(clean_sim_data$start,clean_sim_data$end))
 isi.out <- compete::isi98(m = count_data, random = TRUE)
 isi_rank <- as.numeric(rev(isi.out$best_order)) # ranked from lowest to highest
 
-table(1:5,isi_rank)
+isi_rank
+true_rank <- c(1:5)
+
+table(true_rank, m3_rank)
+table(true_rank, isi_rank)
+table(isi_rank, m3_rank)
 ```
+
+
+## Simulated from degree corrected model
+
+How does this ranking inference compare when we instead simulate
+data from the proposed degree corrected model.
+
+
+```{r sim dc mmhp, cache=TRUE}
+gamma_var <- c(0.01, 0.02, 0.03, 0.06, 0.07)
+zeta_var <- c(0.075, 0.02, 0.03, 0.05, 0.08 )
+lambda_dc_matrix <- outer(gamma_var, zeta_var, "+")
+# lambda_dc_matrix
+
+object_dc_matrix <- object_matrix
+object_dc_matrix$lambda0_matrix <- lambda_dc_matrix
+
+
+sim_model3_data_dc <- 
+  simulateLatentMMHP(lambda0_matrix = object_dc_matrix$lambda0_matrix,
+                      lambda1_matrix = object_dc_matrix$lambda1_matrix,
+                      alpha_matrix = object_dc_matrix$alpha_matrix,
+                      beta_matrix = object_dc_matrix$beta_matrix,
+                      q1_matrix = object_dc_matrix$q1_matrix,
+                      q2_matrix = object_dc_matrix$q2_matrix,
+                      horizon = 200)
+clean_sim_data_dc <- cleanSimulationData(raw_data = sim_model3_data_dc, 
+                                        cut_off = cut_off, 
+                                      N = length(object_par$f_vec_1))
+
+```
+
+
+```{r fit dc mmhp, cache=TRUE}
+model3_dc <- cmdstan_model(here("lib","sim_model3_dc.stan"))
+data_list_dc <- list(max_Nm = max(clean_sim_data_dc$N_count),
+                    N_til = length(clean_sim_data_dc$I_fit),
+                    M=sum(clean_sim_data_dc$N_count>=cut_off),
+                    N=length(object_par$f_vec_1),
+                    I_fit = clean_sim_data_dc$I_fit,
+                    J_fit = clean_sim_data_dc$J_fit,
+                    T = tail(clean_sim_data_dc$day_hour,1),
+                    Nm = as.vector(clean_sim_data_dc$N_count[
+                      clean_sim_data_dc$N_count 
+                                                          >= cut_off]),
+                    event_matrix = clean_sim_data_dc$event_matrix,
+                    interevent_time_matrix = clean_sim_data_dc$time_matrix,
+                    max_interevent = clean_sim_data_dc$max_interevent)
+
+model3_dc_stan_fit <- model3_dc$sample(data = data_list_dc,
+                                seed = 123,
+                                iter_warmup = 500,
+                                iter_sampling = 500,
+                                chains = 4, 
+                                parallel_chains = 4,
+                                refresh = 100)
+
+stanfit_dc <- rstan::read_stan_csv(model3_dc_stan_fit$output_files())
+stansims_dc <- rstan::extract(stanfit_dc)
+## truth is .1, .2, .4, .7, .9
+apply(stansims_dc$f, 2, mean)
+apply(stansims_dc$f, 2, sd)
+
+# most important is the order
+m3_dc_rank <- order(apply(stansims_dc$f, 2, mean))
+```
+
+Then we can compare the I&SI model here also.
+
+```{r i and si dc}
+count_data_dc <- get_wl_matrix(df = cbind(clean_sim_data_dc$start, 
+                                       clean_sim_data_dc$end))
+isi_dc.out <- compete::isi98(m = count_data_dc, random = TRUE)
+isi_rank_dc <- as.numeric(rev(isi_dc.out$best_order)) # ranked from lowest to highest
+
+isi_rank_dc
+true_rank <- c(1:5)
+
+table(true_rank, m3_rank)
+table(true_rank, isi_rank)
+table(isi_rank, m3_rank)
+```
+
+So when we consider this degree corrected model we also
+correctly recover the latent ranking order in this simulation.
