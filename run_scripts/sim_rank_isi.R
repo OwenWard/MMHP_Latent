@@ -15,6 +15,7 @@ library(tidyverse)
 library(rstan)
 library(compete)
 
+options(mc.cores = parallel::detectCores())
 
 source(here("lib",'uniHawkes.R'))
 source(here("lib","mmhp.R"))
@@ -122,7 +123,8 @@ data_list_dc <- list(max_Nm = max(clean_sim_data_dc$N_count),
 
 
 model3_dc_stan_fit <- sampling(model3_dc, data = data_list_dc,
-                               iter = 1000, chains = 4)
+                               iter = 1000, chains = 4,
+                               cores = getOption("mc.cores",1L))
 
 
 stansims_dc <- rstan::extract(model3_dc_stan_fit)
