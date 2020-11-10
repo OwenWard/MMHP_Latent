@@ -38,7 +38,12 @@ based on those rankings for the remaining events.
 
 # Comparison models on simulated data
 
-We first simulate a single dense network from the C-MMHP model.
+We first simulate a single dense network from the C-MMHP model,
+with a latent rank vector given by
+
+$$
+f =(0.1, 0.2, 0.4, 0.7, 0.9).
+$$
 
 ```{r load functions}
 source(here("lib",'uniHawkes.R'))
@@ -148,7 +153,7 @@ model3_stan_fit$save_object(file = here("output", "rank_sims",
 
 ```
 
-
+We can then extract the posterior mean rank from our fitted model.
 
 ```{r extract stan fit}
 model3_stan_fit <- readRDS(here("output", "rank_sims", 
@@ -158,21 +163,32 @@ stanfit <- rstan::read_stan_csv(model3_stan_fit$output_files())
 
 stansims <- rstan::extract(stanfit)
 ## truth is .1, .2, .4, .7, .9
+
+
 apply(stansims$f, 2, mean)
-apply(stansims$f, 2, sd)
+# posterior mean
+# posterior sd
+# apply(stansims$f, 2, sd)
 
 # most important is the order
 m3_rank <- order(apply(stansims$f, 2, mean))
 #order(apply(stansims$f, 2, sd))
 ```
+We can compare this to the ranking from I&SI on the count data alone, which
+is given below.
 
-
-```{r fit I&SI}
+```{r fit I&SI, results='hide'}
 count_data <- get_wl_matrix(df = cbind(clean_sim_data$start,clean_sim_data$end))
 isi.out <- compete::isi98(m = count_data, random = TRUE)
 isi_rank <- as.numeric(rev(isi.out$best_order)) # ranked from lowest to highest
-
+```
+```{r print isi result}
 isi_rank
+```
+
+Similarly we can compare these and the true ranking pairwise.
+
+```{r}
 true_rank <- c(1:5)
 
 table(true_rank, m3_rank)
@@ -252,7 +268,7 @@ apply(stansims_dc$f, 2, mean)
 apply(stansims_dc$f, 2, sd)
 
 # most important is the order
-m3_dc_rank <- order(apply(stansims_dc$f, 2, mean))
+m3_dc_rank <- sort(apply(stansims_dc$f, 2, mean))
 ```
 
 Then we can compare the I&SI model here also.
@@ -274,3 +290,10 @@ table(isi_rank_dc, m3_rank)
 So when we consider this degree corrected model we also
 correctly recover the latent ranking order in this simulation from 
 both the stan fit and the I&SI model.
+
+
+
+# Extrapolation from inferred rank on subset
+
+We also wish to consider how well we can infer the latent rank 
+over time, where
