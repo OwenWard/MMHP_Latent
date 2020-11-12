@@ -8,3 +8,7 @@ html/
 figure-html/
 .png
 output_scripts/*.html
+
+run_scripts/routput*
+run_scripts/slurm*
+output_jul*
