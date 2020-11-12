@@ -397,6 +397,56 @@ all_sims %>%
 
 ```
 
+
+Similarly, we can compute the Spearman rank correlation between each of these 
+models and the truth.
+
+```{r some code to summarise these, eval = FALSE}
+### compute spearman rank
+truth <- output_rank$truth
+output_rank %>% 
+  select(m1:isi) %>%
+  map( ~cor.test(truth, .x,
+                method = "spearman")$estimate  ) %>%
+  enframe() %>%
+  unnest(cols = c(value))
+
+
+output_rank2 <- output_rank
+output_rank2$sim <- 2
+output_rank2
+
+
+bind_rows(output_rank, output_rank2) %>%
+  group_by(sim) %>%
+  select(m1:isi) %>%
+  map( ~cor.test(truth, .x,
+                 method = "spearman")$estimate  ) %>%
+  enframe() %>%
+  unnest(cols = c(value))
+
+
+sims_list <- list()
+
+sims_list[[1]] <- output_rank
+sims_list[[2]] <- output_rank2
+
+spear <- function(sim_data) {
+  truth <- sim_data$truth
+  sim_data %>%
+    select(m1:isi) %>%
+    map( ~cor.test(truth, .x,
+                   method = "spearman")$estimate  ) %>%
+    enframe() %>%
+    unnest(cols = c(value))
+}
+
+
+map_dfr(sims_list, spear) # in a nice long format
+```
+
+
+
 # Extrapolation from inferred rank on subset
 
 We also wish to consider how well we can infer the latent rank 
@@ -662,7 +712,7 @@ training_data <- readRDS(file = here("output", "rank_sims",
                                         "train_data_dc.RDS"))
 
 
-training_data
+# training_data
 ### need score (1) for all of these, along with the row number
 
 glick_df <- training_data %>% 

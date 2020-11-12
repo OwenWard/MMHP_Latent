@@ -105,6 +105,47 @@ clean_sim_data_dc <- cleanSimulationData(raw_data = sim_model3_data_dc,
 
 ### then fit the stan model (not cmdstanr)
 
+#### model 1 ####
+model1 <- stan_model(here("lib", "sim_model1.stan"))
+
+data_list <- list(max_Nm = max(clean_sim_data_dc$N_count),
+                     N_til = length(clean_sim_data_dc$I_fit),
+                     M=sum(clean_sim_data_dc$N_count>=cut_off),
+                     N=length(object_par$f_vec_1),
+                     I_fit = clean_sim_data_dc$I_fit,
+                     J_fit = clean_sim_data_dc$J_fit,
+                     T = tail(clean_sim_data_dc$day_hour,1),
+                     Nm = as.vector(clean_sim_data_dc$N_count[
+                       clean_sim_data_dc$N_count 
+                       >= cut_off]),
+                     event_matrix = clean_sim_data_dc$event_matrix,
+                     interevent_time_matrix = clean_sim_data_dc$time_matrix,
+                     max_interevent = clean_sim_data_dc$max_interevent)
+
+model1_stan_fit <- sampling(model1, data = data_list,
+                               iter = 1000, chains = 4,
+                               cores = getOption("mc.cores",1L))
+
+
+stansims_m1 <- rstan::extract(model1_stan_fit)
+
+m1_rank <- order(apply(stansims_m1$f, 2, mean))
+
+#### model 2 ####
+
+model2 <- stan_model(here("lib", "sim_model2.stan"))
+
+model2_stan_fit <- sampling(model2, data = data_list,
+                            iter = 1000, chains = 4,
+                            cores = getOption("mc.cores",1L))
+
+
+stansims_m2 <- rstan::extract(model2_stan_fit)
+
+m2_rank <- order(apply(stansims_m2$f, 2, mean))
+
+
+#### model 3 ####
 model3_dc <- stan_model(here("lib","sim_model3_dc.stan"))
 data_list_dc <- list(max_Nm = max(clean_sim_data_dc$N_count),
                      N_til = length(clean_sim_data_dc$I_fit),
@@ -143,10 +184,15 @@ isi_rank_dc <- as.numeric(rev(isi_dc.out$best_order))
 
 ## then save these
 
-output_rank <- tibble(truth = 1:5, m3_dc = m3_dc_rank,
-                      isi = isi_rank_dc)
+output_rank <- tibble(truth = 1:5, 
+                      m1 = m1_rank,
+                      m2 = m2_rank,
+                      m3_dc = m3_dc_rank,
+                      isi = isi_rank_dc, 
+                      sim = rep(sim_id,5))
 
 dir.create(data_path, recursive = TRUE, showWarnings = FALSE)
 
 saveRDS(output_rank, 
         file = paste(data_path,"rank_sim",sim_id,".RDS",sep=''))
+
