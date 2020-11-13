@@ -20,6 +20,8 @@ library(rstan)
 library(cmdstanr)
 library(compete)
 library(posterior)
+
+theme_set(theme_minimal())
 ```
 
 
@@ -358,7 +360,7 @@ We see that the C-MMHP is fully correct 80% of the time while the
 I&SI ranking is fully correct in 60% of these simulations.
 
 ```{r prop full recover}
-all_sims$sim <- rep(1:20, each = 5)
+all_sims$sim <- rep(1:50, each = 5)
 
 all_sims %>% select(sim, truth, m3_dc) %>%
   mutate(diff = truth - m3_dc) %>%
@@ -398,38 +400,22 @@ all_sims %>%
 ```
 
 
-Similarly, we can compute the Spearman rank correlation between each of these 
-models and the truth.
-
-```{r some code to summarise these, eval = FALSE}
-### compute spearman rank
-truth <- output_rank$truth
-output_rank %>% 
-  select(m1:isi) %>%
-  map( ~cor.test(truth, .x,
-                method = "spearman")$estimate  ) %>%
-  enframe() %>%
-  unnest(cols = c(value))
+Similarly, we can summarise this by
+computing the Spearman rank correlation between each of these 
+models and the truth. The C-MMHP model unsurprisingly best recovers the
+true rankings, with the I&SI model performing similarly.
 
 
-output_rank2 <- output_rank
-output_rank2$sim <- 2
-output_rank2
+```{r analyse sims}
+sim_files <- list.files(here("output","rank_sims","sims_m3_dc_isi"))
 
-
-bind_rows(output_rank, output_rank2) %>%
-  group_by(sim) %>%
-  select(m1:isi) %>%
-  map( ~cor.test(truth, .x,
-                 method = "spearman")$estimate  ) %>%
-  enframe() %>%
-  unnest(cols = c(value))
-
-
-sims_list <- list()
-
-sims_list[[1]] <- output_rank
-sims_list[[2]] <- output_rank2
+all_sims <- list()
+for(i in seq_along(sim_files)) {
+ single_fit <- readRDS(here("output", "rank_sims", 
+                            "sims_m3_dc_isi",
+                            sim_files[i]))
+ all_sims[[i]] <- single_fit
+}
 
 spear <- function(sim_data) {
   truth <- sim_data$truth
@@ -442,10 +428,26 @@ spear <- function(sim_data) {
 }
 
 
-map_dfr(sims_list, spear) # in a nice long format
+sim_data <- map_dfr(all_sims, spear) 
+
+name <- sim_data$name
+
+sim_data$name <- case_when(
+          name == "isi" ~ "I&SI",
+          name == "m1" ~ "C-HP",
+          name == "m2" ~ "C-DCHP",
+          name == "m3_dc" ~ "C-MMHP")
+
+sim_data$name <- factor(sim_data$name, levels = c("I&SI","C-HP",
+                                                  "C-DCHP", "C-MMHP"))
+
+sim_data %>% 
+  rename(Method = name, corr = value) %>%
+  ggplot(aes(Method,corr)) + geom_boxplot() +
+  labs(y = "Rank Correlation")
+  # in a nice long format
+
 ```
-
-
 
 # Extrapolation from inferred rank on subset
 
@@ -504,7 +506,7 @@ compute_isi <- function(win_loss_matrix, curr_ranking) {
 ```{r check isi function, results='hide'}
 clean_sim_data <- readRDS(file = here("output", "rank_sims", 
                                         "rmd_stan",
-                                        "sim_data_M3.RDS"))
+                                        "sim_data_M3_dc.RDS"))
 clean_sim_data_dc$N_count
 
 count_data_dc <- get_wl_matrix(df = cbind(clean_sim_data_dc$start, 
@@ -513,7 +515,7 @@ isi_dc.out <- compete::isi98(m = count_data_dc, random = TRUE)
 
 # these agree 
 
-compute_isi(count_data_dc, curr_ranking = c(5,3,1,2,4))
+compute_isi(count_data_dc, curr_ranking = c(2,5,4,1,3))
 
 ```
 
@@ -675,7 +677,8 @@ agg_rank_draws_train <- as_draws_df(agg_rank_fit$draws())
 agg_train_mean_rank <- agg_rank_draws_train %>%
   select(starts_with("x")) %>% apply(2,mean)
 
-agg_rank_train <- order(agg_train_mean_rank)
+# for highest to lowest
+agg_rank_train <- rev(order(agg_train_mean_rank))
 ```
 
 ```{r show agg rank mean}
@@ -742,3 +745,29 @@ glicko_test_score <- compute_isi(test_wl,curr_ranking = gl_ranks)
 glicko_test_score
 
 ```
+
+
+## Real Data
+
+To be completed.
+
+```{r plot isi scores}
+sim_files <- list.files(here("output","rank_sims","predict_isi"))
+
+all_sims <- list()
+for(i in seq_along(sim_files)) {
+  single_fit <- readRDS(here("output", "rank_sims", 
+                             "predict_isi",
+                             sim_files[i]))
+  all_sims[[i]] <- single_fit
+}
+
+cohort_scores <- all_sims %>%
+  map(~as_tibble(.)) %>%
+  bind_rows(.id="index")
+
+cohort_scores %>% 
+  mutate(ISI = I_score + SI_score) %>%
+  ggplot(aes(model,ISI)) + geom_boxplot()
+```
+
