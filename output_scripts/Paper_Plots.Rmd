@@ -702,7 +702,7 @@ like the plots in 2b.
 
 ## Figure 4a Recover Latent Ranks
 ```{r fig-4a}
-sim_data_path <- "../output/sims_long/"
+sim_data_path <- "../output/sims/sims_m3_dc/"
 
 
 load(paste(sim_data_path,"sim_model3_fit123.RData",sep=''))
@@ -768,7 +768,7 @@ for(m in c(1:3)){
 
 
 ```{r prepare data for 4b,cache=TRUE}
-plot.s <- 9#7#9
+plot.s <- 1#7#9
 plot.i <- 4
 plot.j <- 5
 
@@ -877,7 +877,7 @@ lambda.true <- mmhpTrueIntensityNumeric(params=object_true,
 
 
 ```{r fig4b-recover-latent-states}
-y.ub <- c(20,20,20)#c(130,72,31)
+y.ub <- c(17,17,17)#c(130,72,31)
 x_events <- 135#150
 #model_colors <- c("steelblue", "goldenrod2", "firebrick2")
 model_colors <- viridis::viridis(3)
@@ -887,7 +887,7 @@ my.xlim <- 140#160#200#130
 my.long.x <- 140#205#134.5
 legend.x <- c(50,50,50)#c(135,135,135)
 legend.y <- #c(34,32,32)
-legend.y <- c(20,12,15)#c(62,37,18)#c(22,22,22)
+legend.y <- c(15,12,15)#c(62,37,18)#c(22,22,22)
 legend.cex <- 1.5 #3
 line.alpha <- c(0.9,0.6)
 line.wdth <- c(2,2.5)
@@ -992,13 +992,13 @@ legend(legend.x[2],legend.y[2],"C-DCHP",
 axis(1,at=c(-2,my.long.x),col="gray35",
      line=0.5,tick=T,labels=rep("",2),lwd=0.5,lwd.ticks=0,lty=3)
 
-legend(10,legend.y[2],c("State 0/1 events","State change point"),
+legend(10,legend.y[2]+2,c("State 0/1 events","State change point"),
        col = c(NA,"red"),
        y.intersp=0.85,x.intersp=-0.1, bty = "n",
        pch = c(NA,4), pt.cex = c(NA,2), cex=legend.cex,
        lty = c(NA,NA), lwd=c(NA,4))
-points(14,8,pch=1,cex=2,col="blue")
-points(16,8,pch=16,cex=2,col="blue")
+points(14,8+2,pch=1,cex=2,col="blue")
+points(16,8+2,pch=16,cex=2,col="blue")
 
 ## delta lambda
 par(mar = c(0,0.3,0,0.1))
@@ -1082,6 +1082,268 @@ mtext(text="Time",side=1,line=2,outer=TRUE,cex=2.5)
 mtext(text="Intensity",side=2,line=0.6,outer=TRUE,cex=2.5)
 ```
 
+## Fig 4 repeated for data generated from other models
+
+For completeness, we also wish to repeat the above two plots using data generated 
+from M1 and M2.
+
+For data simulated from M1.
+
+```{r est ranks for m1 sim data}
+m1_path <- "../output/sims/M1/"
+
+m1_files <- list.files(m1_path, pattern = "sim_model1_fit*")
+#m1_files
+
+# load(paste0(m1_path,m1_files[1]))
+sim_model1_stan_sim1_total <- list()
+sim_model1_stan_sim2_total <- list()
+sim_model1_stan_sim3_total <- list()
+
+for(i in seq_along(m1_files)) {
+  load(paste0(m1_path,m1_files[i]))
+  sim_model1_stan_sim1_total[[i]] <- sim_model1_stan_sim1
+  sim_model1_stan_sim2_total[[i]] <- sim_model1_stan_sim2
+  sim_model1_stan_sim3_total[[i]] <- sim_model1_stan_sim3
+  
+}
+
+m2_path <- "../output/sims/M2/"
+
+m2_files <- list.files(m2_path, pattern = "sim_model2_fit*")
+#m1_files
+
+# load(paste0(m1_path,m1_files[1]))
+sim_model2_stan_sim1_total <- list()
+sim_model2_stan_sim2_total <- list()
+sim_model2_stan_sim3_total <- list()
+
+for(i in seq_along(m2_files)) {
+  load(paste0(m2_path,m2_files[i]))
+  sim_model2_stan_sim1_total[[i]] <- sim_model2_stan_sim1
+  sim_model2_stan_sim2_total[[i]] <- sim_model2_stan_sim2
+  sim_model2_stan_sim3_total[[i]] <- sim_model2_stan_sim3
+  
+}
+
+```
+
+
+```{r plot est ranks M1 and M2}
+n_sim <- 50
+
+#png(paste(plot_path,"sim_latent_recover.png",sep=""), height=500, width=900)
+par(mfrow=c(3, length(object_par$f_vec_1)),
+    mar=c(0,0,1,0),
+    oma=c(6.5,11,3.5,1))
+
+y.ub <- c(12,12,12,12,12)
+text.y <- c(rep(8,4),8)
+text.x <- c(0.1,0.2,0.4,0.7,0.9)
+text.x.adj <- c(0.3,0.4,0.6,0.5,0.8)
+model_colors <- c("steelblue", "goldenrod2", "firebrick2")
+model_colors <- viridis::viridis(3)
+
+for(m in c(1:3)){
+  for(j in c(1:length(object_par$f_vec_1))){
+    plot(1,4,xlim=c(0,1),ylim=c(0,y.ub[j]),
+         type="n",xlab="",ylab="",xaxt="n",yaxt="n",axes=FALSE)
+    
+    ## Posterior density
+    current_result <- eval(parse(text=paste("sim_model1_stan_sim",
+                                            m,
+                                            "_total",
+                                            sep="")))
+    for(i in c(1:n_sim)){
+      lines(density(current_result[[i]]$f[1001:2000,j]),
+            col=add.alpha(model_colors[m], alpha=0.8),cex=0.6,lwd=0.8)
+    }
+    
+    ## plot true value
+    abline(v=object_par$f_vec_1[j],lwd=1.8,lty=2,col="gray30")
+    
+    ## plot box
+    box.wdt <- 1.5
+    box.col <- "black"
+    box(lty = 'solid',col=box.col,lwd=0.7)
+    
+    if(m==3){
+      text(text.x.adj[j],text.y[j],text.x[j],cex=2.4)
+    }
+  }
+  ## bottom
+  mtext(text=expression(f[1],f[2],f[3],f[4],f[5]), side=1, line=2.4, outer=TRUE, 
+        at=c(1:length(object_par$f_vec_1))/length(object_par$f_vec_1)-0.1,
+        cex=2.4)
+  mtext(text="Latent rank variables", side=1, line=5.3, outer=TRUE, cex=2.7,
+        at=0.5)
+  ## top
+  mtext(text="Simulated from M1", side=3, line=0, outer=TRUE, cex=3,
+        at=0.5, font=2)
+  ## left
+  mtext(text=rev(c("C-HP  ","C-DCHP","C-MMHP")), side=2, line=0.5, outer=TRUE, 
+        at=c(0:2)/3+0.15,
+        cex=2, las=2)
+}
+
+
+for(m in c(1:3)){
+  for(j in c(1:length(object_par$f_vec_1))){
+    plot(1,4,xlim=c(0,1),ylim=c(0,y.ub[j]),
+         type="n",xlab="",ylab="",xaxt="n",yaxt="n",axes=FALSE)
+    
+    ## Posterior density
+    current_result <- eval(parse(text=paste("sim_model2_stan_sim",
+                                            m,
+                                            "_total",
+                                            sep="")))
+    for(i in c(1:n_sim)){
+      lines(density(current_result[[i]]$f[1001:2000,j]),
+            col=add.alpha(model_colors[m], alpha=0.8),cex=0.6,lwd=0.8)
+    }
+    
+    ## plot true value
+    abline(v=object_par$f_vec_1[j],lwd=1.8,lty=2,col="gray30")
+    
+    ## plot box
+    box.wdt <- 1.5
+    box.col <- "black"
+    box(lty = 'solid',col=box.col,lwd=0.7)
+    
+    if(m==3){
+      text(text.x.adj[j],text.y[j],text.x[j],cex=2.4)
+    }
+  }
+  ## bottom
+  mtext(text=expression(f[1],f[2],f[3],f[4],f[5]), side=1, line=2.4, outer=TRUE, 
+        at=c(1:length(object_par$f_vec_1))/length(object_par$f_vec_1)-0.1,
+        cex=2.4)
+  mtext(text="Latent rank variables", side=1, line=5.3, outer=TRUE, cex=2.7,
+        at=0.5)
+  ## top
+  mtext(text="Simulated from M2", side=3, line=0, outer=TRUE, cex=3,
+        at=0.5, font=2)
+  ## left
+  mtext(text=rev(c("C-HP  ","C-DCHP","C-MMHP")), side=2, line=0.5, outer=TRUE, 
+        at=c(0:2)/3+0.15,
+        cex=2, las=2)
+}
+```
+
+Similarly, we can then repeat this for Fig 4b also for both simulated 
+data examples, with slightly more difficulty.
+
+```{r process m1 for fig4b}
+plot.s <- 1#7#9
+plot.i <- 4
+plot.j <- 5
+
+cur_i <- plot.i
+cur_j <- plot.j
+
+load(paste0(m1_path,m1_files[plot.s]))
+
+temp.t <- sim_model1_data[[1]]$day_hour[ which(sim_model1_data[[1]]$start == cur_i & 
+                  sim_model1_data[[1]]$end == cur_j)]
+# temp.t <- test.mmhp$tau
+current.n <- length(temp.t)-1
+time.segment <- seq(0,tail(temp.t,1),length.out=5000)
+
+### Preprocess the model inference result
+## model 1
+#########
+model1_par_est <- list(lambda0 =
+                         mean(sim_model1_stan_sim1_total[[plot.s]]$lambda0[1001:2000]),
+                       eta_1=mean(sim_model1_stan_sim1_total[[plot.s]]$eta_1[1001:2000]),
+                       eta_2=mean(sim_model1_stan_sim1_total[[plot.s]]$eta_2[1001:2000]),
+                       eta_3=mean(sim_model1_stan_sim1_total[[plot.s]]$eta_3[1001:2000]),
+                       beta=mean(sim_model1_stan_sim1_total[[plot.s]]$beta[1001:2000]),
+                       f=apply(sim_model1_stan_sim1_total[[plot.s]]$f[1001:2000,],2,mean))
+lambda.m1<-uniHawkesIntensityNumeric(object=list(lambda0 = 
+                                                   model1_par_est$lambda0,
+                                    alpha =
+                                      model1_fn$alpha.fun(model1_par_est$f[plot.i],
+                                    model1_par_est$f[plot.j],
+                                    model1_par_est$eta_1,
+                                    model1_par_est$eta_2,
+                                    model1_par_est$eta_3),
+                                    beta=model1_par_est$beta),
+                                     events=temp.t,
+                                     time.vec=time.segment)
+
+
+## model2
+#############
+model2_par_est <- list(gamma=apply(sim_model1_stan_sim2_total[[plot.s]]$gamma[1001:2000,],
+                                   2,mean),
+                    zeta = 
+                      apply(sim_model1_stan_sim2_total[[plot.s]]$zeta[1001:2000,],2,mean),
+                       eta_1=mean(sim_model1_stan_sim2_total[[plot.s]]$eta_1[1001:2000]),
+                       eta_2=mean(sim_model1_stan_sim2_total[[plot.s]]$eta_2[1001:2000]),
+                       eta_3=mean(sim_model1_stan_sim2_total[[plot.s]]$eta_3[1001:2000]),
+                       beta=mean(sim_model1_stan_sim2_total[[plot.s]]$beta[1001:2000]),
+                       f=apply(sim_model1_stan_sim2_total[[plot.s]]$f[1001:2000,],2,mean))
+
+lambda.m2 <- uniHawkesIntensityNumeric(object=list(
+  lambda0=model2_par_est$gamma[plot.i]+
+          model2_par_est$zeta[plot.j],                                        
+  alpha=model1_fn$alpha.fun(model2_par_est$f[plot.i],
+                            model2_par_est$f[plot.j],
+                            model2_par_est$eta_1,
+                            model2_par_est$eta_2,
+                            model2_par_est$eta_3),
+                beta=model2_par_est$beta),
+                events=temp.t,
+                time.vec=time.segment)
+
+## Model3
+#############
+mmhp_par_est <- list(lambda0=mean(sim_model1_stan_sim3_total[[plot.s]]$lambda0[1001:2000]),
+                     lambda1=mean(sim_model1_stan_sim3_total[[plot.s]]$lambda1[1001:2000]),
+                     eta_1=mean(sim_model1_stan_sim3_total[[plot.s]]$eta_1[1001:2000]),
+                     eta_2=mean(sim_model1_stan_sim3_total[[plot.s]]$eta_2[1001:2000]),
+                     eta_3=mean(sim_model1_stan_sim3_total[[plot.s]]$eta_3[1001:2000]),
+                     beta=mean(sim_model1_stan_sim3_total[[plot.s]]$beta[1001:2000]),
+                     f=apply(sim_model1_stan_sim3_total[[plot.s]]$f[1001:2000,],2,mean))
+
+object_hat <- list(lambda0=mmhp_par_est$lambda0,
+                   lambda1=mmhp_par_est$lambda1,
+                   alpha=model3_fn$alpha.fun(mmhp_par_est$f[cur_i],
+                                             mmhp_par_est$f[cur_j],
+                                             mmhp_par_est$eta_1,
+                                             mmhp_par_est$eta_2),
+                   beta=mmhp_par_est$beta,
+                   q1=model3_fn$q1.fun(mmhp_par_est$f[cur_i],
+                                       mmhp_par_est$f[cur_j],
+                                       mmhp_par_est$eta_3),
+                   q2=model3_fn$q0.fun(mmhp_par_est$f[cur_i],
+                                       mmhp_par_est$f[cur_j],
+                                       mmhp_par_est$eta_3))
+
+### need to load in the interpolated latent state here
+#### TO DO ####
+
+state.est.latent.mmhp <- interpolate_state_est_lst[[plot.s]][plot.i,plot.j][[1]]
+state.est.latent.mmhp.new <- fixInterpolateState(state.est.latent.mmhp,
+                                                 termination=200)
+
+step.fun.est <- stepfun(state.est.latent.mmhp$x.hat,
+                        2-state.est.latent.mmhp$z.hat)
+
+lambda.m3 <- mmhpIntensityNumeric(params=object_hat,
+                                  t=temp.t[-1],
+                                  time.vec=time.segment,
+                                  latent.vec=step.fun.est(time.segment))
+
+object_true <- lapply(object_matrix,function(x) x[plot.i,plot.j])
+names(object_true) <- c("lambda0","lambda1","alpha","beta","q1","q2")
+
+lambda.true <- mmhpTrueIntensityNumeric(params=object_true,
+                                        t=temp.t,
+                       latent=list(x=fixStateTransition(test.mmhp)$x,
+                              z=fixStateTransition(test.mmhp)$z),
+                              time.vec=time.segment)
+```
 
 
 # Figure 5:

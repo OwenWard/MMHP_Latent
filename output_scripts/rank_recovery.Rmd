@@ -643,6 +643,7 @@ isi_test_score
 
 
 How does this compare to the optimal score using only the test data.
+They agree in this instance.
 ```{r fit isi to test}
 isi98(test_wl)
 ```
