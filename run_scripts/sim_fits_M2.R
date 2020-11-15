@@ -105,7 +105,7 @@ sim_model2_stan_fit3 <- rep(list())
 
 model1 <- stan_model("lib/sim_model1.stan")
 model2 <- stan_model("lib/sim_model2.stan")
-model3 <- stan_model("lib/sim_model3.stan")
+model3 <- stan_model("lib/sim_model3_dc.stan")
 
 # for(i in c(1:n_sim)){
 clean_sim_data <- cleanSimulationData(raw_data=sim_model2_data[[1]], 
