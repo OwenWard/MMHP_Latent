@@ -5,11 +5,11 @@
 
 ### code ###
 ## run this if running on the cluster
-source("/rigel/stats/users/ogw2103/code/MMHP/MMHP_Latent/run_scripts/cluster_setup.R")
-### set cohort_id based on job num
-jobid <- Sys.getenv("SLURM_ARRAY_TASK_ID")
-jobid <- as.numeric(jobid)
-cohort_id <- jobid
+# source("/rigel/stats/users/ogw2103/code/MMHP/MMHP_Latent/run_scripts/cluster_setup.R")
+# ### set cohort_id based on job num
+# jobid <- Sys.getenv("SLURM_ARRAY_TASK_ID")
+# jobid <- as.numeric(jobid)
+# cohort_id <- jobid
 #cohort_id <- 1
 ####
 data_path <- "output/"
@@ -22,6 +22,7 @@ options(mc.cores = parallel::detectCores())
 
 library(compete)
 library(PlayerRatings)
+library(here)
 #library(RColorBrewer)
 #library(Hmisc)
 #library(wCorr)
@@ -70,6 +71,7 @@ model3_fn <- list(alpha.fun = function(x,y,eta1,eta2){return(eta1*x*y*exp(-eta2*
 mini_wl_matrix <- function(df, num_mice = 12) {
   # to avoid issues with reordering the data
   df <- as.data.frame(df)
+  mylevs <- 1:num_mice
   df[, 1] <- factor(df[, 1], levels = mylevs)
   df[, 2] <- factor(df[, 2], levels = mylevs)
   df$result <- 1
@@ -150,14 +152,14 @@ for(current_cohort in 1:10) {
   
   # highest to lowest
   
-  rank_m1 <- order(apply(sim_cohort_hp$f, 2, mean))
+  rank_m1 <- rev(order(apply(sim_cohort_hp$f, 2, mean)))
   
   #### Predict M2 ####
   load(paste(data_path,cohort_names[current_cohort],
              "/cohort_dchp_predict_stan_result_",cohort_names[current_cohort],
              ".RData",sep=''))
   # highest to lowest
-  rank_m2 <- order(apply(sim_cohort_dchp$f, 2, mean))
+  rank_m2 <- rev(order(apply(sim_cohort_dchp$f, 2, mean)))
   
   #### Predict M3 ####
   load(paste(data_path,cohort_names[current_cohort],
@@ -165,7 +167,7 @@ for(current_cohort in 1:10) {
              ".RData",sep=''))
   
   # highest to lowest
-  rank_m3 <- order(apply(sim_cohort_mmhp$f, 2, mean))
+  rank_m3 <- rev(order(apply(sim_cohort_mmhp$f, 2, mean)))
   
   #### Predict Agg Ranking ####
   load(paste(data_path,cohort_names[current_cohort],
@@ -173,7 +175,7 @@ for(current_cohort in 1:10) {
              ".RData",sep=''))
   
   # highest to lowest
-  rank_agg <- order(apply(sim_predict_agg_rank$x, 2, mean))
+  rank_agg <- rev(order(apply(sim_predict_agg_rank$x, 2, mean)))
   
   #### ISI Predict ####
   train_wl <- mini_wl_matrix(df = cbind(training_data$initiator,
@@ -192,7 +194,7 @@ for(current_cohort in 1:10) {
   
   gl_train
   
-  gl_ranks <- order(gl_train$ratings$Rating)
+  gl_ranks <- rev(order(gl_train$ratings$Rating))
   
   
   #### save this output ####
