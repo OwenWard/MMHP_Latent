@@ -27,7 +27,7 @@ data_path <- "../output/"
 
 func_dir <- "../lib/"
 
-
+library(here)
 library(rstan)
 Sys.setenv(LOCAL_CPPFLAGS = '-march=corei7 -mtune=corei7')
 options(mc.cores = parallel::detectCores())
@@ -1320,10 +1320,11 @@ object_hat <- list(lambda0=mmhp_par_est$lambda0,
                                        mmhp_par_est$f[cur_j],
                                        mmhp_par_est$eta_3))
 
-### need to load in the interpolated latent state here
-#### TO DO ####
 
-state.est.latent.mmhp <- interpolate_state_est_lst[[plot.s]][plot.i,plot.j][[1]]
+state_est_fits <- list.files(m1_path, pattern = "fit123_state_est_M1*")
+load(paste0(m1_path,state_est_fits[plot.s]))
+
+state.est.latent.mmhp <- interpolate_state_est_lst[plot.i,plot.j][[1]]
 state.est.latent.mmhp.new <- fixInterpolateState(state.est.latent.mmhp,
                                                  termination=200)
 
@@ -1331,19 +1332,565 @@ step.fun.est <- stepfun(state.est.latent.mmhp$x.hat,
                         2-state.est.latent.mmhp$z.hat)
 
 lambda.m3 <- mmhpIntensityNumeric(params=object_hat,
-                                  t=temp.t[-1],
+                                  t=temp.t,
                                   time.vec=time.segment,
                                   latent.vec=step.fun.est(time.segment))
 
 object_true <- lapply(object_matrix,function(x) x[plot.i,plot.j])
-names(object_true) <- c("lambda0","lambda1","alpha","beta","q1","q2")
+names(object_true) <- c("lambda0","lambda1","alpha","beta")
 
-lambda.true <- mmhpTrueIntensityNumeric(params=object_true,
-                                        t=temp.t,
-                       latent=list(x=fixStateTransition(test.mmhp)$x,
-                              z=fixStateTransition(test.mmhp)$z),
-                              time.vec=time.segment)
+
+lambda.true <- uniHawkesIntensityNumeric(object = object_true,
+                                        events =temp.t,
+                                        time.vec = time.segment)
 ```
+
+
+```{r fig 4b M1 sim}
+source(here("lib","mod_drawHawkesIntensityPaper.R"))
+y.ub <- c(17,17,17)#c(130,72,31)
+x_events <- 135#150
+#model_colors <- c("steelblue", "goldenrod2", "firebrick2")
+model_colors <- viridis::viridis(3)
+layout(matrix(c(1:6), 6, 1), heights=rep(c(2.5,1),3))
+layout(matrix(c(1:6), 6, 1), heights=rep(c(7.5,1),3))
+my.xlim <- 140#160#200#130
+my.long.x <- 140#205#134.5
+legend.x <- c(50,50,50)#c(135,135,135)
+legend.y <- #c(34,32,32)
+legend.y <- c(15,12,15)#c(62,37,18)#c(22,22,22)
+legend.cex <- 1.5 #3
+line.alpha <- c(0.9,0.6)
+line.wdth <- c(2,2.5)
+negative.col <- add.alpha('lightskyblue',0.6)
+positive.col <- add.alpha('tomato',0.6)
+#negative.col <- viridis::viridis(5,alpha = 0.6)[1]
+#positive.col <- viridis::viridis(5,alpha = 0.6)[4]
+par(mar = c(0,0.3,0,0.1), oma = c(3,3.5,4,0),
+    tcl=0.2,mgp=c(0.5,0,0), xpd=TRUE)
+
+# model1
+############
+true.object <- object_true
+# lambda.true$lambda.t <- lambda.est
+# lambda.true$time.vec <- lambda.m1$time.vec
+
+mod_drawHawkesIntensityPaper(lambda0 = true.object$lambda0,
+                             alpha = true.object$alpha,
+                             beta = true.object$beta,
+                             events = temp.t,
+                             add = FALSE,
+                            yupper=y.ub[1],
+                            color=add.alpha("black", alpha=line.alpha[1]),
+                            line.width=line.wdth[1],
+                            y.ratio=-0.05, min.y=-2, min.x=0, max.x=my.xlim,
+                            title_name=paste(plot.i,"->",plot.j),
+                            title.cex = 2,
+                            box.type="n")
+drawHawkesIntensityPaper(lambda0=model1_par_est$lambda0,
+                         alpha=model1_fn$alpha.fun(model1_par_est$f[plot.i],
+                                                   model1_par_est$f[plot.j],
+                                                   model1_par_est$eta_1,
+                                                   model1_par_est$eta_2,
+                                                   model1_par_est$eta_3),
+                         beta=model1_par_est$beta,
+                         events=temp.t,
+                         color=add.alpha(model_colors[1],
+                                         alpha=line.alpha[2]),
+                         line.width=line.wdth[2])
+
+## draw box
+axis(1,at=c(-2,my.long.x),col="gray35",
+     line=0.5,tick=T,labels=rep("",2),lwd=0.5,lwd.ticks=0,lty=3)
+
+
+legend(legend.x[1],legend.y[1],c("True"),
+       col = c("black"),
+       y.intersp=0.88,x.intersp=0.15,bty = "n",
+       lty = c(1), lwd = c(5), cex=legend.cex,seg.len=1)
+legend(legend.x[1]+18,legend.y[1],c("C-HP"),
+       col = c(model_colors[1]),
+       y.intersp=0.88,x.intersp=0.15,bty = "n",
+       lty = c(1), lwd = c(5), cex=legend.cex,seg.len=1)
+
+## delta lambda
+par(mar = c(0,0.3,0,0.1))
+plot(0,0,xlim=c(0,my.xlim), ylim=c(-4,10), type="n",
+     bty="n", xlab="",ylab="",xaxt="n",yaxt="n",axes=FALSE)
+delta.lambda <- lambda.m1$lambda.t-lambda.true$lambda.t
+delta.positive <- delta.lambda
+delta.positive[delta.positive<0] <- 0
+delta.negative <- delta.lambda
+delta.negative[delta.negative>0] <- 0
+### hiding these for now ###
+polygon(c(0,lambda.true$time.vec,x_events),#200
+        c(0,delta.negative,0),col=negative.col,border=NA)
+polygon(c(0,lambda.true$time.vec,x_events),#200
+        c(0,delta.positive,0),col=positive.col,border=NA)
+
+axis(1,at=c(-2,my.long.x),col="gray35",
+     line=0,tick=T,labels=rep("",2),lwd=0.7,lwd.ticks=0)
+
+
+# model2
+############
+mod_drawHawkesIntensityPaper(lambda0 = true.object$lambda0,
+                             alpha = true.object$alpha,
+                             beta = true.object$beta,
+                             events = temp.t,
+                             add = FALSE,
+                            yupper=y.ub[1],
+                            color=add.alpha("black", alpha=line.alpha[1]),
+                            line.width=line.wdth[1],
+                            y.ratio=-0.05, min.y=-2, min.x=0, max.x=my.xlim,
+                            title_name=paste(plot.i,"->",plot.j),
+                            title.cex = 2,
+                            box.type="n")
+drawHawkesIntensityPaper(lambda0=model2_par_est$gamma[plot.i]+
+                           model2_par_est$zeta[plot.j],
+                         alpha=model1_fn$alpha.fun(model2_par_est$f[plot.i],
+                                                   model2_par_est$f[plot.j],
+                                                   model2_par_est$eta_1,
+                                                   model2_par_est$eta_2,
+                                                   model2_par_est$eta_3),
+                         beta=model2_par_est$beta,
+                         events=temp.t,
+                         color=add.alpha(model_colors[2],
+                                         alpha=line.alpha[2]),
+                         line.width=line.wdth[2])
+legend(legend.x[2],legend.y[2],"C-DCHP",
+       col = model_colors[2],
+       y.intersp=0.88,x.intersp=0.1,bty = "n",
+       lty = 1, lwd = 5, cex= legend.cex,seg.len=1)
+
+axis(1,at=c(-2,my.long.x),col="gray35",
+     line=0.5,tick=T,labels=rep("",2),lwd=0.5,lwd.ticks=0,lty=3)
+
+legend(10,legend.y[2]+2,c("State 0/1 events","State change point"),
+       col = c(NA,"red"),
+       y.intersp=0.85,x.intersp=-0.1, bty = "n",
+       pch = c(NA,4), pt.cex = c(NA,2), cex=legend.cex,
+       lty = c(NA,NA), lwd=c(NA,4))
+points(14,8+2,pch=1,cex=2,col="blue")
+points(16,8+2,pch=16,cex=2,col="blue")
+
+## delta lambda
+par(mar = c(0,0.3,0,0.1))
+delta.lambda <- lambda.m2$lambda.t-lambda.true$lambda.t
+
+plot(lambda.true$time.vec,delta.lambda,xlim=c(0,my.xlim), ylim=c(-3,10), type="n",
+     bty="n", xlab="",ylab="",xaxt="n",yaxt="n",axes=FALSE)
+delta.lambda <- lambda.m2$lambda.t-lambda.true$lambda.t
+delta.positive <- delta.lambda
+delta.positive[delta.positive<0] <- 0
+delta.negative <- delta.lambda
+delta.negative[delta.negative>0] <- 0
+polygon(c(0,lambda.true$time.vec,x_events), #200
+        c(0,delta.negative,0),col=negative.col,border=NA)
+polygon(c(0,lambda.true$time.vec,x_events), #200
+        c(0,delta.positive,0),col=positive.col,border=NA)
+# segments(0,0,my.xlim,0,col="gray45")
+## draw box
+axis(1,at=c(-2,my.long.x),col="gray35",
+     line=0,tick=T,labels=rep("",2),lwd=0.7,lwd.ticks=0)
+
+
+# model3
+########
+par(mar = c(0,0.3,1,0.1))
+mod_drawHawkesIntensityPaper(lambda0 = true.object$lambda0,
+                             alpha = true.object$alpha,
+                             beta = true.object$beta,
+                             events = temp.t,
+                             add = FALSE,
+                            yupper=y.ub[1],
+                            color=add.alpha("black", alpha=line.alpha[1]),
+                            line.width=line.wdth[1],
+                            y.ratio=-0.05, min.y=-2, min.x=0, max.x=my.xlim,
+                            title_name=paste(plot.i,"->",plot.j),
+                            title.cex = 2,
+                            box.type="n")
+drawUniMMHPIntensityPaper(object_hat,
+                          simulation = list(
+  x=state.est.latent.mmhp.new$x.hat,                                          
+  z=state.est.latent.mmhp.new$z.hat,
+  tau=temp.t,
+  lambda.max=max(lambda.m3)),
+                          yupper=y.ub,add=TRUE,
+                          color=add.alpha(model_colors[3],
+                                      alpha=line.alpha[2]),
+  line.width=line.wdth[2])
+legend(legend.x[3],legend.y[3],"C-MMHP",
+       col = model_colors[3],
+       y.intersp=0.88,x.intersp=0.1,bty = "n",
+       lty =1, lwd = 5,cex=legend.cex,seg.len=1)
+## draw box
+axis(1,at=c(-2,my.long.x),col="gray35",
+     line=0.5,tick=T,labels=rep("",2),lwd=0.5,lwd.ticks=0,lty=3)
+
+legend(10,legend.y[3],c("Overestimation","Underestimation"),
+       col = c(positive.col,negative.col),
+       y.intersp=0.88,x.intersp=0.5,bty = "n",
+       lty = c(1,1), lwd = c(10,10), cex=legend.cex,seg.len=0.8)
+
+## delta lambda
+par(mar = c(0,0.3,0,0.1))
+plot(0,0,xlim=c(0,my.xlim), ylim=c(-12,8), type="n",
+     bty="n", xlab="",ylab="",xaxt="n",yaxt="n",axes=FALSE)
+delta.lambda <- lambda.m3-lambda.true$lambda.t
+delta.positive <- delta.lambda
+delta.positive[delta.positive<0] <- 0
+delta.negative <- delta.lambda
+delta.negative[delta.negative>0] <- 0
+### hiding these for now
+polygon(c(0,lambda.true$time.vec,x_events), # 200 
+        c(0,delta.negative,0),col=negative.col,border=NA)
+polygon(c(0,lambda.true$time.vec,x_events), # 200 
+        c(0,delta.positive,0),col=positive.col,border=NA)
+# segments(0,0,my.xlim,0,col="gray45")
+## draw box
+axis(1,at=c(-2,my.long.x),col="gray35",
+     line=0,tick=T,labels=rep("",2),lwd=0.7,lwd.ticks=0)
+
+
+## top
+mtext(text="M1 Sim",side=3,line=0.8,outer=TRUE,cex=2.5,font=2)
+## bottom
+mtext(text="Time",side=1,line=2,outer=TRUE,cex=2.5)
+## left
+mtext(text="Intensity",side=2,line=0.6,outer=TRUE,cex=2.5)
+
+```
+
+
+```{r process m2 for fig4b}
+plot.s <- 1#7#9
+plot.i <- 4
+plot.j <- 5
+
+cur_i <- plot.i
+cur_j <- plot.j
+
+load(paste0(m2_path,m2_files[plot.s]))
+
+temp.t <- sim_model2_data[[1]]$day_hour[ which(sim_model2_data[[1]]$start == cur_i & 
+                  sim_model2_data[[1]]$end == cur_j)]
+# temp.t <- test.mmhp$tau
+current.n <- length(temp.t)-1
+time.segment <- seq(0,tail(temp.t,1),length.out=5000)
+
+### Preprocess the model inference result
+## model 1
+#########
+model1_par_est <- list(lambda0 =
+                         mean(sim_model2_stan_sim1_total[[plot.s]]$lambda0[1001:2000]),
+                       eta_1=mean(sim_model2_stan_sim1_total[[plot.s]]$eta_1[1001:2000]),
+                       eta_2=mean(sim_model2_stan_sim1_total[[plot.s]]$eta_2[1001:2000]),
+                       eta_3=mean(sim_model2_stan_sim1_total[[plot.s]]$eta_3[1001:2000]),
+                       beta=mean(sim_model2_stan_sim1_total[[plot.s]]$beta[1001:2000]),
+                       f=apply(sim_model2_stan_sim1_total[[plot.s]]$f[1001:2000,],2,mean))
+lambda.m1<-uniHawkesIntensityNumeric(object=list(lambda0 = 
+                                                   model1_par_est$lambda0,
+                                    alpha =
+                                      model1_fn$alpha.fun(model1_par_est$f[plot.i],
+                                    model1_par_est$f[plot.j],
+                                    model1_par_est$eta_1,
+                                    model1_par_est$eta_2,
+                                    model1_par_est$eta_3),
+                                    beta=model1_par_est$beta),
+                                     events=temp.t,
+                                     time.vec=time.segment)
+
+
+## model2
+#############
+model2_par_est <- list(gamma=apply(sim_model2_stan_sim2_total[[plot.s]]$gamma[1001:2000,],
+                                   2,mean),
+                    zeta = 
+                      apply(sim_model2_stan_sim2_total[[plot.s]]$zeta[1001:2000,],2,mean),
+                       eta_1=mean(sim_model2_stan_sim2_total[[plot.s]]$eta_1[1001:2000]),
+                       eta_2=mean(sim_model2_stan_sim2_total[[plot.s]]$eta_2[1001:2000]),
+                       eta_3=mean(sim_model2_stan_sim2_total[[plot.s]]$eta_3[1001:2000]),
+                       beta=mean(sim_model2_stan_sim2_total[[plot.s]]$beta[1001:2000]),
+                       f=apply(sim_model2_stan_sim2_total[[plot.s]]$f[1001:2000,],2,mean))
+
+lambda.m2 <- uniHawkesIntensityNumeric(object=list(
+  lambda0=model2_par_est$gamma[plot.i]+
+          model2_par_est$zeta[plot.j],                                        
+  alpha=model1_fn$alpha.fun(model2_par_est$f[plot.i],
+                            model2_par_est$f[plot.j],
+                            model2_par_est$eta_1,
+                            model2_par_est$eta_2,
+                            model2_par_est$eta_3),
+                beta=model2_par_est$beta),
+                events=temp.t,
+                time.vec=time.segment)
+
+## Model3
+#############
+mmhp_par_est <- list(lambda0=mean(sim_model2_stan_sim3_total[[plot.s]]$lambda0[1001:2000]),
+                     lambda1=mean(sim_model2_stan_sim3_total[[plot.s]]$lambda1[1001:2000]),
+                     eta_1=mean(sim_model2_stan_sim3_total[[plot.s]]$eta_1[1001:2000]),
+                     eta_2=mean(sim_model2_stan_sim3_total[[plot.s]]$eta_2[1001:2000]),
+                     eta_3=mean(sim_model2_stan_sim3_total[[plot.s]]$eta_3[1001:2000]),
+                     beta=mean(sim_model2_stan_sim3_total[[plot.s]]$beta[1001:2000]),
+                     f=apply(sim_model2_stan_sim3_total[[plot.s]]$f[1001:2000,],2,mean))
+
+object_hat <- list(lambda0=mmhp_par_est$lambda0,
+                   lambda1=mmhp_par_est$lambda1,
+                   alpha=model3_fn$alpha.fun(mmhp_par_est$f[cur_i],
+                                             mmhp_par_est$f[cur_j],
+                                             mmhp_par_est$eta_1,
+                                             mmhp_par_est$eta_2),
+                   beta=mmhp_par_est$beta,
+                   q1=model3_fn$q1.fun(mmhp_par_est$f[cur_i],
+                                       mmhp_par_est$f[cur_j],
+                                       mmhp_par_est$eta_3),
+                   q2=model3_fn$q0.fun(mmhp_par_est$f[cur_i],
+                                       mmhp_par_est$f[cur_j],
+                                       mmhp_par_est$eta_3))
+
+
+state_est_fits <- list.files(m2_path, pattern = "fit123_state_est_M2*")
+load(paste0(m2_path,state_est_fits[plot.s]))
+
+state.est.latent.mmhp <- interpolate_state_est_lst[plot.i,plot.j][[1]]
+state.est.latent.mmhp.new <- fixInterpolateState(state.est.latent.mmhp,
+                                                 termination=200)
+
+step.fun.est <- stepfun(state.est.latent.mmhp$x.hat,
+                        2-state.est.latent.mmhp$z.hat)
+
+lambda.m3 <- mmhpIntensityNumeric(params=object_hat,
+                                  t=temp.t,
+                                  time.vec=time.segment,
+                                  latent.vec=step.fun.est(time.segment))
+
+object_true <- lapply(object_matrix,function(x) x[plot.i,plot.j])
+names(object_true) <- c("lambda0","lambda1","alpha","beta")
+
+
+lambda.true <- uniHawkesIntensityNumeric(object = object_true,
+                                        events =temp.t,
+                                        time.vec = time.segment)
+```
+
+```{r fig 4b M2 sim}
+source(here("lib","mod_drawHawkesIntensityPaper.R"))
+y.ub <- c(17,17,17)#c(130,72,31)
+x_events <- 135#150
+#model_colors <- c("steelblue", "goldenrod2", "firebrick2")
+model_colors <- viridis::viridis(3)
+layout(matrix(c(1:6), 6, 1), heights=rep(c(2.5,1),3))
+layout(matrix(c(1:6), 6, 1), heights=rep(c(7.5,1),3))
+my.xlim <- 140#160#200#130
+my.long.x <- 140#205#134.5
+legend.x <- c(50,50,50)#c(135,135,135)
+legend.y <- #c(34,32,32)
+legend.y <- c(15,12,15)#c(62,37,18)#c(22,22,22)
+legend.cex <- 1.5 #3
+line.alpha <- c(0.9,0.6)
+line.wdth <- c(2,2.5)
+negative.col <- add.alpha('lightskyblue',0.6)
+positive.col <- add.alpha('tomato',0.6)
+#negative.col <- viridis::viridis(5,alpha = 0.6)[1]
+#positive.col <- viridis::viridis(5,alpha = 0.6)[4]
+par(mar = c(0,0.3,0,0.1), oma = c(3,3.5,4,0),
+    tcl=0.2,mgp=c(0.5,0,0), xpd=TRUE)
+
+# model1
+############
+true.object <- object_true
+# lambda.true$lambda.t <- lambda.est
+# lambda.true$time.vec <- lambda.m1$time.vec
+
+mod_drawHawkesIntensityPaper(lambda0 = true.object$lambda0,
+                             alpha = true.object$alpha,
+                             beta = true.object$beta,
+                             events = temp.t,
+                             add = FALSE,
+                            yupper=y.ub[1],
+                            color=add.alpha("black", alpha=line.alpha[1]),
+                            line.width=line.wdth[1],
+                            y.ratio=-0.05, min.y=-2, min.x=0, max.x=my.xlim,
+                            title_name=paste(plot.i,"->",plot.j),
+                            title.cex = 2,
+                            box.type="n")
+drawHawkesIntensityPaper(lambda0=model1_par_est$lambda0,
+                         alpha=model1_fn$alpha.fun(model1_par_est$f[plot.i],
+                                                   model1_par_est$f[plot.j],
+                                                   model1_par_est$eta_1,
+                                                   model1_par_est$eta_2,
+                                                   model1_par_est$eta_3),
+                         beta=model1_par_est$beta,
+                         events=temp.t,
+                         color=add.alpha(model_colors[1],
+                                         alpha=line.alpha[2]),
+                         line.width=line.wdth[2])
+
+## draw box
+axis(1,at=c(-2,my.long.x),col="gray35",
+     line=0.5,tick=T,labels=rep("",2),lwd=0.5,lwd.ticks=0,lty=3)
+
+
+legend(legend.x[1],legend.y[1],c("True"),
+       col = c("black"),
+       y.intersp=0.88,x.intersp=0.15,bty = "n",
+       lty = c(1), lwd = c(5), cex=legend.cex,seg.len=1)
+legend(legend.x[1]+18,legend.y[1],c("C-HP"),
+       col = c(model_colors[1]),
+       y.intersp=0.88,x.intersp=0.15,bty = "n",
+       lty = c(1), lwd = c(5), cex=legend.cex,seg.len=1)
+
+## delta lambda
+par(mar = c(0,0.3,0,0.1))
+plot(0,0,xlim=c(0,my.xlim), ylim=c(-4,10), type="n",
+     bty="n", xlab="",ylab="",xaxt="n",yaxt="n",axes=FALSE)
+delta.lambda <- lambda.m1$lambda.t-lambda.true$lambda.t
+delta.positive <- delta.lambda
+delta.positive[delta.positive<0] <- 0
+delta.negative <- delta.lambda
+delta.negative[delta.negative>0] <- 0
+### hiding these for now ###
+polygon(c(0,lambda.true$time.vec,x_events),#200
+        c(0,delta.negative,0),col=negative.col,border=NA)
+polygon(c(0,lambda.true$time.vec,x_events),#200
+        c(0,delta.positive,0),col=positive.col,border=NA)
+
+axis(1,at=c(-2,my.long.x),col="gray35",
+     line=0,tick=T,labels=rep("",2),lwd=0.7,lwd.ticks=0)
+
+
+# model2
+############
+mod_drawHawkesIntensityPaper(lambda0 = true.object$lambda0,
+                             alpha = true.object$alpha,
+                             beta = true.object$beta,
+                             events = temp.t,
+                             add = FALSE,
+                            yupper=y.ub[1],
+                            color=add.alpha("black", alpha=line.alpha[1]),
+                            line.width=line.wdth[1],
+                            y.ratio=-0.05, min.y=-2, min.x=0, max.x=my.xlim,
+                            title_name=paste(plot.i,"->",plot.j),
+                            title.cex = 2,
+                            box.type="n")
+drawHawkesIntensityPaper(lambda0=model2_par_est$gamma[plot.i]+
+                           model2_par_est$zeta[plot.j],
+                         alpha=model1_fn$alpha.fun(model2_par_est$f[plot.i],
+                                                   model2_par_est$f[plot.j],
+                                                   model2_par_est$eta_1,
+                                                   model2_par_est$eta_2,
+                                                   model2_par_est$eta_3),
+                         beta=model2_par_est$beta,
+                         events=temp.t,
+                         color=add.alpha(model_colors[2],
+                                         alpha=line.alpha[2]),
+                         line.width=line.wdth[2])
+legend(legend.x[2],legend.y[2],"C-DCHP",
+       col = model_colors[2],
+       y.intersp=0.88,x.intersp=0.1,bty = "n",
+       lty = 1, lwd = 5, cex= legend.cex,seg.len=1)
+
+axis(1,at=c(-2,my.long.x),col="gray35",
+     line=0.5,tick=T,labels=rep("",2),lwd=0.5,lwd.ticks=0,lty=3)
+
+legend(10,legend.y[2]+2,c("State 0/1 events","State change point"),
+       col = c(NA,"red"),
+       y.intersp=0.85,x.intersp=-0.1, bty = "n",
+       pch = c(NA,4), pt.cex = c(NA,2), cex=legend.cex,
+       lty = c(NA,NA), lwd=c(NA,4))
+points(14,8+2,pch=1,cex=2,col="blue")
+points(16,8+2,pch=16,cex=2,col="blue")
+
+## delta lambda
+par(mar = c(0,0.3,0,0.1))
+delta.lambda <- lambda.m2$lambda.t-lambda.true$lambda.t
+
+plot(lambda.true$time.vec,delta.lambda,xlim=c(0,my.xlim), ylim=c(-3,10), type="n",
+     bty="n", xlab="",ylab="",xaxt="n",yaxt="n",axes=FALSE)
+delta.lambda <- lambda.m2$lambda.t-lambda.true$lambda.t
+delta.positive <- delta.lambda
+delta.positive[delta.positive<0] <- 0
+delta.negative <- delta.lambda
+delta.negative[delta.negative>0] <- 0
+polygon(c(0,lambda.true$time.vec,x_events), #200
+        c(0,delta.negative,0),col=negative.col,border=NA)
+polygon(c(0,lambda.true$time.vec,x_events), #200
+        c(0,delta.positive,0),col=positive.col,border=NA)
+# segments(0,0,my.xlim,0,col="gray45")
+## draw box
+axis(1,at=c(-2,my.long.x),col="gray35",
+     line=0,tick=T,labels=rep("",2),lwd=0.7,lwd.ticks=0)
+
+
+# model3
+########
+par(mar = c(0,0.3,1,0.1))
+mod_drawHawkesIntensityPaper(lambda0 = true.object$lambda0,
+                             alpha = true.object$alpha,
+                             beta = true.object$beta,
+                             events = temp.t,
+                             add = FALSE,
+                            yupper=y.ub[1],
+                            color=add.alpha("black", alpha=line.alpha[1]),
+                            line.width=line.wdth[1],
+                            y.ratio=-0.05, min.y=-2, min.x=0, max.x=my.xlim,
+                            title_name=paste(plot.i,"->",plot.j),
+                            title.cex = 2,
+                            box.type="n")
+drawUniMMHPIntensityPaper(object_hat,
+                          simulation = list(
+  x=state.est.latent.mmhp.new$x.hat,                                          
+  z=state.est.latent.mmhp.new$z.hat,
+  tau=temp.t,
+  lambda.max=max(lambda.m3)),
+                          yupper=y.ub,add=TRUE,
+                          color=add.alpha(model_colors[3],
+                                      alpha=line.alpha[2]),
+  line.width=line.wdth[2])
+legend(legend.x[3],legend.y[3],"C-MMHP",
+       col = model_colors[3],
+       y.intersp=0.88,x.intersp=0.1,bty = "n",
+       lty =1, lwd = 5,cex=legend.cex,seg.len=1)
+## draw box
+axis(1,at=c(-2,my.long.x),col="gray35",
+     line=0.5,tick=T,labels=rep("",2),lwd=0.5,lwd.ticks=0,lty=3)
+
+legend(10,legend.y[3],c("Overestimation","Underestimation"),
+       col = c(positive.col,negative.col),
+       y.intersp=0.88,x.intersp=0.5,bty = "n",
+       lty = c(1,1), lwd = c(10,10), cex=legend.cex,seg.len=0.8)
+
+## delta lambda
+par(mar = c(0,0.3,0,0.1))
+plot(0,0,xlim=c(0,my.xlim), ylim=c(-12,8), type="n",
+     bty="n", xlab="",ylab="",xaxt="n",yaxt="n",axes=FALSE)
+delta.lambda <- lambda.m3-lambda.true$lambda.t
+delta.positive <- delta.lambda
+delta.positive[delta.positive<0] <- 0
+delta.negative <- delta.lambda
+delta.negative[delta.negative>0] <- 0
+### hiding these for now
+polygon(c(0,lambda.true$time.vec,x_events), # 200 
+        c(0,delta.negative,0),col=negative.col,border=NA)
+polygon(c(0,lambda.true$time.vec,x_events), # 200 
+        c(0,delta.positive,0),col=positive.col,border=NA)
+# segments(0,0,my.xlim,0,col="gray45")
+## draw box
+axis(1,at=c(-2,my.long.x),col="gray35",
+     line=0,tick=T,labels=rep("",2),lwd=0.7,lwd.ticks=0)
+
+
+## top
+mtext(text="M2 Sim",side=3,line=0.8,outer=TRUE,cex=2.5,font=2)
+## bottom
+mtext(text="Time",side=1,line=2,outer=TRUE,cex=2.5)
+## left
+mtext(text="Intensity",side=2,line=0.6,outer=TRUE,cex=2.5)
+
+```
+
 
 
 # Figure 5:
