@@ -729,7 +729,7 @@ gl_train <- my_glicko(glick_df, history=TRUE, cval=2)
 
 gl_train
 
-gl_ranks <- rev(gl_train$ratings$Player)
+gl_ranks <- rev(gl_train$ratings$Rating)
 # highest to lowest
 
 ```

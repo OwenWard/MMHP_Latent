@@ -14,6 +14,7 @@ library(here)
 library(tidyverse)
 library(rstan)
 library(compete)
+library(PlayerRatings)
 
 options(mc.cores = parallel::detectCores())
 
@@ -187,13 +188,42 @@ isi_dc.out <- compete::isi98(m = count_data_dc, random = TRUE)
 isi_rank_dc <- as.numeric(rev(isi_dc.out$best_order)) 
 
 
+### compute agg ranking ####
+agg_rank_data <- clean_sim_data_dc$N_count
+agg_rank_model <- stan_model(here("lib","latent_rank_agg_sim.stan"))
+
+agg_rank_fit <- rstan::sampling(agg_rank_model,
+                                data = list(n = 5,
+                                            n_matrix = agg_rank_data),
+                                      iter = 1000,
+                                      chains = 4)
+agg_sims <- rstan::extract(agg_rank_fit)
+
+agg_rank <- order(apply(agg_sims$x, 2, mean))
+
+### glicko ranking also ####
+glicko_data <- tibble(start = clean_sim_data_dc$start,
+                      end = clean_sim_data_dc$end)
+
+glicko_data <- glicko_data %>%
+  mutate(id = row_number(), score = 1) %>%
+  select(id, start, end, score)
+
+gl_train <- my_glicko(glicko_data, history=TRUE, cval=2)
+
+gl_train
+
+gl_ranks <- order(gl_train$ratings$Rating)
+
 ## then save these
 
 output_rank <- tibble(truth = 1:5, 
                       m1 = m1_rank,
                       m2 = m2_rank,
                       m3_dc = m3_dc_rank,
-                      isi = isi_rank_dc, 
+                      isi = isi_rank_dc,
+                      agg = agg_rank,
+                      glicko = gl_ranks,
                       sim = rep(sim_id,5))
 
 dir.create(data_path, recursive = TRUE, showWarnings = FALSE)

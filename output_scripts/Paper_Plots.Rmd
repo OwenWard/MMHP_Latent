@@ -2096,6 +2096,10 @@ mtext(text=c(5:1), side=1, line=1, outer=TRUE, cex=2,
 ```
 
 
+# Figure 5b: Simulation Spearman Rank
+
+
+
 # Figure 6: Latent Rank Cohort comparison
 
 
@@ -2297,7 +2301,7 @@ for(current_cohort in 1:10) {
   indep_pr <- readRDS(paste(data_path,cohort_names[current_cohort],
                        "/immhp_pr_matrix_",cohort_names[current_cohort],
                        ".RDS",sep=''))
-  print(range(as.vector(indep_pr)))
+  # print(range(as.vector(indep_pr)))
   if(length(prob_id) != 0) {
     indep_pr <- indep_pr[-prob_id,-prob_id]
   }
@@ -2323,19 +2327,25 @@ for(current_cohort in 1:10) {
   ## values
   current_score <- tibble(m1_score, m2_score, m3_score, ind_score)
   names(current_score) <- c("C-HP","C-DCHP","C-MMHP","I-MMHP")
-  current_score$type <- c("Positive","Negative")
+  current_score$type <- c("Positive Residuals","Negative Residuals")
   current_score$Cohort <- current_cohort
   struct_scores <-struct_scores %>% bind_rows(current_score)
 }
 
-struct_scores %>% 
+struct_plot <- struct_scores %>% 
   rename(Pos_Neg = type) %>%
   pivot_longer(cols = "C-HP":"I-MMHP",
                names_to = "Method", values_to = "Score") %>%
   filter(Score > 0) %>%
-  filter(!(Method == "ind_score" & Pos_Neg == "Positive")) %>%
+  filter(!(Method == "I-MMHP" & Pos_Neg == "Positive"))
+  # mutate(Method = as.factor(Method, levels = c("I-MMHP","C-HP","C-DCHP",
+  #                                              "C-MMHP"))) %>%
+struct_plot$Method <- factor(struct_plot$Method, levels = c("I-MMHP","C-HP","C-DCHP",
+                                               "C-MMHP") )
+
+struct_plot %>% 
   ggplot(aes(Method,Score)) + geom_boxplot() +
-  facet_wrap(~Pos_Neg) + theme_minimal()
+  facet_wrap(~Pos_Neg, scales = "free") + theme_minimal()
 
 ```
 
