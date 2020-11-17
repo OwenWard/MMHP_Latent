@@ -3,7 +3,7 @@
 source("/rigel/stats/users/ogw2103/code/MMHP/MMHP_Latent/run_scripts/cluster_setup.R")
 
 
-data_path <- "output/rank_sims/sims_m3_dc_isi/"
+data_path <- "output/rank_sims/sims_m3_dc_isi/sparse/"
 
 
 jobid <- Sys.getenv("SLURM_ARRAY_TASK_ID")
@@ -82,12 +82,17 @@ object_matrix <- list(lambda0_matrix = matrix(object_par$sim_lambda_0,
 
 gamma_var <- c(0.01, 0.02, 0.03, 0.06, 0.07)
 zeta_var <- c(0.075, 0.02, 0.03, 0.05, 0.08 )
+w_lambda <- 0.4
 lambda_dc_matrix <- outer(gamma_var, zeta_var, "+")
 # lambda_dc_matrix
 
 object_dc_matrix <- object_matrix
 object_dc_matrix$lambda0_matrix <- lambda_dc_matrix
 
+max_lam <- max(lambda_dc_matrix)
+object_dc_matrix$lambda1_matrix <- matrix(max_lam*(1 + w_lambda),
+                                          nrow = length(object_par$f_vec_1),
+                                          ncol = length(object_par$f_vec_1))
 
 
 sim_model3_data_dc <- 
@@ -97,7 +102,7 @@ sim_model3_data_dc <-
                      beta_matrix = object_dc_matrix$beta_matrix,
                      q1_matrix = object_dc_matrix$q1_matrix,
                      q2_matrix = object_dc_matrix$q2_matrix,
-                     horizon = 200)
+                     horizon = 50)
 clean_sim_data_dc <- cleanSimulationData(raw_data = sim_model3_data_dc, 
                                          cut_off = cut_off, 
                                          N = length(object_par$f_vec_1))
