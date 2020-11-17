@@ -37,6 +37,7 @@ library(RColorBrewer)
 library(fields)
 library(bayesplot)
 library(viridis)
+library(here)
 library(compete)
 library(colorspace)
 source(paste(func_dir,'naiveRankHierarchy.R',sep = ""))
@@ -2259,6 +2260,87 @@ myMultiMatrixPlot(X=matrix_lst_plot,no_matrix=4,n_row=2,
 
 ```
 
+```{r fig-matrix-structure-score}
+library(NMF)
+source(here("lib","residualStructureScore.R"))
+
+struct_scores <- tibble()
+for(current_cohort in 1:10) {
+  m1_pr <- readRDS(paste(data_path,cohort_names[current_cohort],
+                   "/chp_pr_matrix_",cohort_names[current_cohort],
+                   ".RDS",sep=''))
+  ##
+  ## remove animals which are never fought or don't ever fight
+  prob_row <- which(rowSums(m1_pr) == 0)
+  prob_col <- which(colSums(m1_pr) == 0)
+  prob_id <- NA
+  prob_id <- c(prob_row,prob_col)
+  # print(prob_id)
+  if(length(prob_id) != 0) {
+    m1_pr <- m1_pr[-prob_id,-prob_id]
+  }
+
+  ##
+  m2_pr <- readRDS(paste(data_path,cohort_names[current_cohort],
+                       "/dchp_pr_matrix_",cohort_names[current_cohort],
+                       ".RDS",sep=''))
+  if(length(prob_id) != 0) {
+    m2_pr <- m2_pr[-prob_id,-prob_id]
+  }
+  
+  m3_pr <- readRDS(paste(data_path,cohort_names[current_cohort],
+                       "/cmmhp_pr_matrix_",cohort_names[current_cohort],
+                       ".RDS",sep=''))
+  if(length(prob_id) != 0) {
+    m3_pr <- m3_pr[-prob_id,-prob_id]
+  }
+  indep_pr <- readRDS(paste(data_path,cohort_names[current_cohort],
+                       "/immhp_pr_matrix_",cohort_names[current_cohort],
+                       ".RDS",sep=''))
+  print(range(as.vector(indep_pr)))
+  if(length(prob_id) != 0) {
+    indep_pr <- indep_pr[-prob_id,-prob_id]
+  }
+  if(current_cohort == 10) {
+    # one additional row
+    # print("in here")
+    new_prob_row <- which(rowSums(m1_pr) == 0)
+    new_prob_col <- which(colSums(m1_pr) == 0)
+    prob_id <- c(new_prob_row,new_prob_col) 
+    if(length(prob_id) != 0) {
+      m1_pr <- m1_pr[-prob_id, -prob_id]
+      m2_pr <- m2_pr[-prob_id, -prob_id]
+      m3_pr <- m3_pr[-prob_id, -prob_id]
+      indep_pr <- indep_pr[-prob_id, -prob_id]
+    }
+  }
+  
+  m1_score <-positiveNegativeApproxError(m1_pr)
+  m2_score <- positiveNegativeApproxError(m2_pr)
+  m3_score <- positiveNegativeApproxError(m3_pr) ## smallest value which is good
+  ind_score <- positiveNegativeApproxError(indep_pr) 
+  ## this doesn't make sense because all negative
+  ## values
+  current_score <- tibble(m1_score, m2_score, m3_score, ind_score)
+  names(current_score) <- c("C-HP","C-DCHP","C-MMHP","I-MMHP")
+  current_score$type <- c("Positive","Negative")
+  current_score$Cohort <- current_cohort
+  struct_scores <-struct_scores %>% bind_rows(current_score)
+}
+
+struct_scores %>% 
+  rename(Pos_Neg = type) %>%
+  pivot_longer(cols = "C-HP":"I-MMHP",
+               names_to = "Method", values_to = "Score") %>%
+  filter(Score > 0) %>%
+  filter(!(Method == "ind_score" & Pos_Neg == "Positive")) %>%
+  ggplot(aes(Method,Score)) + geom_boxplot() +
+  facet_wrap(~Pos_Neg) + theme_minimal()
+
+```
+
+
+
 ```{r fig_pr_slides, fig.height=3, fig.width=7, include=slides_plots,eval=slides_plots}
 # current_cohort <- 5
 
@@ -2314,7 +2396,7 @@ myMultiMatrixPlot(X=matrix_lst_plot,no_matrix=3,n_row=1,
 
 ```{r fig-8a-frob-norm-cohort5}
 load("../output/plot_N_predict.RData")
-# current_cohort <- 5# cohort 1 looks worse than rest
+current_cohort <- 5# cohort 1 looks worse than rest
 
 temp_plot_df <- predict_day_norm_df_lst[[current_cohort]]
 temp_plot_df$method <- factor(temp_plot_df$method,
@@ -2514,7 +2596,7 @@ p5
 
 ```{r fig-pred-cor, eval=slides_plots,include=slides_plots,fig.height=3}
 load("../output/plot_rank_predict.RData")
-# current_cohort <- 5
+current_cohort <- 5
 temp_plot_df <- predict_day_rank_df_lst[[current_cohort]]
 temp_plot_df$method <- factor(temp_plot_df$method,
                               levels = c("mmhp","dsnl","m1","m2","m3"),
@@ -2584,7 +2666,7 @@ p6
 ```{r construct data for plot, results='hide',message=FALSE,cache=TRUE}
 library(PlayerRatings)
 
-# current_cohort <- 5
+current_cohort <- 5
 
 load(paste(data_path,cohort_names[current_cohort],
            "/predict_simulation_",cohort_names[current_cohort],

@@ -332,7 +332,8 @@ see that any discrepancies from the true ranking are small, with the
 order of a pair of nodes being swapped.
 
 ```{r load in sims, options}
-sim_files <- list.files(here("output","rank_sims","sims_m3_dc_isi"))
+sim_files <- list.files(here("output", "rank_sims",
+                             "sims_m3_dc_isi"))
 
 all_sims <- tibble()
 for(i in seq_along(sim_files)) {
@@ -384,7 +385,7 @@ the simulated data for most nodes.
 all_sims %>%
   group_by(truth, m3_dc) %>%
   count() %>%
-  mutate(per = n/20) %>%
+  mutate(per = n/50) %>%
   arrange(-per)
 ```
 
@@ -394,7 +395,7 @@ Finally, we look at the agreement between the ISI ranking and the truth.
 all_sims %>%
   group_by(truth, isi) %>%
   count() %>%
-  mutate(per = n/20) %>%
+  mutate(per = n/50) %>%
   arrange(-per)
 
 ```
@@ -407,7 +408,8 @@ true rankings, with the I&SI model performing similarly.
 
 
 ```{r analyse sims}
-sim_files <- list.files(here("output","rank_sims","sims_m3_dc_isi"))
+sim_files <- list.files(here("output", "rank_sims",
+                             "sims_m3_dc_isi_sparse"))
 
 all_sims <- list()
 for(i in seq_along(sim_files)) {

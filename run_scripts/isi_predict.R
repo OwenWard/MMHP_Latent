@@ -118,6 +118,13 @@ compute_isi_score <- function(win_loss_matrix, curr_ranking) {
   list(I_score = I, SI_score = SI)
 }
 
+frob_norm <- function(win_loss_matrix, curr_ranking, best_wl) {
+  norm( win_loss_matrix[curr_ranking,curr_ranking] - best_wl,
+        type = "F" )
+}
+
+frob_scores <- tibble()
+
 # Define the cohorts will be fitted
 fit_cohorts <- c(1:10)
 naive_rank_10 <- list()
@@ -214,23 +221,32 @@ for(current_cohort in 1:10) {
   # correctly for reordering the wl matrix?
   
   ###
-  ## do I want order here?
   ###
-  scores <- est_ranks %>% map_dfr(~ compute_isi_score(test_wl, .x))
+  ###
+  
+  ## compute_frob_norm
+  frob_scores <- frob_scores %>%
+    bind_rows(est_ranks %>% map_dfr( ~ frob_norm(test_wl, .x, 
+                                     best_wl = best_isi$best_matrix)))
   
   
-  scores$model <- c("isi","agg", "glicko", "m1","m2","m3")
+  scores <- est_ranks %>% map_dfr(~ compute_isi_score(test_wl, .x),
+                                  .id = "GROUP") %>%
+    rename(model = GROUP)
+  
+  
+  # scores$model <- c("isi","agg", "glicko", "m1","m2","m3")
   scores <- scores %>% add_row(tibble_row(I_score = best_isi$I, 
                                SI_score = best_isi$SI,
                                model = "test_isi"))
   
-  saveRDS(scores, file = here("output", "rank_sims", "predict_isi",
-                              paste0(current_cohort, ".RDS")))
+  # saveRDS(scores, file = here("output", "rank_sims", "predict_isi",
+                              # paste0(current_cohort, ".RDS")))
   
 }
 
 
-## then read all these
+## then read all these ####
 
 sim_files <- list.files(here("output","rank_sims","predict_isi"))
 
@@ -250,3 +266,12 @@ cohort_scores %>%
   mutate(ISI = I_score + SI_score) %>%
   ggplot(aes(model,ISI)) + geom_boxplot()
 
+
+
+### look at frob norms ####
+colnames(frob_scores) <- c("ISI", "Agg", "Glicko",
+                           "M1", "M2", "M3")
+frob_scores %>% rowid_to_column(var = "Cohort") %>%
+  pivot_longer(cols = ISI:M3, names_to = "Method",
+               values_to = "Norm") %>%
+  ggplot(aes(Method,Norm)) + geom_boxplot()
