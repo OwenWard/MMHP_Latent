@@ -414,7 +414,7 @@ sim_files <- list.files(here("output", "rank_sims",
 all_sims <- list()
 for(i in seq_along(sim_files)) {
  single_fit <- readRDS(here("output", "rank_sims", 
-                            "sims_m3_dc_isi",
+                            "sims_m3_dc_isi_sparse",
                             sim_files[i]))
  all_sims[[i]] <- single_fit
 }
@@ -422,7 +422,7 @@ for(i in seq_along(sim_files)) {
 spear <- function(sim_data) {
   truth <- sim_data$truth
   sim_data %>%
-    select(m1:isi) %>%
+    select(m1:glicko) %>%
     map( ~cor.test(truth, .x,
                    method = "spearman")$estimate  ) %>%
     enframe() %>%
@@ -438,10 +438,16 @@ sim_data$name <- case_when(
           name == "isi" ~ "I&SI",
           name == "m1" ~ "C-HP",
           name == "m2" ~ "C-DCHP",
-          name == "m3_dc" ~ "C-MMHP")
+          name == "m3_dc" ~ "C-MMHP",
+          name == "agg" ~ "AggRank",
+          name == "glicko" ~ "Glicko")
 
-sim_data$name <- factor(sim_data$name, levels = c("I&SI","C-HP",
-                                                  "C-DCHP", "C-MMHP"))
+sim_data$name <- factor(sim_data$name, levels = c("I&SI",
+                                                  "AggRank",
+                                                  "Glicko",
+                                                  "C-HP",
+                                                  "C-DCHP",
+                                                  "C-MMHP"))
 
 sim_data %>% 
   rename(Method = name, corr = value) %>%
