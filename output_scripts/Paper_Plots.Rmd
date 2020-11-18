@@ -18,9 +18,6 @@ knitr::opts_chunk$set(echo = TRUE, fig.path = "paper_figure/",
 
 slides_plots <- FALSE
 current_cohort <- 5
-```
-
-```{r load_packages, include=FALSE}
 
 # don't write to this path
 data_path <- "../output/"
@@ -702,7 +699,7 @@ like the plots in 2b.
 # Figure 4:
 
 ## Figure 4a Recover Latent Ranks
-```{r fig-4a}
+```{r fig-4a, fig.height=4,fig.width=8}
 sim_data_path <- "../output/sims/sims_m3_dc/"
 
 
@@ -751,16 +748,16 @@ for(m in c(1:3)){
   ## bottom
   mtext(text=expression(f[1],f[2],f[3],f[4],f[5]), side=1, line=2.4, outer=TRUE, 
         at=c(1:length(object_par$f_vec_1))/length(object_par$f_vec_1)-0.1,
-        cex=2.4)
-  mtext(text="Latent rank variables", side=1, line=5.3, outer=TRUE, cex=2.7,
+        cex=2)
+  mtext(text="Latent rank variables", side=1, line=5.3, outer=TRUE, cex=2.25,
         at=0.5)
   ## top
-  mtext(text="(a)", side=3, line=0, outer=TRUE, cex=3,
+  mtext(text="(a)", side=3, line=0, outer=TRUE, cex=2.5,
         at=0.5, font=2)
   ## left
   mtext(text=rev(c("C-HP  ","C-DCHP","C-MMHP")), side=2, line=0.5, outer=TRUE, 
         at=c(0:2)/3+0.15,
-        cex=2, las=2)
+        cex=1.75, las=2)
 }
 
 ```
@@ -877,7 +874,7 @@ lambda.true <- mmhpTrueIntensityNumeric(params=object_true,
 ```
 
 
-```{r fig4b-recover-latent-states}
+```{r fig4b-recover-latent-states,fig.width=8,fig.height=4}
 y.ub <- c(17,17,17)#c(130,72,31)
 x_events <- 135#150
 #model_colors <- c("steelblue", "goldenrod2", "firebrick2")
@@ -1078,9 +1075,9 @@ axis(1,at=c(-2,my.long.x),col="gray35",
 ## top
 mtext(text="(b)",side=3,line=0.8,outer=TRUE,cex=2.5,font=2)
 ## bottom
-mtext(text="Time",side=1,line=2,outer=TRUE,cex=2.5)
+mtext(text="Time",side=1,line=2,outer=TRUE,cex=2.25)
 ## left
-mtext(text="Intensity",side=2,line=0.6,outer=TRUE,cex=2.5)
+mtext(text="Intensity",side=2,line=0.6,outer=TRUE,cex=2.25)
 ```
 
 ## Fig 4 repeated for data generated from other models
@@ -2060,7 +2057,7 @@ for(s in c(1:n_sim)){
 ```{r fig5-residual-ks, fig.height=7}
 cols_plot <- viridis::viridis(4)
 #load("../output/sim_model3_fit123_residuals.RData")
-par(mfrow=c(5,5),mar=rep(0.2,4),oma=c(2.4,2.4,0.5,0.5))
+par(mfrow=c(5,5),mar=c(0.2,0.2,0.2,0.2),oma=c(2.4,2.4,2.9,0.5))
 for(i in c(5:1)){
   for(j in c(5:1)){
     if(i==j){
@@ -2092,12 +2089,14 @@ mtext(text=c(1:5), side=2, line=0.5, outer=TRUE, cex=2, las=2,
       at=c(0:4)/5+0.1)
 mtext(text=c(5:1), side=1, line=1, outer=TRUE, cex=2,
       at=c(0:4)/5+0.1)
+mtext(text="(a)",side=3,line=0.5,outer=TRUE,cex=2.5,font=2)
+
 
 ```
 
 
 # Figure 5b: Simulation Spearman Rank
-```{r fig-5b-spearman-sim}
+```{r fig-5b-spearman-sim, fig.height=7}
 sim_files <- list.files(here("output", "rank_sims",
                              "sims_m3_dc_isi_sparse"))
 
@@ -2143,7 +2142,12 @@ sim_data %>%
   rename(Method = name, corr = value) %>%
   ggplot(aes(Method,corr)) + geom_boxplot(aes(fill = Method)) +
   scale_fill_manual(values = viridis::viridis(6)) +
-  labs(y = "Rank Correlation") + theme_bw()
+  labs(y = "Rank Correlation") + theme_bw() +
+  theme(plot.title = element_text(size = 22, hjust = 0.5, face="bold"),
+        text = element_text(size = 20),
+        axis.text.x=element_blank(),
+        axis.ticks.x = element_blank(),
+        legend.position="right") + ggtitle("(b)")
 ```
 
 
@@ -2451,7 +2455,7 @@ myMultiMatrixPlot(X=matrix_lst_plot,no_matrix=3,n_row=1,
 
 ## Figure 8a: Frobenius norm of interaction predictions, single cohort
 
-```{r fig-8a-frob-norm-cohort5}
+```{r fig-8a-frob-norm-cohort5, fig.width=8,fig.height=4}
 load("../output/plot_N_predict.RData")
 current_cohort <- 5# cohort 1 looks worse than rest
 
@@ -2464,6 +2468,7 @@ temp_plot_df$day <- factor(temp_plot_df$day)
 p3 <- temp_plot_df %>%
   rowwise() %>%
   #mutate(norm = min(norm,60)) %>%
+  # rename(Method = method) %>%
   ggplot( aes(x = method, y = norm, fill = method)) +
   geom_boxplot(alpha=0.7) +
   scale_fill_manual(values = viridis::viridis(5)) +
@@ -2479,7 +2484,7 @@ p3 <- temp_plot_df %>%
   ylab("Frobenius norm of error") +
   ylim(0, 150) + # aren't infinite but >150 and <200
   NULL
-p3
+p3 + labs(fill = "Method")
 ```
 
 
@@ -2519,7 +2524,7 @@ p3_slides
 
 ## Figure 8b: Same plot aggregated for all cohorts
 
-```{r fig-8b-frob-norm-all-cohorts}
+```{r fig-8b-frob-norm-all-cohorts,fig.width=8,fig.height=4}
 load("../output/plot_N_predict.RData")
 temp_plot_df <- all_cohort_norm_df %>% 
   group_by(day, method) %>% 
