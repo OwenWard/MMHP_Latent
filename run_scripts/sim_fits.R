@@ -47,7 +47,7 @@ object_par <- list(sim_lambda_0 = 0.08,
                    gamma_var = c(0.01, 0.02, 0.03, 0.06, 0.07),
                    zeta_var = c(0.075, 0.02, 0.03, 0.05, 0.08),
                    sim_eta_2 = 0.6,
-                   sim_eta_3 = 7.5,
+                   sim_eta_3 = 5,
                    sim_beta = 1.5,
                    f_vec_1 = c(0.1, 0.2, 0.4, 0.7, 0.9))
 
@@ -57,15 +57,20 @@ object_matrix <- list(lambda0_matrix=outer(object_par$gamma_var,
                                             nrow=length(object_par$f_vec_1),
                                             ncol=length(object_par$f_vec_1)),
                       alpha_matrix=formMatrix(function(x,y)
-                        object_fn$alpha.fun(x,y,object_par$sim_eta_1,object_par$sim_eta_2),
+                        object_fn$alpha.fun(x,y,object_par$sim_eta_1,
+                                            object_par$sim_eta_2),
                         object_par$f_vec_1),
                       beta_matrix=matrix(object_par$sim_beta,
                                          nrow=length(object_par$f_vec_1),
                                          ncol=length(object_par$f_vec_1)),
-                      q1_matrix=formMatrix(function(x,y) object_fn$q1.fun(x,y,object_par$sim_eta_3),
-                                           object_par$f_vec_1),
-                      q2_matrix=formMatrix(function(x,y) object_fn$q0.fun(x,y,object_par$sim_eta_3),
-                                           object_par$f_vec_1))
+                      q1_matrix=formMatrix(function(x,y) 
+                        object_fn$q1.fun(x, y,
+                                         object_par$sim_eta_3),
+                                         object_par$f_vec_1),
+                      q2_matrix=formMatrix(function(x,y) 
+                        object_fn$q0.fun(x, y, 
+                                         object_par$sim_eta_3),
+                                         object_par$f_vec_1))
 
 # matrixPlotParameter(object_matrix$alpha_matrix)
 # object_matrix$q1_matrix
