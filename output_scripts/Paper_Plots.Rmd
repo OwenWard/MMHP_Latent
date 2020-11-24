@@ -702,9 +702,25 @@ like the plots in 2b.
 ```{r fig-4a, fig.height=4,fig.width=8}
 sim_data_path <- "../output/sims/sims_m3_dc/"
 
+# load(paste(sim_data_path,"sim_model3_fit123.RData",sep=''))
+# load(paste(sim_data_path,"fit123_state_est.RData",sep=''))
+#### need to edit here to account for separate files now
 
-load(paste(sim_data_path,"sim_model3_fit123.RData",sep=''))
-load(paste(sim_data_path,"fit123_state_est.RData",sep=''))
+m3_files <- list.files(sim_data_path, pattern = "sim_model3_fit*")
+#m1_files
+
+# load(paste0(m1_path,m1_files[1]))
+sim_model3_stan_sim1_total <- list()
+sim_model3_stan_sim2_total <- list()
+sim_model3_stan_sim3_total <- list()
+
+for(i in seq_along(m3_files)) {
+  load(paste0(sim_data_path,m3_files[i]))
+  sim_model3_stan_sim1_total[[i]] <- sim_model3_stan_sim1
+  sim_model3_stan_sim2_total[[i]] <- sim_model3_stan_sim2
+  sim_model3_stan_sim3_total[[i]] <- sim_model3_stan_sim3
+  
+}
 
 
 n_sim <- 50
@@ -727,9 +743,13 @@ for(m in c(1:3)){
          type="n",xlab="",ylab="",xaxt="n",yaxt="n",axes=FALSE)
     
     ## Posterior density
-    current_result <- eval(parse(text=paste("sim_model3_stan_sim",m,sep="")))
+    # current_result <- eval(parse(text=paste("sim_model3_stan_sim",m,sep="")))
+    current_result <- eval(parse(text=paste("sim_model3_stan_sim",
+                                            m,
+                                            "_total",
+                                            sep="")))
     for(i in c(1:n_sim)){
-      lines(density(current_result[[i]]$f[1001:2000,j]),
+      lines(density(current_result[[i]]$f[,j]),
             col=add.alpha(model_colors[m], alpha=0.8),cex=0.6,lwd=0.8)
     }
     
@@ -773,22 +793,24 @@ plot.j <- 5
 cur_i <- 4
 cur_j <- 5
 
-test.mmhp <- sim_model3_data[plot.s][[1]]$mmhp_matrix[plot.i,plot.j][[1]]
+load(paste0(sim_data_path, "sim_model3_",
+                               plot.s,
+                              ".RData"))
+test.mmhp <- sim_model3_data$mmhp_matrix[plot.i,plot.j][[1]]
 temp.t <- test.mmhp$tau
 current.n <- length(temp.t)-1
-time.segment <- seq(0,tail(temp.t,1),length.out=5000)
+time.segment <- seq(0, tail(temp.t,1), length.out = 5000)
 
 ### Preprocess the model inference result
 ## model 1
 #########
-model1_par_est <- list(lambda0 =
-                         mean(sim_model3_stan_sim1[[plot.s]]$lambda0[1001:2000]),
-                       eta_1=mean(sim_model3_stan_sim1[[plot.s]]$eta_1[1001:2000]),
-                       eta_2=mean(sim_model3_stan_sim1[[plot.s]]$eta_2[1001:2000]),
-                       eta_3=mean(sim_model3_stan_sim1[[plot.s]]$eta_3[1001:2000]),
-                       beta=mean(sim_model3_stan_sim1[[plot.s]]$beta[1001:2000]),
-                       f=apply(sim_model3_stan_sim1[[plot.s]]$f[1001:2000,],2,mean))
-lambda.m1<-uniHawkesIntensityNumeric(object=list(lambda0 = 
+model1_par_est <- list(lambda0 = mean(sim_model3_stan_sim1_total[[plot.s]]$lambda0),
+                       eta_1 = mean(sim_model3_stan_sim1_total[[plot.s]]$eta_1),
+                       eta_2 = mean(sim_model3_stan_sim1_total[[plot.s]]$eta_2),
+                       eta_3 = mean(sim_model3_stan_sim1_total[[plot.s]]$eta_3),
+                       beta = mean(sim_model3_stan_sim1_total[[plot.s]]$beta),
+                       f = apply(sim_model3_stan_sim1_total[[plot.s]]$f, 2, mean))
+lambda.m1<-uniHawkesIntensityNumeric(object = list(lambda0 = 
                                                    model1_par_est$lambda0,
                                     alpha =
                                       model1_fn$alpha.fun(model1_par_est$f[plot.i],
@@ -796,86 +818,110 @@ lambda.m1<-uniHawkesIntensityNumeric(object=list(lambda0 =
                                     model1_par_est$eta_1,
                                     model1_par_est$eta_2,
                                     model1_par_est$eta_3),
-                                    beta=model1_par_est$beta),
-                                     events=temp.t,
-                                     time.vec=time.segment)
+                                    beta = model1_par_est$beta),
+                                     events = temp.t,
+                                     time.vec = time.segment)
 
 
 ## model2
 #############
-model2_par_est <- list(gamma=apply(sim_model3_stan_sim2[[plot.s]]$gamma[1001:2000,],
-                                   2,mean),
-                    zeta = 
-                      apply(sim_model3_stan_sim2[[plot.s]]$zeta[1001:2000,],2,mean),
-                       eta_1=mean(sim_model3_stan_sim2[[plot.s]]$eta_1[1001:2000]),
-                       eta_2=mean(sim_model3_stan_sim2[[plot.s]]$eta_2[1001:2000]),
-                       eta_3=mean(sim_model3_stan_sim2[[plot.s]]$eta_3[1001:2000]),
-                       beta=mean(sim_model3_stan_sim2[[plot.s]]$beta[1001:2000]),
-                       f=apply(sim_model3_stan_sim2[[plot.s]]$f[1001:2000,],2,mean))
+model2_par_est <- list(gamma = apply(sim_model3_stan_sim2_total[[plot.s]]$gamma,
+                                     2, mean),
+                    zeta = apply(sim_model3_stan_sim2_total[[plot.s]]$zeta, 2, mean),
+                    eta_1 = mean(sim_model3_stan_sim2_total[[plot.s]]$eta_1),
+                    eta_2 = mean(sim_model3_stan_sim2_total[[plot.s]]$eta_2),
+                    eta_3 = mean(sim_model3_stan_sim2_total[[plot.s]]$eta_3),
+                    beta = mean(sim_model3_stan_sim2_total[[plot.s]]$beta),
+                    f = apply(sim_model3_stan_sim2_total[[plot.s]]$f, 2, mean))
 
 lambda.m2 <- uniHawkesIntensityNumeric(object=list(
-  lambda0=model2_par_est$gamma[plot.i]+
+  lambda0 = model2_par_est$gamma[plot.i]+
           model2_par_est$zeta[plot.j],                                        
-  alpha=model1_fn$alpha.fun(model2_par_est$f[plot.i],
+  alpha = model1_fn$alpha.fun(model2_par_est$f[plot.i],
                             model2_par_est$f[plot.j],
                             model2_par_est$eta_1,
                             model2_par_est$eta_2,
                             model2_par_est$eta_3),
-                beta=model2_par_est$beta),
-                events=temp.t,
-                time.vec=time.segment)
+                beta = model2_par_est$beta),
+                events = temp.t,
+                time.vec = time.segment)
 
 ## Model3
-#############
-mmhp_par_est <- list(lambda0=mean(sim_model3_stan_sim3[[plot.s]]$lambda0[1001:2000]),
-                     lambda1=mean(sim_model3_stan_sim3[[plot.s]]$lambda1[1001:2000]),
-                     eta_1=mean(sim_model3_stan_sim3[[plot.s]]$eta_1[1001:2000]),
-                     eta_2=mean(sim_model3_stan_sim3[[plot.s]]$eta_2[1001:2000]),
-                     eta_3=mean(sim_model3_stan_sim3[[plot.s]]$eta_3[1001:2000]),
-                     beta=mean(sim_model3_stan_sim3[[plot.s]]$beta[1001:2000]),
-                     f=apply(sim_model3_stan_sim3[[plot.s]]$f[1001:2000,],2,mean))
+###
+lam0_vec <- apply(sim_model3_stan_sim3_total[[plot.s]]$lambda0, 2, mean)
+lam1_vec <- apply(sim_model3_stan_sim3_total[[plot.s]]$lambda1, 2, mean)
+lam0_par_est <- matrix(0, nrow = length(object_par$f_vec_1),
+                       ncol = length(object_par$f_vec_1))
+lam1_par_est <- matrix(0, nrow = length(object_par$f_vec_1),
+                       ncol = length(object_par$f_vec_1))
 
-object_hat <- list(lambda0=mmhp_par_est$lambda0,
-                   lambda1=mmhp_par_est$lambda1,
-                   alpha=model3_fn$alpha.fun(mmhp_par_est$f[cur_i],
+clean_sim_data <- cleanSimulationData(raw_data = sim_model3_data, 
+                                      cut_off = cut_off,
+                                      N = length(object_par$f_vec_1))
+
+for(i in seq_along(lam0_vec)) {
+  row_id <- clean_sim_data$I_fit[i]
+  col_id <- clean_sim_data$J_fit[i]
+  lam0_par_est[row_id, col_id] <- lam0_vec[i]
+  lam1_par_est[row_id, col_id] <- lam1_vec[i]
+}
+
+
+###
+
+#############
+mmhp_par_est <- list(lambda0 = lam0_par_est,
+                     lambda1 = lam1_par_est,
+                     eta_1 = mean(sim_model3_stan_sim3_total[[plot.s]]$eta_1),
+                     eta_2 = mean(sim_model3_stan_sim3_total[[plot.s]]$eta_2),
+                     eta_3 = mean(sim_model3_stan_sim3_total[[plot.s]]$eta_3),
+                     beta = mean(sim_model3_stan_sim3_total[[plot.s]]$beta),
+                     f = apply(sim_model3_stan_sim3_total[[plot.s]]$f,2,mean))
+
+object_hat <- list(lambda0 = mmhp_par_est$lambda0[cur_i, cur_j],
+                   lambda1 = mmhp_par_est$lambda1[cur_i, cur_j],
+                   alpha = model3_fn$alpha.fun(mmhp_par_est$f[cur_i],
                                              mmhp_par_est$f[cur_j],
                                              mmhp_par_est$eta_1,
                                              mmhp_par_est$eta_2),
-                   beta=mmhp_par_est$beta,
-                   q1=model3_fn$q1.fun(mmhp_par_est$f[cur_i],
+                   beta = mmhp_par_est$beta,
+                   q1 = model3_fn$q1.fun(mmhp_par_est$f[cur_i],
                                        mmhp_par_est$f[cur_j],
                                        mmhp_par_est$eta_3),
                    q2=model3_fn$q0.fun(mmhp_par_est$f[cur_i],
                                        mmhp_par_est$f[cur_j],
                                        mmhp_par_est$eta_3))
 
+## then need to load in the state estimate here
+load(paste0(sim_data_path, "fit123_state_est_", plot.s, ".RData"))
 
-state.est.latent.mmhp <- interpolate_state_est_lst[[plot.s]][plot.i,plot.j][[1]]
+
+state.est.latent.mmhp <- interpolate_state_est_lst[plot.i,plot.j][[1]]
 state.est.latent.mmhp.new <- fixInterpolateState(state.est.latent.mmhp,
                                                  termination=200)
 
 step.fun.est <- stepfun(state.est.latent.mmhp$x.hat,
-                        2-state.est.latent.mmhp$z.hat)
+                        2 - state.est.latent.mmhp$z.hat)
 
-lambda.m3 <- mmhpIntensityNumeric(params=object_hat,
-                                  t=temp.t[-1],
-                                  time.vec=time.segment,
-                                  latent.vec=step.fun.est(time.segment))
+lambda.m3 <- mmhpIntensityNumeric(params = object_hat,
+                                  t = temp.t[-1],
+                                  time.vec = time.segment,
+                                  latent.vec = step.fun.est(time.segment))
 
 object_true <- lapply(object_matrix,function(x) x[plot.i,plot.j])
 names(object_true) <- c("lambda0","lambda1","alpha","beta","q1","q2")
 
-lambda.true <- mmhpTrueIntensityNumeric(params=object_true,
-                                        t=temp.t,
-                       latent=list(x=fixStateTransition(test.mmhp)$x,
-                              z=fixStateTransition(test.mmhp)$z),
-                              time.vec=time.segment)
+lambda.true <- mmhpTrueIntensityNumeric(params = object_true,
+                                        t = temp.t,
+                       latent = list(x = fixStateTransition(test.mmhp)$x,
+                                     z = fixStateTransition(test.mmhp)$z),
+                                     time.vec = time.segment)
 
 ```
 
 
 ```{r fig4b-recover-latent-states,fig.width=8,fig.height=4}
-y.ub <- c(17,17,17)#c(130,72,31)
+y.ub <- c(3,3,3)#c(130,72,31)
 x_events <- 135#150
 #model_colors <- c("steelblue", "goldenrod2", "firebrick2")
 model_colors <- viridis::viridis(3)
@@ -883,9 +929,9 @@ layout(matrix(c(1:6), 6, 1), heights=rep(c(2.5,1),3))
 layout(matrix(c(1:6), 6, 1), heights=rep(c(7.5,1),3))
 my.xlim <- 140#160#200#130
 my.long.x <- 140#205#134.5
-legend.x <- c(50,50,50)#c(135,135,135)
+legend.x <- c(30,30,30)#c(135,135,135)
 legend.y <- #c(34,32,32)
-legend.y <- c(15,12,15)#c(62,37,18)#c(22,22,22)
+legend.y <- c(2.5,2,2)#c(15,12,15)#c(62,37,18)#c(22,22,22)
 legend.cex <- 1.5 #3
 line.alpha <- c(0.9,0.6)
 line.wdth <- c(2,2.5)
@@ -990,7 +1036,8 @@ legend(legend.x[2],legend.y[2],"C-DCHP",
 axis(1,at=c(-2,my.long.x),col="gray35",
      line=0.5,tick=T,labels=rep("",2),lwd=0.5,lwd.ticks=0,lty=3)
 
-legend(10,legend.y[2]+2,c("State 0/1 events","State change point"),
+legend(legend.x[2]-20,
+       legend.y[2]+2,c("State 0/1 events","State change point"),
        col = c(NA,"red"),
        y.intersp=0.85,x.intersp=-0.1, bty = "n",
        pch = c(NA,4), pt.cex = c(NA,2), cex=legend.cex,
@@ -1047,7 +1094,7 @@ legend(legend.x[3],legend.y[3],"C-MMHP",
 axis(1,at=c(-2,my.long.x),col="gray35",
      line=0.5,tick=T,labels=rep("",2),lwd=0.5,lwd.ticks=0,lty=3)
 
-legend(10,legend.y[3],c("Overestimation","Underestimation"),
+legend(legend.x[1]-20,legend.y[3],c("Overestimation","Underestimation"),
        col = c(positive.col,negative.col),
        y.intersp=0.88,x.intersp=0.5,bty = "n",
        lty = c(1,1), lwd = c(10,10), cex=legend.cex,seg.len=0.8)
@@ -1153,7 +1200,7 @@ for(m in c(1:3)){
                                             "_total",
                                             sep="")))
     for(i in c(1:n_sim)){
-      lines(density(current_result[[i]]$f[1001:2000,j]),
+      lines(density(current_result[[i]]$f[,j]),
             col=add.alpha(model_colors[m], alpha=0.8),cex=0.6,lwd=0.8)
     }
     
@@ -1196,7 +1243,7 @@ for(m in c(1:3)){
                                             "_total",
                                             sep="")))
     for(i in c(1:n_sim)){
-      lines(density(current_result[[i]]$f[1001:2000,j]),
+      lines(density(current_result[[i]]$f[,j]),
             col=add.alpha(model_colors[m], alpha=0.8),cex=0.6,lwd=0.8)
     }
     
@@ -1240,6 +1287,10 @@ cur_i <- plot.i
 cur_j <- plot.j
 
 load(paste0(m1_path,m1_files[plot.s]))
+clean_sim_data_m1 <- cleanSimulationData(raw_data = sim_model1_data[[1]], 
+                                      cut_off = cut_off,
+                                      N = length(object_par$f_vec_1))
+# this loads in sim data too
 
 temp.t <- sim_model1_data[[1]]$day_hour[ which(sim_model1_data[[1]]$start == cur_i & 
                   sim_model1_data[[1]]$end == cur_j)]
@@ -1250,37 +1301,38 @@ time.segment <- seq(0,tail(temp.t,1),length.out=5000)
 ### Preprocess the model inference result
 ## model 1
 #########
-model1_par_est <- list(lambda0 =
-                         mean(sim_model1_stan_sim1_total[[plot.s]]$lambda0[1001:2000]),
-                       eta_1=mean(sim_model1_stan_sim1_total[[plot.s]]$eta_1[1001:2000]),
-                       eta_2=mean(sim_model1_stan_sim1_total[[plot.s]]$eta_2[1001:2000]),
-                       eta_3=mean(sim_model1_stan_sim1_total[[plot.s]]$eta_3[1001:2000]),
-                       beta=mean(sim_model1_stan_sim1_total[[plot.s]]$beta[1001:2000]),
-                       f=apply(sim_model1_stan_sim1_total[[plot.s]]$f[1001:2000,],2,mean))
+model1_par_est <- list(lambda0 = 
+                         mean(sim_model1_stan_sim1_total[[plot.s]]$lambda0),
+                   eta_1 = mean(sim_model1_stan_sim1_total[[plot.s]]$eta_1),
+                   eta_2 = mean(sim_model1_stan_sim1_total[[plot.s]]$eta_2),
+                   eta_3 = mean(sim_model1_stan_sim1_total[[plot.s]]$eta_3),
+                   beta = mean(sim_model1_stan_sim1_total[[plot.s]]$beta),
+                   f = apply(sim_model1_stan_sim1_total[[plot.s]]$f,2,mean))
 lambda.m1<-uniHawkesIntensityNumeric(object=list(lambda0 = 
                                                    model1_par_est$lambda0,
                                     alpha =
-                                      model1_fn$alpha.fun(model1_par_est$f[plot.i],
+                                    model1_fn$alpha.fun(model1_par_est$f[plot.i],
                                     model1_par_est$f[plot.j],
                                     model1_par_est$eta_1,
                                     model1_par_est$eta_2,
                                     model1_par_est$eta_3),
                                     beta=model1_par_est$beta),
-                                     events=temp.t,
-                                     time.vec=time.segment)
+                                    events=temp.t,
+                                    time.vec=time.segment)
 
 
 ## model2
 #############
-model2_par_est <- list(gamma=apply(sim_model1_stan_sim2_total[[plot.s]]$gamma[1001:2000,],
+model2_par_est <- list(gamma = apply(sim_model1_stan_sim2_total[[plot.s]]$gamma,
                                    2,mean),
-                    zeta = 
-                      apply(sim_model1_stan_sim2_total[[plot.s]]$zeta[1001:2000,],2,mean),
-                       eta_1=mean(sim_model1_stan_sim2_total[[plot.s]]$eta_1[1001:2000]),
-                       eta_2=mean(sim_model1_stan_sim2_total[[plot.s]]$eta_2[1001:2000]),
-                       eta_3=mean(sim_model1_stan_sim2_total[[plot.s]]$eta_3[1001:2000]),
-                       beta=mean(sim_model1_stan_sim2_total[[plot.s]]$beta[1001:2000]),
-                       f=apply(sim_model1_stan_sim2_total[[plot.s]]$f[1001:2000,],2,mean))
+                       zeta = apply(sim_model1_stan_sim2_total[[plot.s]]$zeta,
+                                  2, mean),
+                     eta_1 = mean(sim_model1_stan_sim2_total[[plot.s]]$eta_1),
+                     eta_2 = mean(sim_model1_stan_sim2_total[[plot.s]]$eta_2),
+                     eta_3 = mean(sim_model1_stan_sim2_total[[plot.s]]$eta_3),
+                     beta = mean(sim_model1_stan_sim2_total[[plot.s]]$beta),
+                     f = apply(sim_model1_stan_sim2_total[[plot.s]]$f, 
+                             2, mean))
 
 lambda.m2 <- uniHawkesIntensityNumeric(object=list(
   lambda0=model2_par_est$gamma[plot.i]+
@@ -1296,25 +1348,42 @@ lambda.m2 <- uniHawkesIntensityNumeric(object=list(
 
 ## Model3
 #############
-mmhp_par_est <- list(lambda0=mean(sim_model1_stan_sim3_total[[plot.s]]$lambda0[1001:2000]),
-                     lambda1=mean(sim_model1_stan_sim3_total[[plot.s]]$lambda1[1001:2000]),
-                     eta_1=mean(sim_model1_stan_sim3_total[[plot.s]]$eta_1[1001:2000]),
-                     eta_2=mean(sim_model1_stan_sim3_total[[plot.s]]$eta_2[1001:2000]),
-                     eta_3=mean(sim_model1_stan_sim3_total[[plot.s]]$eta_3[1001:2000]),
-                     beta=mean(sim_model1_stan_sim3_total[[plot.s]]$beta[1001:2000]),
-                     f=apply(sim_model1_stan_sim3_total[[plot.s]]$f[1001:2000,],2,mean))
+####
+lam0_vec <- apply(sim_model1_stan_sim3_total[[plot.s]]$lambda0, 2, mean)
+lam1_vec <- apply(sim_model1_stan_sim3_total[[plot.s]]$lambda1, 2, mean)
+lam0_par_est <- matrix(0, nrow = length(object_par$f_vec_1),
+                       ncol = length(object_par$f_vec_1))
+lam1_par_est <- matrix(0, nrow = length(object_par$f_vec_1),
+                       ncol = length(object_par$f_vec_1))
 
-object_hat <- list(lambda0=mmhp_par_est$lambda0,
-                   lambda1=mmhp_par_est$lambda1,
-                   alpha=model3_fn$alpha.fun(mmhp_par_est$f[cur_i],
+### loaded in sim data again above
+
+for(i in seq_along(lam0_vec)) {
+  row_id <- clean_sim_data_m1$I_fit[i]
+  col_id <- clean_sim_data_m1$J_fit[i]
+  lam0_par_est[row_id, col_id] <- lam0_vec[i]
+  lam1_par_est[row_id, col_id] <- lam1_vec[i]
+}
+####
+mmhp_par_est <- list(lambda0 = lam0_par_est,
+                     lambda1 = lam1_par_est,
+                     eta_1 = mean(sim_model1_stan_sim3_total[[plot.s]]$eta_1),
+                     eta_2 = mean(sim_model1_stan_sim3_total[[plot.s]]$eta_2),
+                     eta_3 = mean(sim_model1_stan_sim3_total[[plot.s]]$eta_3),
+                     beta = mean(sim_model1_stan_sim3_total[[plot.s]]$beta),
+                     f = apply(sim_model1_stan_sim3_total[[plot.s]]$f, 2, mean))
+
+object_hat <- list(lambda0 = mmhp_par_est$lambda0[cur_i, cur_j],
+                   lambda1 = mmhp_par_est$lambda1[cur_i, cur_j],
+                   alpha = model3_fn$alpha.fun(mmhp_par_est$f[cur_i],
                                              mmhp_par_est$f[cur_j],
                                              mmhp_par_est$eta_1,
                                              mmhp_par_est$eta_2),
-                   beta=mmhp_par_est$beta,
-                   q1=model3_fn$q1.fun(mmhp_par_est$f[cur_i],
+                   beta = mmhp_par_est$beta,
+                   q1 = model3_fn$q1.fun(mmhp_par_est$f[cur_i],
                                        mmhp_par_est$f[cur_j],
                                        mmhp_par_est$eta_3),
-                   q2=model3_fn$q0.fun(mmhp_par_est$f[cur_i],
+                   q2 = model3_fn$q0.fun(mmhp_par_est$f[cur_i],
                                        mmhp_par_est$f[cur_j],
                                        mmhp_par_est$eta_3))
 
@@ -1324,7 +1393,7 @@ load(paste0(m1_path,state_est_fits[plot.s]))
 
 state.est.latent.mmhp <- interpolate_state_est_lst[plot.i,plot.j][[1]]
 state.est.latent.mmhp.new <- fixInterpolateState(state.est.latent.mmhp,
-                                                 termination=200)
+                                                 termination = 200)
 
 step.fun.est <- stepfun(state.est.latent.mmhp$x.hat,
                         2-state.est.latent.mmhp$z.hat)
@@ -1346,7 +1415,7 @@ lambda.true <- uniHawkesIntensityNumeric(object = object_true,
 
 ```{r fig 4b M1 sim}
 source(here("lib","mod_drawHawkesIntensityPaper.R"))
-y.ub <- c(17,17,17)#c(130,72,31)
+y.ub <- c(27,27,27)#c(130,72,31)
 x_events <- 135#150
 #model_colors <- c("steelblue", "goldenrod2", "firebrick2")
 model_colors <- viridis::viridis(3)
@@ -1354,9 +1423,9 @@ layout(matrix(c(1:6), 6, 1), heights=rep(c(2.5,1),3))
 layout(matrix(c(1:6), 6, 1), heights=rep(c(7.5,1),3))
 my.xlim <- 140#160#200#130
 my.long.x <- 140#205#134.5
-legend.x <- c(50,50,50)#c(135,135,135)
+legend.x <- c(110,110,110)#c(135,135,135)
 legend.y <- #c(34,32,32)
-legend.y <- c(15,12,15)#c(62,37,18)#c(22,22,22)
+legend.y <- c(20,20,20)#c(62,37,18)#c(22,22,22)
 legend.cex <- 1.5 #3
 line.alpha <- c(0.9,0.6)
 line.wdth <- c(2,2.5)
@@ -1464,13 +1533,14 @@ legend(legend.x[2],legend.y[2],"C-DCHP",
 axis(1,at=c(-2,my.long.x),col="gray35",
      line=0.5,tick=T,labels=rep("",2),lwd=0.5,lwd.ticks=0,lty=3)
 
-legend(10,legend.y[2]+2,c("State 0/1 events","State change point"),
+legend(legend.x[2]-40,
+       legend.y[2]+2,c("State 0/1 events","State change point"),
        col = c(NA,"red"),
        y.intersp=0.85,x.intersp=-0.1, bty = "n",
        pch = c(NA,4), pt.cex = c(NA,2), cex=legend.cex,
        lty = c(NA,NA), lwd=c(NA,4))
-points(14,8+2,pch=1,cex=2,col="blue")
-points(16,8+2,pch=16,cex=2,col="blue")
+points(legend.x[2]-35,16,pch=1,cex=2,col="blue")
+points(legend.x[2]-34,16,pch=16,cex=2,col="blue")
 
 ## delta lambda
 par(mar = c(0,0.3,0,0.1))
@@ -1526,7 +1596,8 @@ legend(legend.x[3],legend.y[3],"C-MMHP",
 axis(1,at=c(-2,my.long.x),col="gray35",
      line=0.5,tick=T,labels=rep("",2),lwd=0.5,lwd.ticks=0,lty=3)
 
-legend(10,legend.y[3],c("Overestimation","Underestimation"),
+legend(legend.x[3]-40,
+       legend.y[3],c("Overestimation","Underestimation"),
        col = c(positive.col,negative.col),
        y.intersp=0.88,x.intersp=0.5,bty = "n",
        lty = c(1,1), lwd = c(10,10), cex=legend.cex,seg.len=0.8)
@@ -1570,6 +1641,9 @@ cur_i <- plot.i
 cur_j <- plot.j
 
 load(paste0(m2_path,m2_files[plot.s]))
+clean_sim_data_m2 <- cleanSimulationData(raw_data = sim_model2_data[[1]], 
+                                      cut_off = cut_off,
+                                      N = length(object_par$f_vec_1))
 
 temp.t <- sim_model2_data[[1]]$day_hour[ which(sim_model2_data[[1]]$start == cur_i & 
                   sim_model2_data[[1]]$end == cur_j)]
@@ -1580,13 +1654,12 @@ time.segment <- seq(0,tail(temp.t,1),length.out=5000)
 ### Preprocess the model inference result
 ## model 1
 #########
-model1_par_est <- list(lambda0 =
-                         mean(sim_model2_stan_sim1_total[[plot.s]]$lambda0[1001:2000]),
-                       eta_1=mean(sim_model2_stan_sim1_total[[plot.s]]$eta_1[1001:2000]),
-                       eta_2=mean(sim_model2_stan_sim1_total[[plot.s]]$eta_2[1001:2000]),
-                       eta_3=mean(sim_model2_stan_sim1_total[[plot.s]]$eta_3[1001:2000]),
-                       beta=mean(sim_model2_stan_sim1_total[[plot.s]]$beta[1001:2000]),
-                       f=apply(sim_model2_stan_sim1_total[[plot.s]]$f[1001:2000,],2,mean))
+model1_par_est <- list(lambda0 = mean(sim_model2_stan_sim1_total[[plot.s]]$lambda0),
+                       eta_1 = mean(sim_model2_stan_sim1_total[[plot.s]]$eta_1),
+                       eta_2 = mean(sim_model2_stan_sim1_total[[plot.s]]$eta_2),
+                       eta_3 = mean(sim_model2_stan_sim1_total[[plot.s]]$eta_3),
+                       beta = mean(sim_model2_stan_sim1_total[[plot.s]]$beta),
+                       f = apply(sim_model2_stan_sim1_total[[plot.s]]$f,2,mean))
 lambda.m1<-uniHawkesIntensityNumeric(object=list(lambda0 = 
                                                    model1_par_est$lambda0,
                                     alpha =
@@ -1602,41 +1675,56 @@ lambda.m1<-uniHawkesIntensityNumeric(object=list(lambda0 =
 
 ## model2
 #############
-model2_par_est <- list(gamma=apply(sim_model2_stan_sim2_total[[plot.s]]$gamma[1001:2000,],
+model2_par_est <- list(gamma = apply(sim_model2_stan_sim2_total[[plot.s]]$gamma,
                                    2,mean),
-                    zeta = 
-                      apply(sim_model2_stan_sim2_total[[plot.s]]$zeta[1001:2000,],2,mean),
-                       eta_1=mean(sim_model2_stan_sim2_total[[plot.s]]$eta_1[1001:2000]),
-                       eta_2=mean(sim_model2_stan_sim2_total[[plot.s]]$eta_2[1001:2000]),
-                       eta_3=mean(sim_model2_stan_sim2_total[[plot.s]]$eta_3[1001:2000]),
-                       beta=mean(sim_model2_stan_sim2_total[[plot.s]]$beta[1001:2000]),
-                       f=apply(sim_model2_stan_sim2_total[[plot.s]]$f[1001:2000,],2,mean))
+                    zeta = apply(sim_model2_stan_sim2_total[[plot.s]]$zeta,2,mean),
+                    eta_1 = mean(sim_model2_stan_sim2_total[[plot.s]]$eta_1),
+                    eta_2 = mean(sim_model2_stan_sim2_total[[plot.s]]$eta_2),
+                    eta_3 = mean(sim_model2_stan_sim2_total[[plot.s]]$eta_3),
+                    beta = mean(sim_model2_stan_sim2_total[[plot.s]]$beta),
+                    f = apply(sim_model2_stan_sim2_total[[plot.s]]$f, 2, mean))
 
 lambda.m2 <- uniHawkesIntensityNumeric(object=list(
-  lambda0=model2_par_est$gamma[plot.i]+
+  lambda0 = model2_par_est$gamma[plot.i]+
           model2_par_est$zeta[plot.j],                                        
-  alpha=model1_fn$alpha.fun(model2_par_est$f[plot.i],
+  alpha = model1_fn$alpha.fun(model2_par_est$f[plot.i],
                             model2_par_est$f[plot.j],
                             model2_par_est$eta_1,
                             model2_par_est$eta_2,
                             model2_par_est$eta_3),
-                beta=model2_par_est$beta),
-                events=temp.t,
-                time.vec=time.segment)
+                beta = model2_par_est$beta),
+                events = temp.t,
+                time.vec = time.segment)
 
 ## Model3
 #############
-mmhp_par_est <- list(lambda0=mean(sim_model2_stan_sim3_total[[plot.s]]$lambda0[1001:2000]),
-                     lambda1=mean(sim_model2_stan_sim3_total[[plot.s]]$lambda1[1001:2000]),
-                     eta_1=mean(sim_model2_stan_sim3_total[[plot.s]]$eta_1[1001:2000]),
-                     eta_2=mean(sim_model2_stan_sim3_total[[plot.s]]$eta_2[1001:2000]),
-                     eta_3=mean(sim_model2_stan_sim3_total[[plot.s]]$eta_3[1001:2000]),
-                     beta=mean(sim_model2_stan_sim3_total[[plot.s]]$beta[1001:2000]),
-                     f=apply(sim_model2_stan_sim3_total[[plot.s]]$f[1001:2000,],2,mean))
+lam0_vec <- apply(sim_model2_stan_sim3_total[[plot.s]]$lambda0, 2, mean)
+lam1_vec <- apply(sim_model2_stan_sim3_total[[plot.s]]$lambda1, 2, mean)
 
-object_hat <- list(lambda0=mmhp_par_est$lambda0,
-                   lambda1=mmhp_par_est$lambda1,
-                   alpha=model3_fn$alpha.fun(mmhp_par_est$f[cur_i],
+lam0_par_est <- matrix(0, nrow = length(object_par$f_vec_1),
+                       ncol = length(object_par$f_vec_1))
+lam1_par_est <- matrix(0, nrow = length(object_par$f_vec_1),
+                       ncol = length(object_par$f_vec_1))
+
+for(i in seq_along(lam0_vec)) {
+  row_id <- clean_sim_data_m2$I_fit
+  col_id <- clean_sim_data_m2$J_fit
+  lam0_par_est[row_id, col_id] <- lam0_vec[i]
+  lam1_par_est[row_id, col_id] <- lam1_vec[i]
+}
+
+
+mmhp_par_est <- list(lambda0 = lam0_par_est,
+                     lambda1 = lam1_par_est,
+                     eta_1 = mean(sim_model2_stan_sim3_total[[plot.s]]$eta_1),
+                     eta_2 = mean(sim_model2_stan_sim3_total[[plot.s]]$eta_2),
+                     eta_3 = mean(sim_model2_stan_sim3_total[[plot.s]]$eta_3),
+                     beta = mean(sim_model2_stan_sim3_total[[plot.s]]$beta),
+                     f = apply(sim_model2_stan_sim3_total[[plot.s]]$f,2,mean))
+
+object_hat <- list(lambda0 = mmhp_par_est$lambda0[cur_i, cur_j],
+                   lambda1 = mmhp_par_est$lambda1[cur_i, cur_j],
+                   alpha = model3_fn$alpha.fun(mmhp_par_est$f[cur_i],
                                              mmhp_par_est$f[cur_j],
                                              mmhp_par_est$eta_1,
                                              mmhp_par_est$eta_2),
@@ -1659,10 +1747,10 @@ state.est.latent.mmhp.new <- fixInterpolateState(state.est.latent.mmhp,
 step.fun.est <- stepfun(state.est.latent.mmhp$x.hat,
                         2-state.est.latent.mmhp$z.hat)
 
-lambda.m3 <- mmhpIntensityNumeric(params=object_hat,
-                                  t=temp.t,
-                                  time.vec=time.segment,
-                                  latent.vec=step.fun.est(time.segment))
+lambda.m3 <- mmhpIntensityNumeric(params = object_hat,
+                                  t = temp.t,
+                                  time.vec = time.segment,
+                                  latent.vec = step.fun.est(time.segment))
 
 object_true <- lapply(object_matrix,function(x) x[plot.i,plot.j])
 names(object_true) <- c("lambda0","lambda1","alpha","beta")
@@ -1893,110 +1981,163 @@ mtext(text="Intensity",side=2,line=0.6,outer=TRUE,cex=2.5)
 
 # Figure 5:
 ```{r data for fig 5,cache=TRUE}
-load(paste(sim_data_path,"sim_model3_fit123.RData",sep=''))
-load(paste(sim_data_path,"fit123_state_est.RData",sep=''))
+# load(paste(sim_data_path,"sim_model3_fit123.RData",sep=''))
+# load(paste(sim_data_path,"fit123_state_est.RData",sep=''))
+####
+#### load new format
+
+
 ## Initialize
-N_array <- array(0,dim=c(n_sim,length(object_par$f_vec_1),length(object_par$f_vec_1))) 
-Lambda_model3_array <- array(0,dim=c(n_sim,length(object_par$f_vec_1),length(object_par$f_vec_1))) 
-Lambda_model1_array <- array(0,dim=c(n_sim,length(object_par$f_vec_1),length(object_par$f_vec_1)))
-Lambda_model2_array <- array(0,dim=c(n_sim,length(object_par$f_vec_1),length(object_par$f_vec_1))) 
-Lambda_true_array <- array(0,dim=c(n_sim,length(object_par$f_vec_1),length(object_par$f_vec_1))) 
-PR_model1_array <- array(0,dim=c(n_sim,length(object_par$f_vec_1),length(object_par$f_vec_1)))
-PR_model2_array <- array(0,dim=c(n_sim,length(object_par$f_vec_1),length(object_par$f_vec_1))) 
-PR_model3_array <- array(0,dim=c(n_sim,length(object_par$f_vec_1),length(object_par$f_vec_1)))
-PR_true_array <- array(0,dim=c(n_sim,length(object_par$f_vec_1),length(object_par$f_vec_1))) 
-KS_model1_array <- array(0,dim=c(n_sim,length(object_par$f_vec_1),length(object_par$f_vec_1)))
-KS_model2_array <- array(0,dim=c(n_sim,length(object_par$f_vec_1),length(object_par$f_vec_1)))
-KS_model3_array <- array(0,dim=c(n_sim,length(object_par$f_vec_1),length(object_par$f_vec_1)))
-KS_true_array <- array(0,dim=c(n_sim,length(object_par$f_vec_1),length(object_par$f_vec_1)))
-KS_p_model1_array <- array(0,dim=c(n_sim,length(object_par$f_vec_1),length(object_par$f_vec_1)))
-KS_p_model2_array <- array(0,dim=c(n_sim,length(object_par$f_vec_1),length(object_par$f_vec_1)))
-KS_p_model3_array <- array(0,dim=c(n_sim,length(object_par$f_vec_1),length(object_par$f_vec_1)))
-KS_p_true_array <- array(0,dim=c(n_sim,length(object_par$f_vec_1),length(object_par$f_vec_1)))
+N_array <- array(0, dim = c(n_sim, length(object_par$f_vec_1),
+                         length(object_par$f_vec_1))) 
+Lambda_model3_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                                     length(object_par$f_vec_1))) 
+Lambda_model1_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                                     length(object_par$f_vec_1)))
+Lambda_model2_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                                     length(object_par$f_vec_1))) 
+Lambda_true_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                                   length(object_par$f_vec_1))) 
+PR_model1_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                                 length(object_par$f_vec_1)))
+PR_model2_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                                 length(object_par$f_vec_1))) 
+PR_model3_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                                 length(object_par$f_vec_1)))
+PR_true_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                               length(object_par$f_vec_1))) 
+KS_model1_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                                 length(object_par$f_vec_1)))
+KS_model2_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                                 length(object_par$f_vec_1)))
+KS_model3_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                                    length(object_par$f_vec_1)))
+KS_true_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                               length(object_par$f_vec_1)))
+KS_p_model1_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                                   length(object_par$f_vec_1)))
+KS_p_model2_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                                   length(object_par$f_vec_1)))
+KS_p_model3_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                                    length(object_par$f_vec_1)))
+KS_p_true_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                                    length(object_par$f_vec_1)))
 
 ## Iteration on 50 simulations
 for(s in c(1:n_sim)){
-  clean_sim_data <- cleanSimulationData(raw_data=sim_model3_data[s][[1]], 
-                                        cut_off = cut_off, N = length(object_par$f_vec_1))
+  load(paste0(sim_data_path,"sim_model3_fit123_",s,".RData"))
+  load(paste(sim_data_path,"fit123_state_est_",s,".RData",sep=''))
+  clean_sim_data <- cleanSimulationData(raw_data=sim_model3_data, 
+                                        cut_off = cut_off,
+                                        N = length(object_par$f_vec_1))
   
   N_array[s,,] <- clean_sim_data$N_count
   
   ## model 1
   #########
-  model1_par_est <- list(lambda0=mean(sim_model3_stan_sim1[[s]]$lambda0[1001:2000]),
-                         eta_1=mean(sim_model3_stan_sim1[[s]]$eta_1[1001:2000]),
-                         eta_2=mean(sim_model3_stan_sim1[[s]]$eta_2[1001:2000]),
-                         eta_3=mean(sim_model3_stan_sim1[[s]]$eta_3[1001:2000]),
-                         beta=mean(sim_model3_stan_sim1[[s]]$beta[1001:2000]),
-                         f=apply(sim_model3_stan_sim1[[s]]$f[1001:2000,],2,mean))
+  model1_par_est <- list(lambda0 = mean(sim_model3_stan_sim1$lambda0),
+                         eta_1 = mean(sim_model3_stan_sim1$eta_1),
+                         eta_2 = mean(sim_model3_stan_sim1$eta_2),
+                         eta_3 = mean(sim_model3_stan_sim1$eta_3),
+                         beta = mean(sim_model3_stan_sim1$beta),
+                         f = apply(sim_model3_stan_sim1$f, 2, mean))
   
   for(i in c(1:5)){
     for(j in c(1:5)[-i]){
-      current_t <- sim_model3_data[s][[1]]$mmhp_matrix[i,j][[1]]$tau
-      m1_object <- list(lambda0=model1_par_est$lambda0,
-                        alpha=model1_fn$alpha.fun(model1_par_est$f[i],model1_par_est$f[j],model1_par_est$eta_1,model1_par_est$eta_2,model1_par_est$eta_3),
-                        beta=model1_par_est$beta)
-      Lambda_model1_array[s,i,j]<-uniHawkesIntegralIntensity(object=m1_object, 
-                                                             events=current_t,
-                                                             termination = tail(current_t,1))
-      Lambda_test <- uniHawkesCompensator(object=m1_object, events=current_t)
+      current_t <- sim_model3_data$mmhp_matrix[i,j][[1]]$tau
+      m1_object <- list(lambda0 = model1_par_est$lambda0,
+                        alpha = model1_fn$alpha.fun(model1_par_est$f[i],
+                                                  model1_par_est$f[j],
+                                                  model1_par_est$eta_1,
+                                                  model1_par_est$eta_2,
+                                                  model1_par_est$eta_3),
+                        beta = model1_par_est$beta)
+      Lambda_model1_array[s,i,j] <- 
+        uniHawkesIntegralIntensity(object = m1_object, 
+                                   events = current_t,
+                                   termination = tail(current_t,1))
+      Lambda_test <- uniHawkesCompensator(object = m1_object, 
+                                          events = current_t)
       KS_model1_array[s,i,j] <-  ks.test(Lambda_test,"pexp")$statistic
       KS_p_model1_array[s,i,j] <-  ks.test(Lambda_test,"pexp")$p.value
-      PR_model1_array[s,i,j] <- uniHawkesPearsonResidual(object=m1_object, 
-                                                         events=current_t,
-                                                         termination = tail(current_t,1))
+      PR_model1_array[s,i,j] <- uniHawkesPearsonResidual(object = m1_object, 
+                                                         events = current_t,
+                                                         termination = 
+                                                           tail(current_t,1))
     }
   }
   
   ## model2
   #############
-  model2_par_est <- list(gamma=apply(sim_model3_stan_sim2[[s]]$gamma[1001:2000,],2,mean),
-                         zeta=apply(sim_model3_stan_sim2[[s]]$zeta[1001:2000,],2,mean),
-                         eta_1=mean(sim_model3_stan_sim2[[s]]$eta_1[1001:2000]),
-                         eta_2=mean(sim_model3_stan_sim2[[s]]$eta_2[1001:2000]),
-                         eta_3=mean(sim_model3_stan_sim2[[s]]$eta_3[1001:2000]),
-                         beta=mean(sim_model3_stan_sim2[[s]]$beta[1001:2000]),
-                         f=apply(sim_model3_stan_sim2[[s]]$f[1001:2000,],2,mean))
+  model2_par_est <- list(gamma = apply(sim_model3_stan_sim2$gamma, 2, mean),
+                         zeta = apply(sim_model3_stan_sim2$zeta,2,mean),
+                         eta_1 = mean(sim_model3_stan_sim2$eta_1),
+                         eta_2 = mean(sim_model3_stan_sim2$eta_2),
+                         eta_3 = mean(sim_model3_stan_sim2$eta_3),
+                         beta = mean(sim_model3_stan_sim2$beta),
+                         f = apply(sim_model3_stan_sim2$f, 2, mean))
   
   for(i in c(1:5)){
     for(j in c(1:5)[-i]){
-      current_t <- sim_model3_data[s][[1]]$mmhp_matrix[i,j][[1]]$tau
-      m2_object <- list(lambda0=model2_par_est$gamma[i]+model2_par_est$zeta[j],
-                        alpha=model1_fn$alpha.fun(model2_par_est$f[i],model2_par_est$f[j],model2_par_est$eta_1,model2_par_est$eta_2,model2_par_est$eta_3),
-                        beta=model2_par_est$beta)
-      Lambda_model2_array[s,i,j]<-uniHawkesIntegralIntensity(object=m1_object, 
-                                                             events=current_t,
-                                                             termination = tail(current_t,1))
-      Lambda_test <- uniHawkesCompensator(object=m2_object, events=current_t)
+      current_t <- sim_model3_data$mmhp_matrix[i,j][[1]]$tau
+      m2_object <- list(lambda0 = model2_par_est$gamma[i] + 
+                          model2_par_est$zeta[j],
+                        alpha = model1_fn$alpha.fun(model2_par_est$f[i],
+                                                    model2_par_est$f[j],
+                                                    model2_par_est$eta_1,
+                                                    model2_par_est$eta_2,
+                                                    model2_par_est$eta_3),
+                        beta = model2_par_est$beta)
+      Lambda_model2_array[s,i,j] <-
+        uniHawkesIntegralIntensity(object = m1_object, 
+                                   events = current_t,
+                                   termination = tail(current_t,1))
+      Lambda_test <- uniHawkesCompensator(object = m2_object,
+                                          events = current_t)
       KS_model2_array[s,i,j] <-  ks.test(Lambda_test,"pexp")$statistic
       KS_p_model2_array[s,i,j] <-  ks.test(Lambda_test,"pexp")$p.value
-      PR_model2_array[s,i,j] <- uniHawkesPearsonResidual(object=m2_object, 
-                                                         events=current_t,
-                                                         termination = tail(current_t,1))
+      PR_model2_array[s,i,j] <- 
+        uniHawkesPearsonResidual(object = m2_object, 
+                                 events = current_t,
+                                 termination = tail(current_t,1))
     }
   }
   
   ## Model3 & true model
   ######
-  mmhp_par_est <- list(lambda0=mean(sim_model3_stan_sim3[[s]]$lambda0[1001:2000]),
-                       lambda1=mean(sim_model3_stan_sim3[[s]]$lambda1[1001:2000]),
-                       eta_1=mean(sim_model3_stan_sim3[[s]]$eta_1[1001:2000]),
-                       eta_2=mean(sim_model3_stan_sim3[[s]]$eta_2[1001:2000]),
-                       eta_3=mean(sim_model3_stan_sim3[[s]]$eta_3[1001:2000]),
-                       beta=mean(sim_model3_stan_sim3[[s]]$beta[1001:2000]),
-                       f=apply(sim_model3_stan_sim3[[s]]$f[1001:2000,],2,mean))
-  clean_sim_data <- cleanSimulationData(raw_data=sim_model3_data[s][[1]], 
-                                        cut_off = cut_off, N = length(object_par$f_vec_1))
+  lambda_0_est <- apply(sim_model3_stan_sim3$lambda0, 2, mean)
+  lambda_1_est <- apply(sim_model3_stan_sim3$lambda1, 2, mean)
+  ## then put these into a matrix
+  lam0_par_est <- matrix(0, nrow = length(object_par$f_vec_1),
+                         ncol = length(object_par$f_vec_1))
+  lam1_par_est <- matrix(0, nrow = length(object_par$f_vec_1),
+                         ncol = length(object_par$f_vec_1))
+  for(i in seq_along(lambda_0_est)) {
+    row_id <- clean_sim_data$I_fit[i]
+    col_id <- clean_sim_data$J_fit[i]
+    lam0_par_est[row_id, col_id] <- lambda_0_est[i]
+    lam1_par_est[row_id, col_id] <- lambda_1_est[i]
+  }
+  mmhp_par_est <- list(lambda0 = lam0_par_est,
+                       lambda1 = lam1_par_est,
+                       eta_1 = mean(sim_model3_stan_sim3$eta_1),
+                       eta_2 = mean(sim_model3_stan_sim3$eta_2),
+                       eta_3 = mean(sim_model3_stan_sim3$eta_3),
+                       beta = mean(sim_model3_stan_sim3$beta),
+                       f = apply(sim_model3_stan_sim3$f,2,mean))
+  clean_sim_data <- cleanSimulationData(raw_data = sim_model3_data, 
+                                        cut_off = cut_off,
+                                        N = length(object_par$f_vec_1))
   
   for(i in c(1:5)){
     for(j in c(1:5)[-i]){
-      test.mmhp <- sim_model3_data[s][[1]]$mmhp_matrix[i,j][[1]]
+      test.mmhp <- sim_model3_data$mmhp_matrix[i,j][[1]]
       temp.t <- test.mmhp$tau
       current.n <- length(temp.t)-1
       time.segment <- seq(0,tail(temp.t,1),length.out=10000)
       
-      object_hat <- list(lambda0=mmhp_par_est$lambda0,
-                         lambda1=mmhp_par_est$lambda1,
+      object_hat <- list(lambda0=mmhp_par_est$lambda0[i,j],
+                         lambda1=mmhp_par_est$lambda1[i,j],
                          alpha=model3_fn$alpha.fun(mmhp_par_est$f[i],
                                                    mmhp_par_est$f[j],
                                                    mmhp_par_est$eta_1,
@@ -2013,37 +2154,49 @@ for(s in c(1:n_sim)){
       names(object_true) <- c("lambda0","lambda1","alpha","beta","q1","q2")
       
       ## est Lmabda and [R]
-      Lambda.test <- mmhpCompensator(params=object_hat, 
-                                     t=temp.t,
-                                     pzt=2-event_state_est_lst[[s]][i,j][[1]]$zt_v,
-                                     if.pzt=FALSE)
+      Lambda.test <- mmhpCompensator(params = object_hat, 
+                                     t = temp.t,
+                                     pzt=2 - 
+                                       event_state_est_lst[i,j][[1]]$zt_v,
+                                     if.pzt = FALSE)
       KS_model3_array[s,i,j] <-  ks.test(Lambda.test,"pexp")$statistic
       KS_p_model3_array[s,i,j] <-  ks.test(Lambda_test,"pexp")$p.value
-      state.est.latent.mmhp <- interpolate_state_est_lst[[s]][i,j][[1]]
-      step.fun.est <- stepfun(state.est.latent.mmhp$x.hat,2-state.est.latent.mmhp$z.hat)
-      est.intensity <- mmhpIntensityNumeric(params=object_hat,
-                                            t=temp.t[-1],
-                                            time.vec=time.segment,
-                                            latent.vec=step.fun.est(time.segment))
-      est.intensity.events <- mmhpIntensityAtEvents(params=object_hat, t=temp.t,
-                                                    latent_z=event_state_est_lst[[s]][i,j][[1]]$zt_v)
-      Lambda_model3_array[s,i,j] <- sum(est.intensity)*(time.segment[2]-time.segment[1])
+      state.est.latent.mmhp <- interpolate_state_est_lst[i,j][[1]]
+      step.fun.est <- stepfun(state.est.latent.mmhp$x.hat,
+                              2 - state.est.latent.mmhp$z.hat)
+      est.intensity <- mmhpIntensityNumeric(params = object_hat,
+                                            t = temp.t[-1],
+                                            time.vec = time.segment,
+                                            latent.vec = 
+                                              step.fun.est(time.segment))
+      est.intensity.events <- mmhpIntensityAtEvents(params=object_hat,
+                                                    t = temp.t,
+                                  latent_z = 
+                                    event_state_est_lst[i,j][[1]]$zt_v)
+      Lambda_model3_array[s,i,j] <-
+        sum(est.intensity)*(time.segment[2]-time.segment[1])
       PR_model3_array[s,i,j] <- sum(1/sqrt(est.intensity.events))-
         sum(sqrt(est.intensity))*(time.segment[2]-time.segment[1])
       
       ## Under the true model
-      Lambda.test.true <- mmhpCompensator(params=object_true,
-                                          t=temp.t,
-                                          pzt=2-test.mmhp$zt[2:length(test.mmhp$zt)],
+      Lambda.test.true <- mmhpCompensator(params = object_true,
+                                          t = temp.t,
+                                          pzt = 2 - 
+                                            test.mmhp$zt[2:length(test.mmhp$zt)],
                                           if.pzt=FALSE)
       KS_true_array[s,i,j] <-  ks.test(Lambda.test.true,"pexp")$statistic
       KS_p_true_array[s,i,j] <-  ks.test(Lambda.test.true,"pexp")$p.value
-      true.intensity <- mmhpTrueIntensityNumeric(params=object_true, t=temp.t,
-                                                 latent=list(x=fixStateTransition(test.mmhp)$x,
-                                                             z=fixStateTransition(test.mmhp)$z),
-                                                 time.vec=time.segment)
-      true.intensity.events <- mmhpIntensityAtEvents(params=object_true, t=temp.t, 
-                                                     latent_z=test.mmhp$zt)
+      true.intensity <- 
+        mmhpTrueIntensityNumeric(params = object_true,
+                                                 t = temp.t,
+                                 latent = list(x = 
+                                                fixStateTransition(test.mmhp)$x,
+                                               z = 
+                                                fixStateTransition(test.mmhp)$z),
+                                     time.vec = time.segment)
+      true.intensity.events <- mmhpIntensityAtEvents(params = object_true,
+                                                     t = temp.t, 
+                                                     latent_z = test.mmhp$zt)
       Lambda_true_array[s,i,j] <- sum(true.intensity$lambda.t)*(time.segment[2]-time.segment[1])
       PR_true_array[s,i,j] <- sum(1/sqrt(true.intensity.events))-
         sum(sqrt(true.intensity$lambda.t))*(time.segment[2]-time.segment[1])
@@ -2064,24 +2217,32 @@ for(i in c(5:1)){
       plot(1,1,type="n",xlim=c(0,1),ylim=c(0,1),
            bty="n", xlab="",ylab="",xaxt="n",yaxt="n",axes=FALSE)
       if(i==5){
-        polygon(c(0,0,0.15,0.15),c(0.72,0.8,0.8,0.72)+0.04,col=cols_plot[1],border=NA)
-        polygon(c(0,0,0.15,0.15),c(0.72,0.8,0.8,0.72)+0.04-0.22,col=cols_plot[2],border=NA)
-        polygon(c(0,0,0.15,0.15),c(0.72,0.8,0.8,0.72)+0.04-0.44,col=cols_plot[3],border=NA)
-        polygon(c(0,0,0.15,0.15),c(0.72,0.8,0.8,0.72)+0.04-0.66,col=cols_plot[4],border=NA)
-        text(c(0.43,0.58,0.61,0.4),seq(0.8,0.14,-0.22),
+        polygon(c(0,0,0.15,0.15),c(0.72,0.8,0.8,0.72)+0.04, 
+                col = cols_plot[1], border = NA)
+        polygon(c(0,0,0.15,0.15),c(0.72,0.8,0.8,0.72)+0.04-0.22,
+                col = cols_plot[2], border = NA)
+        polygon(c(0,0,0.15,0.15),c(0.72,0.8,0.8,0.72)+0.04-0.44,
+                col = cols_plot[3], border = NA)
+        polygon(c(0,0,0.15,0.15),c(0.72,0.8,0.8,0.72)+0.04-0.66,
+                col = cols_plot[4], border = NA)
+        text(c(0.43,0.58,0.61,0.4), seq(0.8,0.14,-0.22),
              c("C-HP", "C-DCHP", "C-MMHP", "True"),
              cex=1.7)
       }
     }else{
       # PR <- c((N_array-Lambda_model1_array)[,i,j],(N_array-Lambda_model2_array)[,i,j],
       #         (N_array-Lambda_model3_array)[,i,j],(N_array-Lambda_true_array)[,i,j])
-      PR <- c(KS_model1_array[,i,j],KS_model2_array[,i,j],
-              KS_model3_array[,i,j],KS_true_array[,i,j])
-      Type <- c(rep(1,n_sim),rep(2,n_sim),rep(3,n_sim),rep(4,n_sim))
+      PR <- c(KS_model1_array[,i,j], KS_model2_array[,i,j],
+              KS_model3_array[,i,j], KS_true_array[,i,j])
+      ### try pr scores instead
+      # PR <- c(PR_model1_array[,i,j],PR_model2_array[,i,j],
+      #         PR_model3_array[,i,j],PR_true_array[,i,j])
+      Type <- c(rep(1,n_sim), rep(2,n_sim), rep(3,n_sim), rep(4,n_sim))
       boxplot(PR ~ Type,  
               col = cols_plot,
               #col = c("steelblue", "goldenrod2", "firebrick2", "chartreuse3"),   
-              xlab="",ylab="",xaxt="n",yaxt="n")#names = c("C-HP", "C-HP-DC", "C-MMHP", "True")
+              xlab="",ylab="",xaxt="n",yaxt="n")
+      #names = c("C-HP", "C-HP-DC", "C-MMHP", "True")
     }
   }
 }
