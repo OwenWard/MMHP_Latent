@@ -56,9 +56,13 @@ cut_off <- 3
 mice_number <- 12
 
 
-model1_fn <- list(alpha.fun = function(x,y,eta1,eta2,eta3){return(eta1*x*y*exp(-eta2*abs(x-y))/(1+exp(-eta3*(x-y))))})
+model1_fn <- list(alpha.fun = function(x,y,eta1,eta2,eta3){
+  return(eta1*x*y*exp(-eta2*abs(x-y))/(1+exp(-eta3*(x-y))))
+  })
 
-model3_fn <- list(alpha.fun = function(x,y,eta1,eta2){return(eta1*x*y*exp(-eta2*abs(x-y)))},
+model3_fn <- list(alpha.fun = function(x,y,eta1,eta2){
+  return(eta1*x*y*exp(-eta2*abs(x-y)))
+  },
                   q1.fun = function(x,y,eta3){return(exp(-eta3*x))},
                   q0.fun = function(x,y,eta3){return(exp(-eta3*y))})
 
@@ -67,8 +71,10 @@ fit_cohorts <- c(1:10)
 naive_rank_10 <- list()
 expert_rank_10 <- list()
 for(current_cohort in fit_cohorts){
-  naive_rank_10[[current_cohort]] <- naiveRankHierarchy(full_data[[cohort_names[current_cohort]]])
-  expert_rank_10[[current_cohort]] <- expertRankHierarchy(full_data[[cohort_names[current_cohort]]])
+  naive_rank_10[[current_cohort]] <- 
+    naiveRankHierarchy(full_data[[cohort_names[current_cohort]]])
+  expert_rank_10[[current_cohort]] <-
+    expertRankHierarchy(full_data[[cohort_names[current_cohort]]])
 }
 
 predict_sim <- 1000
@@ -82,8 +88,10 @@ for(current_cohort in 1:10){
   load(paste(data_path,cohort_names[current_cohort],
              "/agg_rank_stan_result_",cohort_names[current_cohort],
              ".RData",sep=''))
-  f_result_list[[current_cohort]][1,] <- apply(sim_agg_rank$x[1001:2000,],2,median)
-  f_sd_list[[current_cohort]][1,] <- apply(sim_agg_rank$x[1001:2000,],2,sd)
+  f_result_list[[current_cohort]][1,] <- apply(sim_agg_rank$x[1001:2000,],
+                                               2, median)
+  f_sd_list[[current_cohort]][1,] <- apply(sim_agg_rank$x[1001:2000,],
+                                           2,sd)
   ## M1
   load(paste(data_path,cohort_names[current_cohort],
              "/cohort_hp_stan_result_",cohort_names[current_cohort],
@@ -162,9 +170,12 @@ for(current_cohort in 1:10){
   cur <- 1
   for(d_test in c(16:21)){
     indicate_day <- (return_df$day>15&return_df$day<=d_test)
-    temp_real <- cleanSimulationDataForNCount(list(start=return_df$initiator[indicate_day],
-                                                   end=return_df$recipient[indicate_day],
-                                                   day_hour=c(1:sum(indicate_day))))$N_count
+    temp_real <- cleanSimulationDataForNCount(list(start = 
+                                                     return_df$initiator[indicate_day],
+                                                   end = 
+                                                     return_df$recipient[indicate_day],
+                                                   day_hour = 
+                                                     c(1:sum(indicate_day))))$N_count
     real_N_matrix_list[[d_test]] <- temp_real
     
     observe_windows <- which(to_predice_obs$day==d_test)
@@ -177,7 +188,8 @@ for(current_cohort in 1:10){
         est_array_m1[d_test-15,s,,] <- est_array_m1[d_test-15,s,,] +
           cleanSimulationDataForNCount(m1_predict_sim[win,s][[1]])$N_count
       }
-      predict_day_norm_df[cur,'norm'] <- sqrt(sum((real_N_matrix_list[[d_test]]-est_array_m1[d_test-15,s,,])^2))
+      predict_day_norm_df[cur,'norm'] <- sqrt(sum((real_N_matrix_list[[d_test]] - 
+                                                     est_array_m1[d_test-15,s,,])^2))
       
       # M2
       if(d_test>16){
@@ -222,11 +234,16 @@ for(current_cohort in 1:10){
       predict_day_norm_df[c(cur:(cur+no_method-1)),'method'] <- c("m1","m2","m3","mmhp","dsnl")
       cur <- cur+no_method
     }
-    all_cohort_norm_df[cur_all,'norm'] <- sqrt(sum((real_N_matrix_list[[d_test]]-apply(est_array_m1[d_test-15,,,],c(2,3),median))^2))
-    all_cohort_norm_df[cur_all+1,'norm'] <- sqrt(sum((real_N_matrix_list[[d_test]]-apply(est_array_m2[d_test-15,,,],c(2,3),median))^2))
-    all_cohort_norm_df[cur_all+2,'norm'] <- sqrt(sum((real_N_matrix_list[[d_test]]-apply(est_array_m3[d_test-15,,,],c(2,3),median))^2))
-    all_cohort_norm_df[cur_all+3,'norm'] <- sqrt(sum((real_N_matrix_list[[d_test]]-apply(est_array_mmhp[d_test-15,,,],c(2,3),median))^2))
-    all_cohort_norm_df[cur_all+4,'norm'] <- sqrt(sum((real_N_matrix_list[[d_test]]-apply(est_array_dsnl[d_test-15,,,],c(2,3),median))^2))
+    all_cohort_norm_df[cur_all,'norm'] <- sqrt(sum((real_N_matrix_list[[d_test]]-
+                                                      apply(est_array_m1[d_test-15,,,],c(2,3),median))^2))
+    all_cohort_norm_df[cur_all+1,'norm'] <- sqrt(sum((real_N_matrix_list[[d_test]]-
+                                                        apply(est_array_m2[d_test-15,,,],c(2,3),median))^2))
+    all_cohort_norm_df[cur_all+2,'norm'] <- sqrt(sum((real_N_matrix_list[[d_test]]-
+                                                        apply(est_array_m3[d_test-15,,,],c(2,3),median))^2))
+    all_cohort_norm_df[cur_all+3,'norm'] <- sqrt(sum((real_N_matrix_list[[d_test]]-
+                                                        apply(est_array_mmhp[d_test-15,,,],c(2,3),median))^2))
+    all_cohort_norm_df[cur_all+4,'norm'] <- sqrt(sum((real_N_matrix_list[[d_test]]-
+                                                        apply(est_array_dsnl[d_test-15,,,],c(2,3),median))^2))
     all_cohort_norm_df[c(cur_all:(cur_all+no_method-1)),'day'] <- rep(d_test,no_method)
     all_cohort_norm_df[c(cur_all:(cur_all+no_method-1)),'cohort'] <- rep(current_cohort,no_method)
     all_cohort_norm_df[c(cur_all:(cur_all+no_method-1)),'method'] <- c("m1","m2","m3","mmhp","dsnl")
@@ -239,7 +256,7 @@ save(predict_day_norm_df_lst, all_cohort_norm_df, est_array_m1, est_array_m2, es
      file = paste(data_path,"plot_N_predict.RData",sep=""))
 
 
-#### everything down to here works fine ####
+
 
 #### Rank Prediction
 
@@ -341,15 +358,18 @@ for(current_cohort in fit_cohorts){
                              eta_3=sim_cohort_dchp$eta_3[s],
                              beta=sim_cohort_dchp$beta[s],
                              f=sim_cohort_dchp$f[s,])
-      model2_par_matrix <- list(lambda0_matrix=model2_par_est$gamma%*%t(rep(1,mice_number))+
-                                  rep(1,mice_number)%*%t(model2_par_est$zeta),
-                                alpha_matrix=formMatrix(function(x,y) model1_fn$alpha.fun(x,y,
-                                                                                          model2_par_est$eta_1,
-                                                                                          model2_par_est$eta_2,
-                                                                                          model2_par_est$eta_3),
+      model2_par_matrix <- list(lambda0_matrix = 
+                                  model2_par_est$gamma%*%t(rep(1, mice_number)) +
+                                  rep(1, mice_number)%*%t(model2_par_est$zeta),
+                                alpha_matrix = formMatrix(function(x,y) 
+                                  model1_fn$alpha.fun(x,y,
+                                                      model2_par_est$eta_1,
+                                                      model2_par_est$eta_2,
+                                                      model2_par_est$eta_3),
                                                         model2_par_est$f),
-                                beta_matrix=matrix(model2_par_est$beta,
-                                                   nrow=mice_number,ncol=mice_number))
+                                beta_matrix = matrix(model2_par_est$beta,
+                                                   nrow = mice_number,
+                                                   ncol = mice_number))
       
       ## m3
       model3_par_est <- list(lambda0=sim_cohort_mmhp$lambda0[s],

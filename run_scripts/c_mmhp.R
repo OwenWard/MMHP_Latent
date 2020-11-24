@@ -353,7 +353,7 @@ stan_train_input_lst$delta_1 <- rep(0.5,stan_train_input_lst$N_til)
 
 fit_cohort_mmhp <- stan("lib/model3_current.stan",  ## this will need to be updated also
                         data = stan_train_input_lst,
-                        warmup = 1000, iter = 2000, chains = 4,
+                        warmup = 1000, iter = 2000, chains = 4, thin = 4,
                         control=list(adapt_delta=0.999,max_treedepth = 15))
 sim_cohort_mmhp <- rstan::extract(fit_cohort_mmhp)
 dir.create(paste(save_data_path, cohort_names[current_cohort],sep=''), recursive = TRUE, showWarnings = FALSE)

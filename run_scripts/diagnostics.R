@@ -272,12 +272,12 @@ for(i in 1:mice_number){
   for(j in 1:mice_number){
     pair <- which(unique_pairs_df$initiator==i&unique_pairs_df$recipient==j)
     if(length(pair)>0&(i!=j)){
-      par_est <- list(lambda0=mean(sim_cohort_mmhp$lambda0[,pair]),
-                      lambda1=mean(sim_cohort_mmhp$lambda1[,pair]),
-                      alpha=mean(sim_cohort_mmhp$alpha[,pair]),
-                      beta=mean(sim_cohort_mmhp$beta),
-                      q1=mean(sim_cohort_mmhp$q1[,pair]),
-                      q2=mean(sim_cohort_mmhp$q2[,pair]))
+      par_est <- list(lambda0 = mean(sim_cohort_mmhp$lambda0[,pair]),
+                      lambda1 = mean(sim_cohort_mmhp$lambda1[,pair]),
+                      alpha = mean(sim_cohort_mmhp$alpha[,pair]),
+                      beta = mean(sim_cohort_mmhp$beta),
+                      q1 = mean(sim_cohort_mmhp$q1[,pair]),
+                      q2 = mean(sim_cohort_mmhp$q2[,pair]))
       current_window_vec <- unique_pairs_df$observe[[pair]]
       all_rescaled_interevent <- numeric(0)
       #for(cur in c(1:length(current_window_vec))){ 
@@ -290,21 +290,21 @@ for(i in 1:mice_number){
         current_obs_time <- return_df[return_df$initiator==i&
                                         return_df$recipient==j&
                                         return_df$observe.id==cur_win,"observe.time"]
-        time_segment <- seq(0,current_obs_time,length.out=no_segments)
+        time_segment <- seq(0, current_obs_time, length.out = no_segments)
         ### I need to adjust the indexing of these to get the corresponding windows,
         ### below was written for only windows with events, when state array for all now
-        latent_mean <- apply(interpolation_array_list[[pair]][[cur_win]],1,mean)
-        latent_event <- as.numeric(apply(2-state_array_list[[pair]][[cur_win]],1,mean) > 0.5) 
+        latent_mean <- apply(interpolation_array_list[[pair]][[cur_win]], 1, mean)
+        latent_event <- as.numeric(apply(2 - state_array_list[[pair]][[cur_win]],
+                                         1, mean) > 0.5) 
         
         ## Pearson
-        est.intensity <- mmhpIntensityNumeric(params=par_est,
-                                              t=current_event_time,
-                                              time.vec=time_segment,
-                                              latent.vec=latent_mean)
-        # this is causing a bug...
-        
-        est.intensity.events <- mmhpIntensityAtEvents(params=par_est, t=current_event_time,
-                                                      latent_z=latent_event)
+        est.intensity <- mmhpIntensityNumeric(params = par_est,
+                                              t = current_event_time,
+                                              time.vec = time_segment,
+                                              latent.vec = latent_mean)
+        est.intensity.events <- mmhpIntensityAtEvents(params = par_est,
+                                                      t = current_event_time,
+                                                      latent_z = latent_event)
         all_prresidual <- sum(1/sqrt(est.intensity.events))-
           sum(sqrt(est.intensity))*(time_segment[2]-time_segment[1])
         all_Lambda <- sum(est.intensity)*(time_segment[2]-time_segment[1])
