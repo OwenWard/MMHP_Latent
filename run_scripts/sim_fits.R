@@ -114,6 +114,7 @@ model2 <- stan_model("lib/sim_model2.stan")
 model3 <- stan_model("lib/sim_model3_dc.stan")
 
 # for(i in c(1:n_sim)){
+i <- sim_id
 clean_sim_data <- cleanSimulationData(raw_data=sim_model3_data, 
                                       cut_off = cut_off, N = length(object_par$f_vec_1))
 #stan_data <- prepareDataStan(clean_sim_data)
@@ -233,8 +234,8 @@ for(cur_i in c(1:length(object_par$f_vec_1))){
                                                 initial.state = viterbi_result$initial_state,
                                                 termination.time = 200,
                                                 termination.state = viterbi_result$termination_state)
-    event_state_est_lst[[cur_sim]][cur_i,cur_j][[1]] <- viterbi_result
-    interpolate_state_est_lst[[cur_sim]][cur_i,cur_j][[1]] <- latent_inter
+    event_state_est_lst[cur_i,cur_j][[1]] <- viterbi_result
+    interpolate_state_est_lst[cur_i,cur_j][[1]] <- latent_inter
   }
 }
 # }
