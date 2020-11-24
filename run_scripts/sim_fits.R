@@ -144,7 +144,9 @@ print("model3")
 ## Fit in model 3
 sim_model3_stan_fit3[[1]] <- sampling(model3,
                                          data=data_list,
-                                         iter=1000, chains=4)
+                                         iter=1000, chains=4,
+                                      control = list(adapt_delta = 0.95,
+                                                     max_treedepth = 15))
   
 # }
 
