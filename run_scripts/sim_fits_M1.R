@@ -29,18 +29,30 @@ source('lib/drawIntensity.R')
 n_sim <- 50
 cut_off <- 3
 
-model1_fn <- list(alpha.fun = function(x,y,eta1,eta2,eta3){return(eta1*x*y*exp(-eta2*abs(x-y))/(1+exp(-eta3*(x-y))))})
+model1_fn <- list(alpha.fun = function(x,y,eta1,eta2,eta3){
+  return(eta1*x*y*exp(-eta2*abs(x-y))/(1+exp(-eta3*(x-y))))
+  })
 
-model3_fn <- list(alpha.fun = function(x,y,eta1,eta2){return(eta1*x*y*exp(-eta2*abs(x-y)))},
-                  q1.fun = function(x,y,eta3){return(exp(-eta3*x))},
-                  q0.fun = function(x,y,eta3){return(exp(-eta3*y))})
+model3_fn <- list(alpha.fun = function(x,y,eta1,eta2){
+                    return(eta1*x*y*exp(-eta2*abs(x-y)))
+                    },
+                  q1.fun = function(x,y,eta3){
+                    return(exp(-eta3*x))
+                    },
+                  q0.fun = function(x,y,eta3){
+                    return(exp(-eta3*y))
+                    })
 
 
 #### Save the simulation parameters ####
 
-object_fn <- list(alpha.fun = function(x,y,eta1,eta2){return(eta1*x*y*exp(-eta2*abs(x-y)))},
-                  q1.fun = function(x,y,eta3){return(exp(-eta3*x))},
-                  q0.fun = function(x,y,eta3){return(exp(-eta3*y))})
+object_fn <- list(
+  alpha.fun = function(x,y,eta1,eta2){
+    return(eta1*x*y*exp(-eta2*abs(x-y)))
+  },
+  q1.fun = function(x,y,eta3){return(exp(-eta3*x))},
+  q0.fun = function(x,y,eta3){return(exp(-eta3*y))}
+  )
 
 object_par <- list(sim_lambda_0=0.08,
                    sim_lambda_1=0.15,
@@ -50,18 +62,21 @@ object_par <- list(sim_lambda_0=0.08,
                    sim_beta=1.5,
                    f_vec_1=c(0.1,0.2,0.4,0.7,0.9))
 
-object_matrix <- list(lambda0_matrix=matrix(object_par$sim_lambda_0,
-                                            nrow=length(object_par$f_vec_1),
-                                            ncol=length(object_par$f_vec_1)),
+object_matrix <- list(lambda0_matrix = matrix(object_par$sim_lambda_0,
+                                            nrow = length(object_par$f_vec_1),
+                                            ncol = length(object_par$f_vec_1)),
                       lambda1_matrix=matrix(object_par$sim_lambda_1,
-                                            nrow=length(object_par$f_vec_1),
-                                            ncol=length(object_par$f_vec_1)),
+                                            nrow = length(object_par$f_vec_1),
+                                            ncol = length(object_par$f_vec_1)),
                       alpha_matrix=formMatrix(function(x,y)
-                        object_fn$alpha.fun(x,y,object_par$sim_eta_1,object_par$sim_eta_2),
+                        object_fn$alpha.fun(x, 
+                                            y,
+                                            object_par$sim_eta_1,
+                                            object_par$sim_eta_2),
                         object_par$f_vec_1),
                       beta_matrix=matrix(object_par$sim_beta,
-                                         nrow=length(object_par$f_vec_1),
-                                         ncol=length(object_par$f_vec_1)))
+                                         nrow = length(object_par$f_vec_1),
+                                         ncol = length(object_par$f_vec_1)))
 
 # matrixPlotParameter(object_matrix$alpha_matrix)
 # object_matrix$q1_matrix
@@ -69,17 +84,15 @@ object_matrix <- list(lambda0_matrix=matrix(object_par$sim_lambda_0,
 
 ## Simulate
 ## save each sim separately now
-sim_model1_data <- rep(list())
+sim_model1_data <- list()
 N_array <- array(0,c(1,5,5))
 # for(i in c(1:n_sim)){
-sim_model1_data[[1]] <- simulateLatentHP(lambda0_matrix=object_matrix$lambda0_matrix,
+sim_model1_data[[1]] <- simulateLatentHP(lambda0_matrix = object_matrix$lambda0_matrix,
                                               # lambda1_matrix=object_matrix$lambda1_matrix,
-                                              alpha_matrix=object_matrix$alpha_matrix,
-                                              beta_matrix=object_matrix$beta_matrix,
-                                              # q1_matrix=object_matrix$q1_matrix,
-                                              # q2_matrix=object_matrix$q2_matrix,
+                                              alpha_matrix = object_matrix$alpha_matrix,
+                                              beta_matrix = object_matrix$beta_matrix,
                                               horizon=200)
-clean_sim_data <- cleanSimulationData(raw_data=sim_model1_data[[1]], 
+clean_sim_data <- cleanSimulationData(raw_data = sim_model1_data[[1]], 
                                       cut_off = cut_off,
                                       N = length(object_par$f_vec_1))
 N_array <- clean_sim_data$N_count
@@ -107,17 +120,17 @@ model2 <- stan_model("lib/sim_model2.stan")
 model3 <- stan_model("lib/sim_model3_dc.stan")
 
 # for(i in c(1:n_sim)){
-clean_sim_data <- cleanSimulationData(raw_data=sim_model1_data[[1]], 
+clean_sim_data <- cleanSimulationData(raw_data = sim_model1_data[[1]], 
                                       cut_off = cut_off, 
                                       N = length(object_par$f_vec_1))
 #stan_data <- prepareDataStan(clean_sim_data)
 # these have different stan files because they're simulation models
 
 
-data_list <- list(max_Nm=max(clean_sim_data$N_count),
+data_list <- list(max_Nm = max(clean_sim_data$N_count),
                   N_til = length(clean_sim_data$I_fit),
-                  M=sum(clean_sim_data$N_count>=cut_off),
-                  N=length(object_par$f_vec_1),
+                  M = sum(clean_sim_data$N_count>=cut_off),
+                  N = length(object_par$f_vec_1),
                   I_fit = clean_sim_data$I_fit,
                   J_fit = clean_sim_data$J_fit,
                   T = tail(clean_sim_data$day_hour,1),
@@ -165,23 +178,39 @@ save(object_fn, object_par, object_matrix, sim_model1_data,
 
 event_state_est_lst <- list()
 interpolate_state_est_lst <- list()
-# for(cur_sim in c(1:n_sim)){
-# print(cur_sim)
 event_state_est_lst <- matrix(list(),
-                                         nrow=length(object_par$f_vec_1),
-                                         ncol=length(object_par$f_vec_1))
+                              nrow = length(object_par$f_vec_1),
+                              ncol = length(object_par$f_vec_1))
 interpolate_state_est_lst <- matrix(list(),
-                                         nrow=length(object_par$f_vec_1),
-                                         ncol=length(object_par$f_vec_1))
-mmhp_par_est <- list(lambda0=mean(sim_model1_stan_sim3$lambda0[1001:2000]),
-                     lambda1=mean(sim_model1_stan_sim3$lambda1[1001:2000]),
-                     eta_1=mean(sim_model1_stan_sim3$eta_1[1001:2000]),
-                     eta_2=mean(sim_model1_stan_sim3$eta_2[1001:2000]),
-                     eta_3=mean(sim_model1_stan_sim3$eta_3[1001:2000]),
-                     beta=mean(sim_model1_stan_sim3$beta[1001:2000]),
-                     f=apply(sim_model1_stan_sim3$f[1001:2000,],2,mean))
-clean_sim_data <- cleanSimulationData(raw_data=sim_model1_data[[1]], 
-                                      cut_off = 1, N = length(object_par$f_vec_1))
+                                    nrow = length(object_par$f_vec_1),
+                                    ncol = length(object_par$f_vec_1))
+### need to update these param estimates
+clean_sim_data <- cleanSimulationData(raw_data = sim_model1_data[[1]], 
+                                      cut_off = 1, 
+                                      N = length(object_par$f_vec_1))
+lam0_vec <- apply(sim_model1_stan_sim3$lambda0, 2, mean)
+lam1_vec <- apply(sim_model1_stan_sim3$lambda1, 2, mean)
+
+lam0_par_est <- matrix(0, nrow = length(object_par$f_vec_1),
+                       ncol = length(object_par$f_vec_1))
+lam1_par_est <- matrix(0, nrow = length(object_par$f_vec_1),
+                       ncol = length(object_par$f_vec_1))
+
+for(i in seq_along(lam0_vec)) {
+  row_id <- clean_sim_data$I_fit
+  col_id <- clean_sim_data$J_fit
+  lam0_par_est[row_id, col_id] <- lam0_vec[i]
+  lam1_par_est[row_id, col_id] <- lam1_vec[i]
+}
+
+mmhp_par_est <- list(lambda0 = lam0_par_est,
+                     lambda1 = lam1_par_est,
+                     eta_1 = mean(sim_model1_stan_sim3$eta_1),
+                     eta_2 = mean(sim_model1_stan_sim3$eta_2),
+                     eta_3 = mean(sim_model1_stan_sim3$eta_3),
+                     beta = mean(sim_model1_stan_sim3$beta),
+                     f = apply(sim_model1_stan_sim3$f, 2, mean))
+
 for(cur_i in c(1:length(object_par$f_vec_1))){
   for(cur_j in c(1:length(object_par$f_vec_1))[-cur_i]){
     ### this not given for other models
@@ -191,17 +220,17 @@ for(cur_i in c(1:length(object_par$f_vec_1))){
     ### need to do something else with it
     ### even though just simulated events
     ### get it from clean_sim_data
-    object_hat <- list(lambda0=mmhp_par_est$lambda0,
-                       lambda1=mmhp_par_est$lambda1,
-                       alpha=model3_fn$alpha.fun(mmhp_par_est$f[cur_i],
+    object_hat <- list(lambda0 = mmhp_par_est$lambda0[cur_i, cur_j],
+                       lambda1 = mmhp_par_est$lambda1[cur_i, cur_j],
+                       alpha = model3_fn$alpha.fun(mmhp_par_est$f[cur_i],
                                                  mmhp_par_est$f[cur_j],
                                                  mmhp_par_est$eta_1,
                                                  mmhp_par_est$eta_2),
-                       beta=mmhp_par_est$beta,
-                       q1=model3_fn$q1.fun(mmhp_par_est$f[cur_i],
+                       beta = mmhp_par_est$beta,
+                       q1 = model3_fn$q1.fun(mmhp_par_est$f[cur_i],
                                            mmhp_par_est$f[cur_j],
                                            mmhp_par_est$eta_3),
-                       q2=model3_fn$q0.fun(mmhp_par_est$f[cur_i],
+                       q2 = model3_fn$q0.fun(mmhp_par_est$f[cur_i],
                                            mmhp_par_est$f[cur_j],
                                            mmhp_par_est$eta_3))
     viterbi_result <- myViterbi(events = sim_events, 
@@ -210,11 +239,13 @@ for(cur_i in c(1:length(object_par$f_vec_1))){
     latent_inter <- interpolateLatentTrajectory(object_hat, 
                                                 sim_events, 
                                                 viterbi_result$zt_v,
-                                                initial.state=viterbi_result$initial_state,
-                                                termination.time=200,
-                                                termination.state=viterbi_result$termination_state)
-    event_state_est_lst[cur_i,cur_j][[1]] <- viterbi_result
-    interpolate_state_est_lst[cur_i,cur_j][[1]] <- latent_inter
+                                                initial.state = 
+                                                  viterbi_result$initial_state,
+                                                termination.time = 200,
+                                                termination.state = 
+                                                  viterbi_result$termination_state)
+    event_state_est_lst[cur_i,cur_j] <- viterbi_result
+    interpolate_state_est_lst[cur_i,cur_j] <- latent_inter
   }
 }
 # }
