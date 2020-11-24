@@ -244,8 +244,8 @@ for(cur_i in c(1:length(object_par$f_vec_1))){
                                                 termination.time = 200,
                                                 termination.state = 
                                                   viterbi_result$termination_state)
-    event_state_est_lst[cur_i,cur_j] <- viterbi_result
-    interpolate_state_est_lst[cur_i,cur_j] <- latent_inter
+    event_state_est_lst[cur_i,cur_j][[1]] <- viterbi_result
+    interpolate_state_est_lst[cur_i,cur_j][[1]] <- latent_inter
   }
 }
 # }
