@@ -51,7 +51,7 @@ object_par <- list(sim_lambda_0 = 0.08,
                    sim_beta = 1.5,
                    f_vec_1 = c(0.1, 0.2, 0.4, 0.7, 0.9))
 
-object_matrix <- list(lambda0_matrix=matrix(object_par$sim_lambda0,
+object_matrix <- list(lambda0_matrix=matrix(object_par$sim_lambda_0,
                                             nrow = length(object_par$f_vec_1),
                                             ncol = length(object_par$f_vec_1)),
                       lambda1_matrix=matrix(object_par$sim_lambda_1,
