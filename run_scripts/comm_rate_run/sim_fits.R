@@ -51,8 +51,9 @@ object_par <- list(sim_lambda_0 = 0.08,
                    sim_beta = 1.5,
                    f_vec_1 = c(0.1, 0.2, 0.4, 0.7, 0.9))
 
-object_matrix <- list(lambda0_matrix=outer(object_par$gamma_var,
-                                           object_par$zeta_var, "+"),
+object_matrix <- list(lambda0_matrix=matrix(object_par$sim_lambda0,
+                                            nrow = length(object_par$f_vec_1),
+                                            ncol = length(object_par$f_vec_1)),
                       lambda1_matrix=matrix(object_par$sim_lambda_1,
                                             nrow=length(object_par$f_vec_1),
                                             ncol=length(object_par$f_vec_1)),
@@ -187,19 +188,19 @@ interpolate_state_est_lst <- matrix(list(),
 ### this doesn't take into account the degree corrected nature 
 ### of lambda0 and lambda1 now, which is important!
 
-lambda_0_est <- apply(sim_model3_stan_sim3$lambda0, 2, mean)
-lambda_1_est <- apply(sim_model3_stan_sim3$lambda1, 2, mean)
-## then put these into a matrix
-lam0_par_est <- matrix(0, nrow = length(object_par$f_vec_1),
-                       ncol = length(object_par$f_vec_1))
-lam1_par_est <- matrix(0, nrow = length(object_par$f_vec_1),
-                       ncol = length(object_par$f_vec_1))
-for(i in seq_along(lambda_0_est)) {
-  row_id <- clean_sim_data$I_fit[i]
-  col_id <- clean_sim_data$J_fit[i]
-  lam0_par_est[row_id, col_id] <- lambda_0_est[i]
-  lam1_par_est[row_id, col_id] <- lambda_1_est[i]
-}
+# lambda_0_est <- apply(sim_model3_stan_sim3$lambda0, 2, mean)
+# lambda_1_est <- apply(sim_model3_stan_sim3$lambda1, 2, mean)
+# ## then put these into a matrix
+# lam0_par_est <- matrix(0, nrow = length(object_par$f_vec_1),
+#                        ncol = length(object_par$f_vec_1))
+# lam1_par_est <- matrix(0, nrow = length(object_par$f_vec_1),
+#                        ncol = length(object_par$f_vec_1))
+# for(i in seq_along(lambda_0_est)) {
+#   row_id <- clean_sim_data$I_fit[i]
+#   col_id <- clean_sim_data$J_fit[i]
+#   lam0_par_est[row_id, col_id] <- lambda_0_est[i]
+#   lam1_par_est[row_id, col_id] <- lambda_1_est[i]
+# }
 
 
 mmhp_par_est <- list(lambda0 = mean(sim_model3_stan_sim3$lambda0),
@@ -214,8 +215,8 @@ clean_sim_data <- cleanSimulationData(raw_data=sim_model3_data,
 for(cur_i in c(1:length(object_par$f_vec_1))){
   for(cur_j in c(1:length(object_par$f_vec_1))[-cur_i]){
     test.mmhp <- sim_model3_data$mmhp_matrix[cur_i,cur_j][[1]]
-    object_hat <- list(lambda0=mmhp_par_est$lambda0,
-                       lambda1=mmhp_par_est$lambda1,
+    object_hat <- list(lambda0=mmhp_par_est$lambda0,#[cur_i, cur_j],
+                       lambda1=mmhp_par_est$lambda1,#[cur_i, cur_j],
                        alpha=model3_fn$alpha.fun(mmhp_par_est$f[cur_i],
                                                  mmhp_par_est$f[cur_j],
                                                  mmhp_par_est$eta_1,
