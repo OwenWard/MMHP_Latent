@@ -2273,7 +2273,7 @@ spear <- function(sim_data) {
   truth <- sim_data$truth
   sim_data %>%
     select(m1:glicko) %>%
-    map( ~cor.test(truth, .x,
+    purrr::map( ~cor.test(truth, .x,
                    method = "spearman")$estimate  ) %>%
     enframe() %>%
     unnest(cols = c(value))
@@ -2625,7 +2625,8 @@ temp_plot_df$method <- factor(temp_plot_df$method,
                               levels = c("mmhp","dsnl","m1","m2","m3"),
                               labels = c("I-MMHP","DSNL","C-HP","C-DCHP","C-MMHP"))
 temp_plot_df$day <- factor(temp_plot_df$day)
-#png(paste(plot_path,"real_predict_N_one_cohort.png",sep=""),width=600,height=300)
+#png(paste(plot_path,"real_predict_N_one_cohort.png",sep=""),
+# width=600,height=300)
 p3 <- temp_plot_df %>%
   rowwise() %>%
   #mutate(norm = min(norm,60)) %>%
@@ -2659,7 +2660,8 @@ temp_plot_df$method <- factor(temp_plot_df$method,
                               levels = c("mmhp","dsnl","m1","m2","m3"),
                               labels = c("I-MMHP","DSNL","C-HP","C-DCHP","C-MMHP"))
 temp_plot_df$day <- factor(temp_plot_df$day)
-#png(paste(plot_path,"real_predict_N_one_cohort.png",sep=""),width=600,height=300)
+#png(paste(plot_path,"real_predict_N_one_cohort.png",sep=""),
+# width=600,height=300)
 p3_slides <- temp_plot_df %>%
   filter(method != "I-MMHP") %>%
   rowwise() %>%
@@ -2693,12 +2695,14 @@ temp_plot_df <- all_cohort_norm_df %>%
 
 temp_plot_df$method <- factor(temp_plot_df$method,
                               levels = c("mmhp","dsnl","m1","m2","m3"),
-                              labels = c("I-MMHP","DSNL","C-HP","C-DCHP","C-MMHP"))
+                              labels = c("I-MMHP","DSNL",
+                                         "C-HP","C-DCHP",
+                                         "C-MMHP"))
 temp_plot_df$day <- factor(temp_plot_df$day)
 
 #png(paste(plot_path,"real_predict_N_all_cohort.png",sep=""),width=600,height=300)
 p4 <- ggplot(temp_plot_df, aes(x=day, y=avg, group=method, color=method)) + 
-  geom_line(aes(linetype = method),
+  geom_line(#aes(linetype = method),
             size=1.2, alpha=0.8, position=position_dodge(0.2)) +
   geom_errorbar(aes(ymin=avg-sd, ymax=avg+sd), width=0.8, size=0.8, alpha=0.8,
                  position=position_dodge(0.2)) +
@@ -2715,7 +2719,41 @@ p4 <- ggplot(temp_plot_df, aes(x=day, y=avg, group=method, color=method)) +
   guides(linetype = FALSE)
 p4
 ```
+```{r fig-8b-frob-norm-boxplot, fig.width=8, fig.height=4}
+load("../output/plot_N_predict.RData")
 
+all_cohort_box <- all_cohort_norm_df
+
+all_cohort_box$method <- factor(all_cohort_box$method,
+                              levels = c("mmhp","dsnl","m1","m2","m3"),
+                              labels = c("I-MMHP","DSNL",
+                                         "C-HP","C-DCHP",
+                                         "C-MMHP"))
+all_cohort_box$day <- factor(all_cohort_box$day)
+
+all_cohort_box %>% 
+  ggplot(aes(x=method,y=norm, fill = method)) +
+  geom_boxplot() + 
+  facet_grid(cols = vars(day)) +
+  geom_boxplot(alpha=0.7) +
+  scale_fill_manual(values = viridis::viridis(5)) +
+  ggtitle("(b)") +
+  theme_bw() +
+  theme(plot.title = element_text(size = 22, hjust = 0.5, face="bold"),
+        text = element_text(size = 20),
+        axis.text.x=element_blank(),
+        axis.ticks.x = element_blank(),
+        legend.position="right") +
+  facet_grid(cols=vars(day)) +
+  # guides(color=guide_legend(title="Method")) +
+  xlab("Prediction horizon (day)") + 
+  ylab("Frobenius norm of error") +
+  labs(fill = "Method") +
+  # ylim(0, 80) +
+  NULL
+
+
+```
 
 ```{r fig-slides-predict,include=slides_plots,eval=slides_plots,fig.height=3}
 load("../output/plot_N_predict.RData")
@@ -2797,13 +2835,16 @@ load("../output/plot_rank_predict.RData")
 temp_plot_df <- predict_day_rank_df_lst[[current_cohort]]
 temp_plot_df$method <- factor(temp_plot_df$method,
                               levels = c("mmhp","dsnl","m1","m2","m3"),
-                              labels = c("I-MMHP","DSNL","C-HP","C-DCHP","C-MMHP"))
+                              labels = c("I-MMHP","DSNL","C-HP",
+                                         "C-DCHP","C-MMHP"))
 temp_plot_df$day <- factor(temp_plot_df$day)
-# png(paste(plot_path,"real_predict_rank_one_cohort.png",sep=""),width=600,height=300)
+# png(paste(plot_path,"real_predict_rank_one_cohort.png",sep=""),
+# width=600,height=300)
 p5 <- ggplot(temp_plot_df, aes(x = method, y = spearman, fill = method)) +
   geom_boxplot(alpha=0.7) +
   scale_fill_manual(values = viridis::viridis(5)) +
-  #scale_fill_manual(values = c("gray","yellowgreen","steelblue","goldenrod2","firebrick2")) + 
+  #scale_fill_manual(values =
+  # c("gray","yellowgreen","steelblue","goldenrod2","firebrick2")) + 
   ggtitle("(a)") +
   theme_bw() +
   theme(plot.title = element_text(size = 22, hjust = 0.5, face="bold"),
