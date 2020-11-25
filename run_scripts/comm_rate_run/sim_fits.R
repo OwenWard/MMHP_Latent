@@ -111,7 +111,7 @@ sim_model3_stan_fit3 <- list()
 
 model1 <- stan_model("lib/sim_model1.stan")
 model2 <- stan_model("lib/sim_model2.stan")
-model3 <- stan_model("lib/sim_model3_dc.stan")
+model3 <- stan_model("lib/sim_model3_comm_rate.stan")
 
 # for(i in c(1:n_sim)){
 i <- sim_id
@@ -202,8 +202,8 @@ for(i in seq_along(lambda_0_est)) {
 }
 
 
-mmhp_par_est <- list(lambda0 = lam0_par_est,
-                     lambda1 = lam1_par_est,
+mmhp_par_est <- list(lambda0 = mean(sim_model3_stan_sim3$lambda0),
+                     lambda1 = mean(sim_model3_stan_sim3$lambda1),
                      eta_1 = mean(sim_model3_stan_sim3$eta_1),
                      eta_2 = mean(sim_model3_stan_sim3$eta_2),
                      eta_3 = mean(sim_model3_stan_sim3$eta_3),
@@ -214,8 +214,8 @@ clean_sim_data <- cleanSimulationData(raw_data=sim_model3_data,
 for(cur_i in c(1:length(object_par$f_vec_1))){
   for(cur_j in c(1:length(object_par$f_vec_1))[-cur_i]){
     test.mmhp <- sim_model3_data$mmhp_matrix[cur_i,cur_j][[1]]
-    object_hat <- list(lambda0=mmhp_par_est$lambda0[cur_i, cur_j],
-                       lambda1=mmhp_par_est$lambda1[cur_i, cur_j],
+    object_hat <- list(lambda0=mmhp_par_est$lambda0,
+                       lambda1=mmhp_par_est$lambda1,
                        alpha=model3_fn$alpha.fun(mmhp_par_est$f[cur_i],
                                                  mmhp_par_est$f[cur_j],
                                                  mmhp_par_est$eta_1,
