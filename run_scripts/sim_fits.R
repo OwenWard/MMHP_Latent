@@ -42,10 +42,10 @@ object_fn <- list(alpha.fun = function(x,y,eta1,eta2){return(eta1*x*y*exp(-eta2*
                   q0.fun = function(x,y,eta3){return(exp(-eta3*y))})
 
 object_par <- list(sim_lambda_0 = 0.08,
-                   sim_lambda_1 = 0.16,
-                   sim_eta_1=2.5,
+                   sim_lambda_1 = 0.2,
+                   sim_eta_1 = 2.5,
                    gamma_var = c(0.01, 0.02, 0.03, 0.06, 0.07),
-                   zeta_var = c(0.075, 0.02, 0.03, 0.05, 0.08),
+                   zeta_var = c(0.075, 0.06, 0.06, 0.03, 0.02),
                    sim_eta_2 = 0.6,
                    sim_eta_3 = 5,
                    sim_beta = 1.5,
