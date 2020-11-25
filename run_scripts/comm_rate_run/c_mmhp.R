@@ -14,7 +14,7 @@ cohort_id <- jobid
 save_data_path <- "output/common_rate/"  #"output_june30/"
 
 ### specify the number of segments here
-no_segments <- 500
+no_segments <- 5000
 
 library(rstan)
 options(mc.cores = parallel::detectCores())
@@ -236,8 +236,9 @@ load(paste(save_data_path,cohort_names[current_cohort],
            ".RData",sep=''))
 load(paste(save_data_path,cohort_names[current_cohort],
            "/cmmhp_est_zt_",cohort_names[current_cohort],".RData",sep=''))
-model3_par_est <- list(gamma=apply(sim_cohort_mmhp$gamma,2,mean),
-                       zeta=apply(sim_cohort_mmhp$zeta,2,mean),
+model3_par_est <- list(lambda0 = mean(sim_cohort_mmhp$lambda0),
+  # gamma=apply(sim_cohort_mmhp$gamma,2,mean),
+  #                      zeta=apply(sim_cohort_mmhp$zeta,2,mean),
                        lambda1=mean(sim_cohort_mmhp$lambda1),
                        eta_1=mean(sim_cohort_mmhp$eta_1),
                        eta_2=mean(sim_cohort_mmhp$eta_2),
