@@ -10,7 +10,7 @@ cohort_id <- jobid
 #cohort_id <- 1
 #####
 
-save_data_path <- "output/"
+save_data_path <- "output/common_rate/"
 
 library(rstan)
 options(mc.cores = parallel::detectCores())

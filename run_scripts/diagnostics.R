@@ -13,7 +13,7 @@ jobid <- as.numeric(jobid)
 cohort_id <- jobid
 # cohort_id <- 1
 ####
-data_path <- "output/"
+data_path <- "output/common_rate/"
 
 
 # library(rstan)
@@ -272,8 +272,10 @@ for(i in 1:mice_number){
   for(j in 1:mice_number){
     pair <- which(unique_pairs_df$initiator==i&unique_pairs_df$recipient==j)
     if(length(pair)>0&(i!=j)){
-      par_est <- list(lambda0 = mean(sim_cohort_mmhp$lambda0[,pair]),
-                      lambda1 = mean(sim_cohort_mmhp$lambda1[,pair]),
+      par_est <- list(lambda0 = mean(sim_cohort_mmhp$lambda0),
+                        # mean(sim_cohort_mmhp$lambda0[,pair]),
+                      lambda1 = mean(sim_cohort_mmhp$lambda1),
+                        # mean(sim_cohort_mmhp$lambda1[,pair]),
                       alpha = mean(sim_cohort_mmhp$alpha[,pair]),
                       beta = mean(sim_cohort_mmhp$beta),
                       q1 = mean(sim_cohort_mmhp$q1[,pair]),
@@ -350,25 +352,29 @@ for(i in 1:mice_number){
   for(j in 1:mice_number){
     pair <- which(unique_pairs_df$initiator==i&unique_pairs_df$recipient==j)
     if(length(pair)>0&(i!=j)){
-      par_est <- list(lambda0=mean(sim_mmhp_sep$lambda0[,pair]),
-                      lambda1=mean(sim_mmhp_sep$lambda1[,pair]),
-                      alpha=mean(sim_mmhp_sep$alpha[,pair]),
-                      beta=mean(sim_mmhp_sep$beta[,pair]),
-                      q1=mean(sim_mmhp_sep$q1[,pair]),
-                      q2=mean(sim_mmhp_sep$q2[,pair]))
+      par_est <- list(lambda0 = mean(sim_mmhp_sep$lambda0[,pair]),
+                      lambda1 = mean(sim_mmhp_sep$lambda1[,pair]),
+                      alpha = mean(sim_mmhp_sep$alpha[,pair]),
+                      beta = mean(sim_mmhp_sep$beta[,pair]),
+                      q1 = mean(sim_mmhp_sep$q1[,pair]),
+                      q2 = mean(sim_mmhp_sep$q2[,pair]))
       current_window_vec <- unique_pairs_df$observe[[pair]]
       all_rescaled_interevent <- numeric(0)
       for(cur in c(1:length(current_window_vec))){ 
         cur_win <- current_window_vec[cur]
         current_event_time <- return_df[return_df$initiator==i&
                                           return_df$recipient==j&
-                                          return_df$observe.id==cur_win,"event.times"][[1]]
+                                          return_df$observe.id==cur_win,
+                                        "event.times"][[1]]
         current_obs_time <- return_df[return_df$initiator==i&
                                         return_df$recipient==j&
-                                        return_df$observe.id==cur_win,"observe.time"]
+                                        return_df$observe.id==cur_win,
+                                      "observe.time"]
         time_segment <- seq(0,current_obs_time,length.out=no_segments)
-        latent_mean <- apply(interpolation_array_list[[pair]][[cur_win]],1,mean)
-        latent_event <- as.numeric(apply(2-state_array_list[[pair]][[cur_win]],1,mean) > 0.5) 
+        latent_mean <- apply(interpolation_array_list[[pair]][[cur_win]],
+                             1, mean)
+        latent_event <- as.numeric(apply(2-state_array_list[[pair]][[cur_win]],
+                                         1, mean) > 0.5) 
         
         ## Pearson
         est.intensity <- mmhpIntensityNumeric(params=par_est,

@@ -11,7 +11,7 @@ jobid <- as.numeric(jobid)
 cohort_id <- jobid
 #cohort_id <- 1
 ####
-save_data_path <- "output/"  #"output_june30/"
+save_data_path <- "output/common_rate/"  #"output_june30/"
 
 ### specify the number of segments here
 no_segments <- 500
@@ -92,7 +92,7 @@ stan_input_lst <- prepareDataStan(current_cohort)
 stan_input_lst$alpha_id <- expert_rank_10[[current_cohort]][1]
 stan_input_lst$delta_1 <- rep(0.5,stan_input_lst$N_til)
 
-fit_cohort_mmhp <- stan("lib/model3_current.stan",  ## this will need to be updated
+fit_cohort_mmhp <- stan("lib/model3_comm_rate.stan",  ## this will need to be updated
                         data = stan_input_lst,
                         warmup = 1000, iter = 2000, chains = 4, thin=4,
                         control=list(adapt_delta=0.999,max_treedepth=15))
@@ -129,22 +129,22 @@ interpolation_array_list <- list()
 
 param <- rep(list(),1000)
 for(s in 1:1000){
-  model3_par_est <- list(gamma=sim_cohort_mmhp$gamma[s,],
-                         zeta=sim_cohort_mmhp$zeta[s,],
-                         lambda1=sim_cohort_mmhp$lambda1[s],
-                         eta_1=sim_cohort_mmhp$eta_1[s],
-                         eta_2=sim_cohort_mmhp$eta_2[s],
-                         eta_3=sim_cohort_mmhp$eta_3[s],
-                         beta=sim_cohort_mmhp$beta[s],
-                         w_lambda = sim_cohort_mmhp$w_lambda[s],
+  model3_par_est <- list(lambda0 = sim_cohort_mmhp$lambda0[s],
+                         lambda1 = sim_cohort_mmhp$lambda1[s],
+                         eta_1 = sim_cohort_mmhp$eta_1[s],
+                         eta_2 = sim_cohort_mmhp$eta_2[s],
+                         eta_3 = sim_cohort_mmhp$eta_3[s],
+                         beta = sim_cohort_mmhp$beta[s],
+                         #w_lambda = sim_cohort_mmhp$w_lambda[s],
                          f=sim_cohort_mmhp$f[s,])
-  param[[s]] <- list(lambda0_matrix = outer(model3_par_est$gamma, model3_par_est$zeta, FUN = "+"),
-                     # lambda0_matrix=matrix(model3_par_est$lambda0,
-                     #                       nrow=mice_number,ncol=mice_number),
-                     # lambda1_matrix=matrix(model3_par_est$lambda1,
-                     #                       nrow=mice_number,ncol=mice_number),
-                     lambda1_matrix = outer(model3_par_est$gamma,
-                                            model3_par_est$zeta, FUN = "+")*(1+model3_par_est$w_lambda),
+  param[[s]] <- list(
+    # lambda0_matrix = outer(model3_par_est$gamma, model3_par_est$zeta, FUN = "+"),
+                     lambda0_matrix=matrix(model3_par_est$lambda0,
+                                           nrow=mice_number,ncol=mice_number),
+                     lambda1_matrix=matrix(model3_par_est$lambda1,
+                                           nrow=mice_number,ncol=mice_number),
+                     # lambda1_matrix = outer(model3_par_est$gamma,
+                     #                        model3_par_est$zeta, FUN = "+")*(1+model3_par_est$w_lambda),
                      alpha_matrix=formMatrix(function(x,y) model3_fn$alpha.fun(x,y,
                                                                                model3_par_est$eta_1,
                                                                                model3_par_est$eta_2),
@@ -245,13 +245,15 @@ model3_par_est <- list(gamma=apply(sim_cohort_mmhp$gamma,2,mean),
                        beta=mean(sim_cohort_mmhp$beta),
                        w_lambda = mean(sim_cohort_mmhp$w_lambda),
                        f=apply(sim_cohort_mmhp$f,2,mean))
-model3_par_matrix <- list(lambda0_matrix = outer(model3_par_est$gamma,model3_par_est$zeta,FUN = "+"),
-                          # lambda0_matrix=matrix(model3_par_est$lambda0,
-                          #                       nrow=mice_number,ncol=mice_number),
-                          # lambda1_matrix=matrix(model3_par_est$lambda1,
-                          #                       nrow=mice_number,ncol=mice_number),
-                          lambda1_matrix = outer(model3_par_est$gamma,
-                                                 model3_par_est$zeta,FUN = "+")*(1+model3_par_est$w_lambda),
+model3_par_matrix <- list(
+                          # lambda0_matrix = outer(model3_par_est$gamma,
+                          #                      model3_par_est$zeta,FUN = "+"),
+                          lambda0_matrix=matrix(model3_par_est$lambda0,
+                                                nrow=mice_number,ncol=mice_number),
+                          lambda1_matrix=matrix(model3_par_est$lambda1,
+                                                nrow=mice_number,ncol=mice_number),
+                          # lambda1_matrix = outer(model3_par_est$gamma,
+                          #                        model3_par_est$zeta,FUN = "+")*(1+model3_par_est$w_lambda),
                           alpha_matrix=formMatrix(function(x,y) model3_fn$alpha.fun(x,y,
                                                                                     model3_par_est$eta_1,
                                                                                     model3_par_est$eta_2),
@@ -351,15 +353,19 @@ stan_train_input_lst <- prepareDataStanTrain(current_cohort)
 stan_train_input_lst$alpha_id <- expert_rank_10[[current_cohort]][1]
 stan_train_input_lst$delta_1 <- rep(0.5,stan_train_input_lst$N_til)
 
-fit_cohort_mmhp <- stan("lib/model3_current.stan",  ## this will need to be updated also
+fit_cohort_mmhp <- stan("lib/model3_comm_rate.stan",  
                         data = stan_train_input_lst,
-                        warmup = 1000, iter = 2000, chains = 4, thin = 4,
-                        control=list(adapt_delta=0.999,max_treedepth = 15))
+                        warmup = 1000, iter = 2000,
+                        chains = 4, thin = 4,
+                        control=list(adapt_delta=0.999, 
+                                     max_treedepth = 15))
 sim_cohort_mmhp <- rstan::extract(fit_cohort_mmhp)
-dir.create(paste(save_data_path, cohort_names[current_cohort],sep=''), recursive = TRUE, showWarnings = FALSE)
+dir.create(paste(save_data_path, cohort_names[current_cohort],sep=''),
+           recursive = TRUE, showWarnings = FALSE)
 save(sim_cohort_mmhp, fit_cohort_mmhp,
      file = paste(save_data_path,cohort_names[current_cohort],
-                  "/cohort_mmhp_predict_stan_result_",cohort_names[current_cohort],
+                  "/cohort_mmhp_predict_stan_result_",
+                  cohort_names[current_cohort],
                   ".RData",sep=''))
 
 

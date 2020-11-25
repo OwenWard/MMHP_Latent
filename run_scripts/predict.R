@@ -10,7 +10,7 @@ jobid <- as.numeric(jobid)
 cohort_id <- jobid
 #cohort_id <- 1
 ####
-data_path <- "output/"
+data_path <- "output/common_rate/"
 
 
 library(rstan)
@@ -165,18 +165,26 @@ for(s in 1:predict_sim){
   ### populate the matrices here
   ### need to account for pairs which aren't observed in
   ### training data
-  lambda0_matrix_curr = outer(sim_cohort_mmhp$gamma[s,],
-                         sim_cohort_mmhp$zeta,
-                         FUN =  "+")
-  diag(lambda0_matrix) <- 0
+  # lambda0_matrix_curr = outer(sim_cohort_mmhp$gamma[s,],
+  #                        sim_cohort_mmhp$zeta,
+  #                        FUN =  "+")
+  # diag(lambda0_matrix) <- 0
   
-  model3_par_est <- list(eta_1=sim_cohort_mmhp$eta_1[s],
+  model3_par_est <- list(lambda0 = sim_cohort_mmhp$lambda0[s],
+                         lambda1 = sim_cohort_mmhp$lambda1[s],
+                         eta_1=sim_cohort_mmhp$eta_1[s],
                          eta_2=sim_cohort_mmhp$eta_2[s],
                          eta_3=sim_cohort_mmhp$eta_3[s],
                          beta=sim_cohort_mmhp$beta[s],
                          f=sim_cohort_mmhp$f[s,])
-  model3_par_matrix <- list(lambda0_matrix = lambda0_matrix_curr,
-                            lambda1_matrix = lambda0_matrix*sim_cohort_mmhp$w_lambda[s],
+  model3_par_matrix <- list(lambda0_matrix = matrix(model3_par_est$lambda0,
+                                                    nrow = mice_number,
+                                                    ncol = mice_number),
+                              # lambda0_matrix_curr,
+                            lambda1_matrix = matrix(model3_par_est$lambda1,
+                                                    nrow = mice_number,
+                                                    ncol = mice_number),
+                              # lambda0_matrix*sim_cohort_mmhp$w_lambda[s],
                             alpha_matrix=formMatrix(function(x,y) model3_fn$alpha.fun(x,y,
                                                                                       model3_par_est$eta_1,
                                                                                       model3_par_est$eta_2),

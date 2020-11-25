@@ -8,7 +8,7 @@ jobid <- Sys.getenv("SLURM_ARRAY_TASK_ID")
 jobid <- as.numeric(jobid)
 cohort_id <- jobid
 
-save_data_path <- "output/"
+save_data_path <- "output/common_rate/"
 library(rstan)
 options(mc.cores = parallel::detectCores())
 
