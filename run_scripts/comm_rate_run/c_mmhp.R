@@ -14,7 +14,7 @@ cohort_id <- jobid
 save_data_path <- "output/common_rate/"  #"output_june30/"
 
 ### specify the number of segments here
-no_segments <- 5000
+no_segments <- 1000
 
 library(rstan)
 options(mc.cores = parallel::detectCores())
@@ -156,7 +156,7 @@ for(s in 1:1000){
                      q2_matrix=formMatrix(function(x,y) model3_fn$q0.fun(x,y,model3_par_est$eta_3),
                                           model3_par_est$f))
 }
-
+cat("Total Pairs", nrow(unique_pairs_df))
 for(pair in 1:nrow(unique_pairs_df)){
   print(pair)
   current_initiator <- as.numeric(unique_pairs_df[pair,"initiator"])
