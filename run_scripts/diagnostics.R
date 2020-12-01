@@ -13,7 +13,7 @@ jobid <- as.numeric(jobid)
 cohort_id <- jobid
 # cohort_id <- 1
 ####
-data_path <- "output/common_rate/"
+data_path <- "output/"
 
 
 # library(rstan)

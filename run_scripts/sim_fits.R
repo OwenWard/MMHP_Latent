@@ -4,7 +4,7 @@
 #### if running on cluster ####
 source("/rigel/stats/users/ogw2103/code/MMHP/MMHP_Latent/run_scripts/cluster_setup.R")
 
-data_path <- "output/common_rate/sims_m3_sparse/"
+data_path <- "output/sims_m3_sparse/"
 
 library(rstan)
 options(mc.cores = parallel::detectCores())
