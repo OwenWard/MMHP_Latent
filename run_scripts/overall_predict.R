@@ -10,7 +10,7 @@ source("/rigel/stats/users/ogw2103/code/MMHP/MMHP_Latent/run_scripts/cluster_set
 # cohort_id <- jobid
 # cohort_id <- 1
 ####
-data_path <- "output/common_rate/"
+data_path <- "output/"
 
 library(rstan)
 options(mc.cores = parallel::detectCores())
