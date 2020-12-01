@@ -6,6 +6,7 @@
 .html
 *.out
 *.err
+*routput*
 html/
 figure-html/
 .png
