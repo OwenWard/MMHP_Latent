@@ -4,6 +4,8 @@
 .Ruserdata
 .out
 .html
+*.out
+*.err
 html/
 figure-html/
 .png
