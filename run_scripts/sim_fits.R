@@ -4,7 +4,7 @@
 #### if running on cluster ####
 source("/rigel/stats/users/ogw2103/code/MMHP/MMHP_Latent/run_scripts/cluster_setup.R")
 
-data_path <- "output/common_rate/sims_m3/"
+data_path <- "output/common_rate/sims_m3_sparse/"
 
 library(rstan)
 options(mc.cores = parallel::detectCores())
@@ -27,6 +27,7 @@ source('lib/drawIntensity.R')
 # Define global variable
 n_sim <- 50
 cut_off <- 3
+obs_time <- 100
 
 model1_fn <- list(alpha.fun = function(x,y,eta1,eta2,eta3){return(eta1*x*y*exp(-eta2*abs(x-y))/(1+exp(-eta3*(x-y))))})
 
@@ -45,7 +46,7 @@ object_par <- list(sim_lambda_0 = 0.08,
                    sim_lambda_1 = 0.2,
                    sim_eta_1 = 2.5,
                    gamma_var = c(0.01, 0.02, 0.03, 0.06, 0.07),
-                   zeta_var = c(0.075, 0.06, 0.06, 0.03, 0.02),
+                   zeta_var = c(0.075, 0.06, 0.05, 0.03, 0.02),
                    sim_eta_2 = 0.6,
                    sim_eta_3 = 5,
                    sim_beta = 1.5,
@@ -86,7 +87,7 @@ sim_model3_data <- simulateLatentMMHP(lambda0_matrix = object_matrix$lambda0_mat
                                       beta_matrix = object_matrix$beta_matrix,
                                       q1_matrix = object_matrix$q1_matrix,
                                       q2_matrix = object_matrix$q2_matrix,
-                                      horizon = 200)
+                                      horizon = obs_time)
 clean_sim_data <- cleanSimulationData(raw_data = sim_model3_data, 
                                       cut_off = cut_off, N = length(object_par$f_vec_1))
 N_array <- clean_sim_data$N_count
@@ -229,12 +230,12 @@ for(cur_i in c(1:length(object_par$f_vec_1))){
                                            mmhp_par_est$eta_3))
     viterbi_result <- myViterbi(events = test.mmhp$tau[-1], 
                                 param = object_hat,
-                                termination = 200)
+                                termination = obs_time)
     latent_inter <- interpolateLatentTrajectory(object_hat, 
                                                 test.mmhp$tau[-1], 
                                                 viterbi_result$zt_v,
                                                 initial.state = viterbi_result$initial_state,
-                                                termination.time = 200,
+                                                termination.time = obs_time,
                                                 termination.state = viterbi_result$termination_state)
     event_state_est_lst[cur_i,cur_j][[1]] <- viterbi_result
     interpolate_state_est_lst[cur_i,cur_j][[1]] <- latent_inter
