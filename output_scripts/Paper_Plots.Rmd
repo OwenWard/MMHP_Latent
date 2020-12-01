@@ -709,7 +709,7 @@ mgp.axis(2,mgp=c(0,0.1,0),at=seq(-0.2,0.6,0.2),cex.axis=1,lwd=0,lwd.ticks=0.8)
 # Figure 4:
 
 ## Figure 4a Recover Latent Ranks
-```{r fig-4a, fig.height=4,fig.width=8}
+```{r fig-4a, fig.height=6,fig.width=8}
 sim_data_path <- "../output/sims/sims_m3_dc/"
 
 # load(paste(sim_data_path,"sim_model3_fit123.RData",sep=''))
@@ -932,17 +932,15 @@ lambda.true <- mmhpTrueIntensityNumeric(params = object_true,
 ```
 
 
-```{r fig4b-recover-latent-states,fig.width=8,fig.height=4}
+```{r fig4b-recover-latent-states,fig.width=8,fig.height=5}
 y.ub <- c(15,15,15)#c(130,72,31)
 x_events <- 190#135#150
-#model_colors <- c("steelblue", "goldenrod2", "firebrick2")
-layout(matrix(c(1:6), 6, 1), heights=rep(c(2.5,1),3))
 layout(matrix(c(1:6), 6, 1), heights=rep(c(7.5,1),3))
 my.xlim <- 200#160#200#130
 my.long.x <- 205#205#134.5
-legend.x <- c(50,50,50)#c(135,135,135)
+legend.x <- c(150,150,150)#c(135,135,135)
 legend.y <- #c(34,32,32)
-legend.y <- c(10,10,10)#c(15,12,15)#c(62,37,18)#c(22,22,22)
+legend.y <- c(12,12,12)#c(15,12,15)#c(62,37,18)#c(22,22,22)
 legend.cex <- 1.5 #3
 line.alpha <- c(0.9,0.6)
 line.wdth <- c(2,2.5)
@@ -1002,7 +1000,7 @@ legend(legend.x[1]+18,legend.y[1],c("C-HP"),
 
 ## delta lambda
 par(mar = c(0,0.3,0,0.1))
-plot(0,0,xlim=c(0,my.xlim), ylim=c(-4,10), type="n",
+plot(0,0,xlim=c(0,my.xlim), ylim=c(-2,4), type="n",
      bty="n", xlab="",ylab="",xaxt="n",yaxt="n",axes=FALSE)
 delta.lambda <- lambda.m1$lambda.t-lambda.true$lambda.t
 delta.positive <- delta.lambda
@@ -1053,15 +1051,15 @@ legend(legend.x[2]-45,
        y.intersp=0.85,x.intersp=-0.1, bty = "n",
        pch = c(NA,4), pt.cex = c(NA,2), cex=legend.cex,
        lty = c(NA,NA), lwd=c(NA,4))
-points(8,legend.y[2] - 2, pch = 1, cex = 2, col = "blue")
-points(10,legend.y[2] - 2, pch = 16, cex = 2, col = "blue")
+points(110,legend.y[2] - 3, pch = 1, cex = 2, col = "blue")
+points(113,legend.y[2] - 3, pch = 16, cex = 2, col = "blue")
 
 ## delta lambda
 par(mar = c(0,0.3,0,0.1))
 delta.lambda <- lambda.m2$lambda.t-lambda.true$lambda.t
 
 plot(lambda.true$time.vec,delta.lambda,xlim=c(0,my.xlim), 
-     ylim=c(-3,10), type="n",
+     ylim=c(-2,4), type="n",
      bty="n", xlab="",ylab="",xaxt="n",yaxt="n",axes=FALSE)
 delta.lambda <- lambda.m2$lambda.t-lambda.true$lambda.t
 delta.positive <- delta.lambda
@@ -1090,17 +1088,17 @@ drawUniMMHPIntensityPaper(true.object,
                           box.type="n")
 drawUniMMHPIntensityPaper(object_hat,
                           simulation = list(
-  x=state.est.latent.mmhp.new$x.hat,                                          
-  z=state.est.latent.mmhp.new$z.hat,
-  tau=test.mmhp$tau,zt=test.mmhp$zt,
-  lambda.max=test.mmhp$lambda.max),
+                            x=state.est.latent.mmhp.new$x.hat,                                          
+                            z=state.est.latent.mmhp.new$z.hat,
+                            tau=test.mmhp$tau,zt=test.mmhp$zt,
+                            lambda.max=test.mmhp$lambda.max),
                           yupper=y.ub,add=TRUE,
                           color=add.alpha(model_colors[3],
-                                      alpha=line.alpha[2]),
-  line.width=line.wdth[2])
+                                          alpha=line.alpha[2]),
+                          line.width=line.wdth[2])
 legend(legend.x[3],legend.y[3],"C-MMHP",
        col = model_colors[3],
-       y.intersp=0.88,x.intersp=0.1,bty = "n",
+       y.intersp=0.6,x.intersp=0.1,bty = "n",
        lty =1, lwd = 5,cex=legend.cex,seg.len=1)
 ## draw box
 axis(1,at=c(-2,my.long.x),col="gray35",
@@ -1108,12 +1106,12 @@ axis(1,at=c(-2,my.long.x),col="gray35",
 
 legend(legend.x[3]-45,legend.y[3]+2, c("Overestimation","Underestimation"),
        col = c(positive.col,negative.col),
-       y.intersp=0.88,x.intersp=0.5,bty = "n",
+       y.intersp=0.6,x.intersp=0.5,bty = "n",
        lty = c(1,1), lwd = c(10,10), cex=legend.cex,seg.len=0.8)
 
 ## delta lambda
 par(mar = c(0,0.3,0,0.1))
-plot(0,0,xlim=c(0,my.xlim), ylim=c(-12,8), type="n",
+plot(0,0,xlim=c(0,my.xlim), ylim=c(-2,4), type="n",
      bty="n", xlab="",ylab="",xaxt="n",yaxt="n",axes=FALSE)
 delta.lambda <- lambda.m3-lambda.true$lambda.t
 delta.positive <- delta.lambda
@@ -1137,6 +1135,7 @@ mtext(text="(b)",side=3,line=0.8,outer=TRUE,cex=2.5,font=2)
 mtext(text="Time",side=1,line=2,outer=TRUE,cex=2.25)
 ## left
 mtext(text="Intensity",side=2,line=0.6,outer=TRUE,cex=2.25)
+
 ```
 
 ## Fig 4 repeated for data generated from other models
@@ -2458,8 +2457,8 @@ p2_slides
 
 
 
-```{r fig-7-prMatrix-Cohort5, fig.height=7}
-# current_cohort <- 5
+```{r fig-7-prMatrix-Cohort5, fig.width=7, fig.height=7}
+current_cohort <- 5
 
 m1_pr <- readRDS(paste(data_path,cohort_names[current_cohort],
                    "/chp_pr_matrix_",cohort_names[current_cohort],
@@ -2498,11 +2497,12 @@ myMultiMatrixPlot(X=matrix_lst_plot,no_matrix=4,n_row=2,
                   col_axis=c(-80,-40,0,40,80), fake_matrix=FALSE,
                   matrix.mar=c(2.5,2.5,2.5,1)
                   )
+mtext(text="(a)",side=3,line=0.5,outer=TRUE,cex=2.5,font=2)
 
 
 ```
 
-```{r fig-matrix-structure-score}
+```{r fig-7b-matrix-structure-score, fig.width=7, fig.height=7}
 library(NMF)
 source(here("lib","residualStructureScore.R"))
 
@@ -2581,9 +2581,20 @@ struct_plot <- struct_scores %>%
 struct_plot$Method <- factor(struct_plot$Method, levels = c("I-MMHP","C-HP","C-DCHP",
                                                "C-MMHP") )
 
+box_cols <- col_df %>% 
+  filter(method %in% c("I-MMHP","C-HP","C-DCHP","C-MMHP")) %>%
+  pull(cols)
+
 struct_plot %>% 
-  ggplot(aes(Method,Score)) + geom_boxplot() +
-  facet_wrap(~Pos_Neg, scales = "free") + theme_minimal()
+  ggplot(aes(Method,Score, fill = Method)) + geom_boxplot() + 
+  scale_fill_manual(values = box_cols) +
+  ggtitle("(b)") +
+  facet_wrap(~Pos_Neg) + theme_bw() +
+  theme(plot.title = element_text(size = 22, hjust = 0.5, face="bold"),
+              text = element_text(size = 20),
+              axis.text.y =element_text(size = 11),
+              axis.text.x = element_blank(),
+              axis.title.x=element_blank() )
 
 ```
 
