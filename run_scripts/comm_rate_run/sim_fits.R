@@ -4,7 +4,7 @@
 #### if running on cluster ####
 source("/rigel/stats/users/ogw2103/code/MMHP/MMHP_Latent/run_scripts/cluster_setup.R")
 
-data_path <- "output/sims_m3_sparse/"
+data_path <- "output/common_rate/sims_m3/"
 
 library(rstan)
 options(mc.cores = parallel::detectCores())
@@ -27,7 +27,6 @@ source('lib/drawIntensity.R')
 # Define global variable
 n_sim <- 50
 cut_off <- 3
-obs_time <- 100
 
 model1_fn <- list(alpha.fun = function(x,y,eta1,eta2,eta3){return(eta1*x*y*exp(-eta2*abs(x-y))/(1+exp(-eta3*(x-y))))})
 
@@ -43,17 +42,18 @@ object_fn <- list(alpha.fun = function(x,y,eta1,eta2){return(eta1*x*y*exp(-eta2*
                   q0.fun = function(x,y,eta3){return(exp(-eta3*y))})
 
 object_par <- list(sim_lambda_0 = 0.08,
-                   sim_lambda_1 = 0.2,
-                   sim_eta_1 = 2.5,
-                   gamma_var = c(0.01, 0.02, 0.03, 0.06, 0.07),
-                   zeta_var = c(0.075, 0.06, 0.05, 0.03, 0.02),
+                   sim_lambda_1 = 0.16,
+                   sim_eta_1=2.5,
+                   #gamma_var = c(0.01, 0.02, 0.03, 0.06, 0.07),
+                   #zeta_var = c(0.075, 0.02, 0.03, 0.05, 0.08),
                    sim_eta_2 = 0.6,
                    sim_eta_3 = 5,
                    sim_beta = 1.5,
                    f_vec_1 = c(0.1, 0.2, 0.4, 0.7, 0.9))
 
-object_matrix <- list(lambda0_matrix=outer(object_par$gamma_var,
-                                           object_par$zeta_var, "+"),
+object_matrix <- list(lambda0_matrix=matrix(object_par$sim_lambda_0,
+                                            nrow = length(object_par$f_vec_1),
+                                            ncol = length(object_par$f_vec_1)),
                       lambda1_matrix=matrix(object_par$sim_lambda_1,
                                             nrow=length(object_par$f_vec_1),
                                             ncol=length(object_par$f_vec_1)),
@@ -87,7 +87,7 @@ sim_model3_data <- simulateLatentMMHP(lambda0_matrix = object_matrix$lambda0_mat
                                       beta_matrix = object_matrix$beta_matrix,
                                       q1_matrix = object_matrix$q1_matrix,
                                       q2_matrix = object_matrix$q2_matrix,
-                                      horizon = obs_time)
+                                      horizon = 200)
 clean_sim_data <- cleanSimulationData(raw_data = sim_model3_data, 
                                       cut_off = cut_off, N = length(object_par$f_vec_1))
 N_array <- clean_sim_data$N_count
@@ -112,7 +112,7 @@ sim_model3_stan_fit3 <- list()
 
 model1 <- stan_model("lib/sim_model1.stan")
 model2 <- stan_model("lib/sim_model2.stan")
-model3 <- stan_model("lib/sim_model3_dc.stan")
+model3 <- stan_model("lib/sim_model3_comm_rate.stan")
 
 # for(i in c(1:n_sim)){
 i <- sim_id
@@ -188,23 +188,23 @@ interpolate_state_est_lst <- matrix(list(),
 ### this doesn't take into account the degree corrected nature 
 ### of lambda0 and lambda1 now, which is important!
 
-lambda_0_est <- apply(sim_model3_stan_sim3$lambda0, 2, mean)
-lambda_1_est <- apply(sim_model3_stan_sim3$lambda1, 2, mean)
-## then put these into a matrix
-lam0_par_est <- matrix(0, nrow = length(object_par$f_vec_1),
-                       ncol = length(object_par$f_vec_1))
-lam1_par_est <- matrix(0, nrow = length(object_par$f_vec_1),
-                       ncol = length(object_par$f_vec_1))
-for(i in seq_along(lambda_0_est)) {
-  row_id <- clean_sim_data$I_fit[i]
-  col_id <- clean_sim_data$J_fit[i]
-  lam0_par_est[row_id, col_id] <- lambda_0_est[i]
-  lam1_par_est[row_id, col_id] <- lambda_1_est[i]
-}
+# lambda_0_est <- apply(sim_model3_stan_sim3$lambda0, 2, mean)
+# lambda_1_est <- apply(sim_model3_stan_sim3$lambda1, 2, mean)
+# ## then put these into a matrix
+# lam0_par_est <- matrix(0, nrow = length(object_par$f_vec_1),
+#                        ncol = length(object_par$f_vec_1))
+# lam1_par_est <- matrix(0, nrow = length(object_par$f_vec_1),
+#                        ncol = length(object_par$f_vec_1))
+# for(i in seq_along(lambda_0_est)) {
+#   row_id <- clean_sim_data$I_fit[i]
+#   col_id <- clean_sim_data$J_fit[i]
+#   lam0_par_est[row_id, col_id] <- lambda_0_est[i]
+#   lam1_par_est[row_id, col_id] <- lambda_1_est[i]
+# }
 
 
-mmhp_par_est <- list(lambda0 = lam0_par_est,
-                     lambda1 = lam1_par_est,
+mmhp_par_est <- list(lambda0 = mean(sim_model3_stan_sim3$lambda0),
+                     lambda1 = mean(sim_model3_stan_sim3$lambda1),
                      eta_1 = mean(sim_model3_stan_sim3$eta_1),
                      eta_2 = mean(sim_model3_stan_sim3$eta_2),
                      eta_3 = mean(sim_model3_stan_sim3$eta_3),
@@ -215,8 +215,8 @@ clean_sim_data <- cleanSimulationData(raw_data=sim_model3_data,
 for(cur_i in c(1:length(object_par$f_vec_1))){
   for(cur_j in c(1:length(object_par$f_vec_1))[-cur_i]){
     test.mmhp <- sim_model3_data$mmhp_matrix[cur_i,cur_j][[1]]
-    object_hat <- list(lambda0=mmhp_par_est$lambda0[cur_i, cur_j],
-                       lambda1=mmhp_par_est$lambda1[cur_i, cur_j],
+    object_hat <- list(lambda0=mmhp_par_est$lambda0,#[cur_i, cur_j],
+                       lambda1=mmhp_par_est$lambda1,#[cur_i, cur_j],
                        alpha=model3_fn$alpha.fun(mmhp_par_est$f[cur_i],
                                                  mmhp_par_est$f[cur_j],
                                                  mmhp_par_est$eta_1,
@@ -230,12 +230,12 @@ for(cur_i in c(1:length(object_par$f_vec_1))){
                                            mmhp_par_est$eta_3))
     viterbi_result <- myViterbi(events = test.mmhp$tau[-1], 
                                 param = object_hat,
-                                termination = obs_time)
+                                termination = 200)
     latent_inter <- interpolateLatentTrajectory(object_hat, 
                                                 test.mmhp$tau[-1], 
                                                 viterbi_result$zt_v,
                                                 initial.state = viterbi_result$initial_state,
-                                                termination.time = obs_time,
+                                                termination.time = 200,
                                                 termination.state = viterbi_result$termination_state)
     event_state_est_lst[cur_i,cur_j][[1]] <- viterbi_result
     interpolate_state_est_lst[cur_i,cur_j][[1]] <- latent_inter

@@ -1,0 +1,1523 @@
+---
+title: "Simulation Comparison"
+author: "Owen G. Ward"
+date: '`r Sys.Date()`'
+output: 
+  html_document:
+    toc: true
+    toc_depth: 2
+    toc_float: true
+    number_sections: TRUE
+    code_folding: hide
+---
+  
+  
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(here)
+library(tidyverse)
+library(rstan)
+library(cmdstanr)
+library(compete)
+library(posterior)
+library(RColorBrewer)
+
+source(here("lib", 'plotUtil.R'))
+source(here("lib", 'simulatePrediction.R'))
+source(here("lib", 'mmhp.R'))
+source(here("lib", 'uniHawkes.R'))
+source(here("lib", 'inferLatentMmhp.R'))
+source(here("lib",'cleanData.R')) 
+source(here("lib",'prepareDataStan.R')) 
+source(here("lib",'drawIntensity.R'))
+# source(here("lib",'myGlicko.R',sep = ""))
+# source(here("lib",'matrixPlotParameter.R',sep = ""))
+# source(here("lib",'residualStructureScore.R',sep = ""))
+theme_set(theme_minimal())
+
+dc_sim_path <- here::here("output", "sims_m3_sparse")
+comm_sim_path <- here::here("output", "common_rate", "sims_m3")
+cohort_names <- paste("cohort",c(9,10,12,15,16,17,18,37,38,45),sep='')
+
+cut_off <- 3
+n_sim <- 50
+
+model1_fn <- list(alpha.fun = function(x,y,eta1,eta2,eta3){return(eta1*x*y*exp(-eta2*abs(x-y))/(1 +
+                                                        exp(-eta3*(x-y))))})
+
+model3_fn <- list(alpha.fun = function(x,y,eta1,eta2){return(eta1*x*y*exp(-eta2*abs(x-y)))},
+                  q1.fun = function(x,y,eta3){return(exp(-eta3*x))},
+                  q0.fun = function(x,y,eta3){return(exp(-eta3*y))})
+
+```
+
+
+```{r get isi rank, cache = TRUE}
+source(here("lib",'naiveRankHierarchy.R'))
+source(here("lib",'expertRankHierarchy.R'))
+
+full_data <- readRDS(here("data","mice.RData"))
+# A=c9, B=c10, C=c12, D=c15, E=c16, F=c17, G=c18, H=c37, I=c38. J=c45
+cohort_names <- paste("cohort",c(9,10,12,15,16,17,18,37,38,45),sep='')
+cohort_short_names <- paste("C",c(9,10,12,15,16,17,18,37,38,45),sep='')
+cut_off <- 3
+mice_number <- 12
+
+# Define the cohorts will be fitted
+fit_cohorts <- c(1:10)
+naive_rank_10 <- list()
+expert_rank_10 <- list()
+out <- utils::capture.output(for(curr_cohort in fit_cohorts){
+  naive_rank_10[[curr_cohort]] <- naiveRankHierarchy(full_data[[cohort_names[curr_cohort]]])
+  expert_rank_10[[curr_cohort]] <- expertRankHierarchy(full_data[[cohort_names[curr_cohort]]])
+})
+```
+
+
+Here we compare the results of two versions of our C-MMHP model, namely
+
+- The degree corrected model, where the base rate for a given pair is
+$$
+\lambda_0^{i,j} = \gamma_i + \zeta_j,
+$$
+
+- The common base model, with a common base rate $\lambda_0$ across all pairs.
+
+
+## Compare rank recovery
+
+We first compare rank recovery. Here we simulate data under each of these
+two models and wish to examine the rank recovery in each, relative to
+the competing C-HP and C-DCHP models.
+
+### Degree Corrected
+
+```{r rank-recov-dc}
+m3_files <- list.files(dc_sim_path, pattern = "sim_model3_fit*")
+
+# load(paste0(m1_path,m1_files[1]))
+sim_model3_stan_sim1_total <- list()
+sim_model3_stan_sim2_total <- list()
+sim_model3_stan_sim3_total <- list()
+
+for(i in seq_along(m3_files)) {
+  load(here(dc_sim_path, m3_files[i]))
+  sim_model3_stan_sim1_total[[i]] <- sim_model3_stan_sim1
+  sim_model3_stan_sim2_total[[i]] <- sim_model3_stan_sim2
+  sim_model3_stan_sim3_total[[i]] <- sim_model3_stan_sim3
+  
+}
+
+
+n_sim <- 50
+
+par(mfrow=c(3, length(object_par$f_vec_1)),
+    mar=c(0,0,1,0),
+    oma=c(6.5,11,3.5,1))
+
+y.ub <- c(12,12,12,12,12)
+text.y <- c(rep(8,4),8)
+text.x <- c(0.1,0.2,0.4,0.7,0.9)
+text.x.adj <- c(0.3,0.4,0.6,0.5,0.8)
+model_colors <- viridis::viridis(3)
+
+for(m in c(1:3)){
+  for(j in c(1:length(object_par$f_vec_1))){
+    plot(1,4,xlim=c(0,1),ylim=c(0,y.ub[j]),
+         type="n",xlab="",ylab="",xaxt="n",yaxt="n",axes=FALSE)
+    
+    ## Posterior density
+    # current_result <- eval(parse(text=paste("sim_model3_stan_sim",m,sep="")))
+    current_result <- eval(parse(text=paste("sim_model3_stan_sim",
+                                            m,
+                                            "_total",
+                                            sep="")))
+    for(i in c(1:n_sim)){
+      lines(density(current_result[[i]]$f[,j]),
+            col=add.alpha(model_colors[m], alpha=0.8),cex=0.6,lwd=0.8)
+    }
+    
+    ## plot true value
+    abline(v=object_par$f_vec_1[j],lwd=1.8,lty=2,col="gray30")
+    
+    ## plot box
+    box.wdt <- 1.5
+    box.col <- "black"
+    box(lty = 'solid',col=box.col,lwd=0.7)
+    
+    if(m==3){
+      text(text.x.adj[j],text.y[j],text.x[j],cex=2.4)
+    }
+  }
+  ## bottom
+  mtext(text=expression(f[1],f[2],f[3],f[4],f[5]), side=1, line=2.4, outer=TRUE, 
+        at=c(1:length(object_par$f_vec_1))/length(object_par$f_vec_1)-0.1,
+        cex=2)
+  mtext(text="Latent rank variables", side=1, line=5.3, outer=TRUE, cex=2.25,
+        at=0.5)
+  ## top
+  # mtext(text="(a)", side=3, line=0, outer=TRUE, cex=2.5,
+  #       at=0.5, font=2)
+  ## left
+  mtext(text=rev(c("C-HP  ","C-DCHP","C-MMHP")), side=2, line=0.5, outer=TRUE, 
+        at=c(0:2)/3+0.15,
+        cex=1.75, las=2)
+}
+
+```
+
+
+### Common rate
+
+We can also do this for the common rate model.
+```{r rank-recov-common}
+m3_files <- list.files(comm_sim_path, pattern = "sim_model3_fit*")
+
+# load(paste0(m1_path,m1_files[1]))
+sim_model3_stan_sim1_total <- list()
+sim_model3_stan_sim2_total <- list()
+sim_model3_stan_sim3_total <- list()
+
+for(i in seq_along(m3_files)) {
+  load(here(comm_sim_path, m3_files[i]))
+  sim_model3_stan_sim1_total[[i]] <- sim_model3_stan_sim1
+  sim_model3_stan_sim2_total[[i]] <- sim_model3_stan_sim2
+  sim_model3_stan_sim3_total[[i]] <- sim_model3_stan_sim3
+  
+}
+
+
+n_sim <- 50
+
+par(mfrow=c(3, length(object_par$f_vec_1)),
+    mar=c(0,0,1,0),
+    oma=c(6.5,11,3.5,1))
+
+y.ub <- c(12,12,12,12,12)
+text.y <- c(rep(8,4),8)
+text.x <- c(0.1,0.2,0.4,0.7,0.9)
+text.x.adj <- c(0.3,0.4,0.6,0.5,0.8)
+model_colors <- viridis::viridis(3)
+
+for(m in c(1:3)){
+  for(j in c(1:length(object_par$f_vec_1))){
+    plot(1,4,xlim=c(0,1),ylim=c(0,y.ub[j]),
+         type="n",xlab="",ylab="",xaxt="n",yaxt="n",axes=FALSE)
+    
+    ## Posterior density
+    # current_result <- eval(parse(text=paste("sim_model3_stan_sim",m,sep="")))
+    current_result <- eval(parse(text=paste("sim_model3_stan_sim",
+                                            m,
+                                            "_total",
+                                            sep="")))
+    for(i in c(1:n_sim)){
+      lines(density(current_result[[i]]$f[,j]),
+            col=add.alpha(model_colors[m], alpha=0.8),cex=0.6,lwd=0.8)
+    }
+    
+    ## plot true value
+    abline(v=object_par$f_vec_1[j],lwd=1.8,lty=2,col="gray30")
+    
+    ## plot box
+    box.wdt <- 1.5
+    box.col <- "black"
+    box(lty = 'solid',col=box.col,lwd=0.7)
+    
+    if(m==3){
+      text(text.x.adj[j],text.y[j],text.x[j],cex=2.4)
+    }
+  }
+  ## bottom
+  mtext(text=expression(f[1],f[2],f[3],f[4],f[5]), side=1, line=2.4,
+        outer=TRUE, 
+        at=c(1:length(object_par$f_vec_1))/length(object_par$f_vec_1)-0.1,
+        cex=2)
+  mtext(text="Latent rank variables", side=1, line=5.3, outer=TRUE, cex=2.25,
+        at=0.5)
+  ## top
+  # mtext(text="(a)", side=3, line=0, outer=TRUE, cex=2.5,
+  #       at=0.5, font=2)
+  ## left
+  mtext(text=rev(c("C-HP  ","C-DCHP","C-MMHP")), side=2, line=0.5,
+        outer=TRUE, 
+        at=c(0:2)/3+0.15,
+        cex=1.75, las=2)
+}
+```
+
+
+## KS Statistics and Pearson Residuals
+
+
+### Degree Corrected Model
+
+```{r ks-pr-computation-dc}
+object_par <- list(sim_lambda_0 = 0.08,
+                   sim_lambda_1 = 0.16,
+                   sim_eta_1 = 2.5,
+                   gamma_var = c(0.01, 0.02, 0.03, 0.06, 0.07),
+                   zeta_var = c(0.075, 0.06, 0.05, 0.03, 0.02),
+                   sim_eta_2 = 0.6,
+                   sim_eta_3 = 5,
+                   sim_beta = 1.5,
+                   f_vec_1 = c(0.1, 0.2, 0.4, 0.7, 0.9))
+
+
+N_array <- array(0, dim = c(n_sim, length(object_par$f_vec_1),
+                         length(object_par$f_vec_1))) 
+Lambda_model3_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                                     length(object_par$f_vec_1))) 
+Lambda_model1_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                                     length(object_par$f_vec_1)))
+Lambda_model2_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                                     length(object_par$f_vec_1))) 
+Lambda_true_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                                   length(object_par$f_vec_1))) 
+PR_model1_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                                 length(object_par$f_vec_1)))
+PR_model2_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                                 length(object_par$f_vec_1))) 
+PR_model3_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                                 length(object_par$f_vec_1)))
+PR_true_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                               length(object_par$f_vec_1))) 
+KS_model1_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                                 length(object_par$f_vec_1)))
+KS_model2_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                                 length(object_par$f_vec_1)))
+KS_model3_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                                    length(object_par$f_vec_1)))
+KS_true_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                               length(object_par$f_vec_1)))
+KS_p_model1_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                                   length(object_par$f_vec_1)))
+KS_p_model2_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                                   length(object_par$f_vec_1)))
+KS_p_model3_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                                    length(object_par$f_vec_1)))
+KS_p_true_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                                    length(object_par$f_vec_1)))
+current_sims <- 1:n_sim
+# 7,31,34,43,47,49
+## Iteration on 50 simulations
+for(s in 44:n_sim){
+  load(here(dc_sim_path,paste0("sim_model3_fit123_",s,".RData")))
+  load(here(dc_sim_path,paste0("fit123_state_est_",s,".RData",sep='')))
+  clean_sim_data <- cleanSimulationData(raw_data=sim_model3_data, 
+                                        cut_off = cut_off,
+                                        N = length(object_par$f_vec_1))
+  
+  N_array[s,,] <- clean_sim_data$N_count
+  
+  ## model 1
+  #########
+  model1_par_est <- list(lambda0 = mean(sim_model3_stan_sim1$lambda0),
+                         eta_1 = mean(sim_model3_stan_sim1$eta_1),
+                         eta_2 = mean(sim_model3_stan_sim1$eta_2),
+                         eta_3 = mean(sim_model3_stan_sim1$eta_3),
+                         beta = mean(sim_model3_stan_sim1$beta),
+                         f = apply(sim_model3_stan_sim1$f, 2, mean))
+  
+  for(i in c(1:5)){
+    for(j in c(1:5)[-i]){
+      current_t <- sim_model3_data$mmhp_matrix[i,j][[1]]$tau
+      m1_object <- list(lambda0 = model1_par_est$lambda0,
+                        alpha = model1_fn$alpha.fun(model1_par_est$f[i],
+                                                  model1_par_est$f[j],
+                                                  model1_par_est$eta_1,
+                                                  model1_par_est$eta_2,
+                                                  model1_par_est$eta_3),
+                        beta = model1_par_est$beta)
+      Lambda_model1_array[s,i,j] <- 
+        uniHawkesIntegralIntensity(object = m1_object, 
+                                   events = current_t,
+                                   termination = tail(current_t,1))
+      Lambda_test <- uniHawkesCompensator(object = m1_object, 
+                                          events = current_t)
+      KS_model1_array[s,i,j] <-  ks.test(Lambda_test,"pexp")$statistic
+      KS_p_model1_array[s,i,j] <-  ks.test(Lambda_test,"pexp")$p.value
+      PR_model1_array[s,i,j] <- uniHawkesPearsonResidual(object = m1_object, 
+                                                         events = current_t,
+                                                         termination = 
+                                                           tail(current_t,1))
+    }
+  }
+  
+  ## model2
+  #############
+  model2_par_est <- list(gamma = apply(sim_model3_stan_sim2$gamma, 2, mean),
+                         zeta = apply(sim_model3_stan_sim2$zeta,2,mean),
+                         eta_1 = mean(sim_model3_stan_sim2$eta_1),
+                         eta_2 = mean(sim_model3_stan_sim2$eta_2),
+                         eta_3 = mean(sim_model3_stan_sim2$eta_3),
+                         beta = mean(sim_model3_stan_sim2$beta),
+                         f = apply(sim_model3_stan_sim2$f, 2, mean))
+  
+  for(i in c(1:5)){
+    for(j in c(1:5)[-i]){
+      current_t <- sim_model3_data$mmhp_matrix[i,j][[1]]$tau
+      m2_object <- list(lambda0 = model2_par_est$gamma[i] + 
+                          model2_par_est$zeta[j],
+                        alpha = model1_fn$alpha.fun(model2_par_est$f[i],
+                                                    model2_par_est$f[j],
+                                                    model2_par_est$eta_1,
+                                                    model2_par_est$eta_2,
+                                                    model2_par_est$eta_3),
+                        beta = model2_par_est$beta)
+      Lambda_model2_array[s,i,j] <-
+        uniHawkesIntegralIntensity(object = m1_object, 
+                                   events = current_t,
+                                   termination = tail(current_t,1))
+      Lambda_test <- uniHawkesCompensator(object = m2_object,
+                                          events = current_t)
+      KS_model2_array[s,i,j] <-  ks.test(Lambda_test,"pexp")$statistic
+      KS_p_model2_array[s,i,j] <-  ks.test(Lambda_test,"pexp")$p.value
+      PR_model2_array[s,i,j] <- 
+        uniHawkesPearsonResidual(object = m2_object, 
+                                 events = current_t,
+                                 termination = tail(current_t,1))
+    }
+  }
+  
+  ## Model3 & true model
+  ######
+  lambda_0_est <- apply(sim_model3_stan_sim3$lambda0, 2, mean)
+  lambda_1_est <- apply(sim_model3_stan_sim3$lambda1, 2, mean)
+  ## then put these into a matrix
+  lam0_par_est <- matrix(0, nrow = length(object_par$f_vec_1),
+                         ncol = length(object_par$f_vec_1))
+  lam1_par_est <- matrix(0, nrow = length(object_par$f_vec_1),
+                         ncol = length(object_par$f_vec_1))
+  for(i in seq_along(lambda_0_est)) {
+    row_id <- clean_sim_data$I_fit[i]
+    col_id <- clean_sim_data$J_fit[i]
+    lam0_par_est[row_id, col_id] <- lambda_0_est[i]
+    lam1_par_est[row_id, col_id] <- lambda_1_est[i]
+  }
+  mmhp_par_est <- list(lambda0 = lam0_par_est,
+                       lambda1 = lam1_par_est,
+                       eta_1 = mean(sim_model3_stan_sim3$eta_1),
+                       eta_2 = mean(sim_model3_stan_sim3$eta_2),
+                       eta_3 = mean(sim_model3_stan_sim3$eta_3),
+                       beta = mean(sim_model3_stan_sim3$beta),
+                       f = apply(sim_model3_stan_sim3$f,2,mean))
+  clean_sim_data <- cleanSimulationData(raw_data = sim_model3_data, 
+                                        cut_off = cut_off,
+                                        N = length(object_par$f_vec_1))
+  
+  for(i in c(1:5)){
+    for(j in c(1:5)[-i]){
+      test.mmhp <- sim_model3_data$mmhp_matrix[i,j][[1]]
+      temp.t <- test.mmhp$tau
+      current.n <- length(temp.t)-1
+      time.segment <- seq(0,tail(temp.t,1),length.out=10000)
+      
+      object_hat <- list(lambda0=mmhp_par_est$lambda0[i,j],
+                         lambda1=mmhp_par_est$lambda1[i,j],
+                         alpha=model3_fn$alpha.fun(mmhp_par_est$f[i],
+                                                   mmhp_par_est$f[j],
+                                                   mmhp_par_est$eta_1,
+                                                   mmhp_par_est$eta_2),
+                         beta=mmhp_par_est$beta,
+                         q1=model3_fn$q1.fun(mmhp_par_est$f[i],
+                                             mmhp_par_est$f[j],
+                                             mmhp_par_est$eta_3),
+                         q2=model3_fn$q0.fun(mmhp_par_est$f[i],
+                                             mmhp_par_est$f[j],
+                                             mmhp_par_est$eta_3))
+      
+      object_true <- lapply(object_matrix,function(x) x[i,j])
+      names(object_true) <- c("lambda0","lambda1","alpha","beta","q1","q2")
+      
+      ## est Lmabda and [R]
+      Lambda.test <- mmhpCompensator(params = object_hat, 
+                                     t = temp.t,
+                                     pzt=2 - 
+                                       event_state_est_lst[i,j][[1]]$zt_v,
+                                     if.pzt = FALSE)
+      KS_model3_array[s,i,j] <-  ks.test(Lambda.test,"pexp")$statistic
+      KS_p_model3_array[s,i,j] <-  ks.test(Lambda_test,"pexp")$p.value
+      state.est.latent.mmhp <- interpolate_state_est_lst[i,j][[1]]
+      step.fun.est <- stepfun(state.est.latent.mmhp$x.hat,
+                              2 - state.est.latent.mmhp$z.hat)
+      est.intensity <- mmhpIntensityNumeric(params = object_hat,
+                                            t = temp.t[-1],
+                                            time.vec = time.segment,
+                                            latent.vec = 
+                                              step.fun.est(time.segment))
+      est.intensity.events <- mmhpIntensityAtEvents(params=object_hat,
+                                                    t = temp.t,
+                                  latent_z = 
+                                    event_state_est_lst[i,j][[1]]$zt_v)
+      Lambda_model3_array[s,i,j] <-
+        sum(est.intensity)*(time.segment[2]-time.segment[1])
+      PR_model3_array[s,i,j] <- sum(1/sqrt(est.intensity.events))-
+        sum(sqrt(est.intensity))*(time.segment[2]-time.segment[1])
+      
+      ## Under the true model
+      Lambda.test.true <- mmhpCompensator(params = object_true,
+                                          t = temp.t,
+                                          pzt = 2 - 
+                                            test.mmhp$zt[2:length(test.mmhp$zt)],
+                                          if.pzt=FALSE)
+      KS_true_array[s,i,j] <-  ks.test(Lambda.test.true,"pexp")$statistic
+      KS_p_true_array[s,i,j] <-  ks.test(Lambda.test.true,"pexp")$p.value
+      true.intensity <- 
+        mmhpTrueIntensityNumeric(params = object_true,
+                                                 t = temp.t,
+                                 latent = list(x = 
+                                                fixStateTransition(test.mmhp)$x,
+                                               z = 
+                                                fixStateTransition(test.mmhp)$z),
+                                     time.vec = time.segment)
+      true.intensity.events <- mmhpIntensityAtEvents(params = object_true,
+                                                     t = temp.t, 
+                                                     latent_z = test.mmhp$zt)
+      Lambda_true_array[s,i,j] <- sum(true.intensity$lambda.t)*(time.segment[2]-time.segment[1])
+      PR_true_array[s,i,j] <- sum(1/sqrt(true.intensity.events))-
+        sum(sqrt(true.intensity$lambda.t))*(time.segment[2]-time.segment[1])
+    }
+  }
+}
+
+
+cols_plot <- viridis::viridis(4)
+#load("../output/sim_model3_fit123_residuals.RData")
+par(mfrow=c(5,5),mar=c(0.2,0.2,0.2,0.2),oma=c(2.4,2.4,2.9,0.5))
+for(i in c(5:1)){
+  for(j in c(5:1)){
+    if(i==j){
+      plot(1,1,type="n",xlim=c(0,1),ylim=c(0,1),
+           bty="n", xlab="",ylab="",xaxt="n",yaxt="n",axes=FALSE)
+      if(i==5){
+        polygon(c(0,0,0.15,0.15),c(0.72,0.8,0.8,0.72)+0.04, 
+                col = cols_plot[1], border = NA)
+        polygon(c(0,0,0.15,0.15),c(0.72,0.8,0.8,0.72)+0.04-0.22,
+                col = cols_plot[2], border = NA)
+        polygon(c(0,0,0.15,0.15),c(0.72,0.8,0.8,0.72)+0.04-0.44,
+                col = cols_plot[3], border = NA)
+        polygon(c(0,0,0.15,0.15),c(0.72,0.8,0.8,0.72)+0.04-0.66,
+                col = cols_plot[4], border = NA)
+        text(c(0.43,0.58,0.61,0.4), seq(0.8,0.14,-0.22),
+             c("C-HP", "C-DCHP", "C-MMHP", "True"),
+             cex=1.7)
+      }
+    }else{
+      # PR <- c((N_array-Lambda_model1_array)[,i,j],(N_array-Lambda_model2_array)[,i,j],
+      #         (N_array-Lambda_model3_array)[,i,j],(N_array-Lambda_true_array)[,i,j])
+      PR <- c(KS_model1_array[,i,j], KS_model2_array[,i,j],
+              KS_model3_array[,i,j], KS_true_array[,i,j])
+      ### try pr scores instead
+      # PR <- c(PR_model1_array[,i,j],PR_model2_array[,i,j],
+      #         PR_model3_array[,i,j],PR_true_array[,i,j])
+      Type <- c(rep(1,n_sim), rep(2,n_sim), rep(3,n_sim), rep(4,n_sim))
+      boxplot(PR ~ Type,  
+              col = cols_plot,
+              #col = c("steelblue", "goldenrod2", "firebrick2", "chartreuse3"),   
+              xlab="",ylab="",xaxt="n",yaxt="n")
+      #names = c("C-HP", "C-HP-DC", "C-MMHP", "True")
+    }
+  }
+}
+mtext(text=c(1:5), side=2, line=0.5, outer=TRUE, cex=2, las=2,
+      at=c(0:4)/5+0.1)
+mtext(text=c(5:1), side=1, line=1, outer=TRUE, cex=2,
+      at=c(0:4)/5+0.1)
+mtext(text="Degree Corrected KS",side=3,line=0.5,outer=TRUE,cex=2.5,font=2)
+
+#####
+par(mfrow=c(5,5),mar=c(0.2,0.2,0.2,0.2),oma=c(2.4,2.4,2.9,0.5))
+for(i in c(5:1)){
+  for(j in c(5:1)){
+    if(i==j){
+      plot(1,1,type="n",xlim=c(0,1),ylim=c(0,1),
+           bty="n", xlab="",ylab="",xaxt="n",yaxt="n",axes=FALSE)
+      if(i==5){
+        polygon(c(0,0,0.15,0.15),c(0.72,0.8,0.8,0.72)+0.04, 
+                col = cols_plot[1], border = NA)
+        polygon(c(0,0,0.15,0.15),c(0.72,0.8,0.8,0.72)+0.04-0.22,
+                col = cols_plot[2], border = NA)
+        polygon(c(0,0,0.15,0.15),c(0.72,0.8,0.8,0.72)+0.04-0.44,
+                col = cols_plot[3], border = NA)
+        polygon(c(0,0,0.15,0.15),c(0.72,0.8,0.8,0.72)+0.04-0.66,
+                col = cols_plot[4], border = NA)
+        text(c(0.43,0.58,0.61,0.4), seq(0.8,0.14,-0.22),
+             c("C-HP", "C-DCHP", "C-MMHP", "True"),
+             cex=1.7)
+      }
+    }else{
+      # PR <- c((N_array-Lambda_model1_array)[,i,j],(N_array-Lambda_model2_array)[,i,j],
+      #         (N_array-Lambda_model3_array)[,i,j],(N_array-Lambda_true_array)[,i,j])
+      # PR <- c(KS_model1_array[,i,j], KS_model2_array[,i,j],
+      #         KS_model3_array[,i,j], KS_true_array[,i,j])
+      ### try pr scores instead
+      PR <- c(PR_model1_array[,i,j],PR_model2_array[,i,j],
+              PR_model3_array[,i,j],PR_true_array[,i,j])
+      Type <- c(rep(1,n_sim), rep(2,n_sim), rep(3,n_sim), rep(4,n_sim))
+      boxplot(PR ~ Type,  
+              col = cols_plot,
+              #col = c("steelblue", "goldenrod2", "firebrick2", "chartreuse3"),   
+              xlab="",ylab="",xaxt="n",yaxt="n")
+      #names = c("C-HP", "C-HP-DC", "C-MMHP", "True")
+    }
+  }
+}
+mtext(text=c(1:5), side=2, line=0.5, outer=TRUE, cex=2, las=2,
+      at=c(0:4)/5+0.1)
+mtext(text=c(5:1), side=1, line=1, outer=TRUE, cex=2,
+      at=c(0:4)/5+0.1)
+mtext(text="Degree Corrected PR",side=3,line=0.5,outer=TRUE,cex=2.5,font=2)
+
+```
+
+### Common rate model
+
+```{r ks-pr-common-rate model}
+complete_sims <- 1:n_sim
+#complete_sims <- complete_sims[-29]
+
+N_array <- array(0, dim = c(n_sim, length(object_par$f_vec_1),
+                         length(object_par$f_vec_1))) 
+Lambda_model3_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                                     length(object_par$f_vec_1))) 
+Lambda_model1_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                                     length(object_par$f_vec_1)))
+Lambda_model2_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                                     length(object_par$f_vec_1))) 
+Lambda_true_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                                   length(object_par$f_vec_1))) 
+PR_model1_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                                 length(object_par$f_vec_1)))
+PR_model2_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                                 length(object_par$f_vec_1))) 
+PR_model3_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                                 length(object_par$f_vec_1)))
+PR_true_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                               length(object_par$f_vec_1))) 
+KS_model1_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                                 length(object_par$f_vec_1)))
+KS_model2_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                                 length(object_par$f_vec_1)))
+KS_model3_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                                    length(object_par$f_vec_1)))
+KS_true_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                               length(object_par$f_vec_1)))
+KS_p_model1_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                                   length(object_par$f_vec_1)))
+KS_p_model2_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                                   length(object_par$f_vec_1)))
+KS_p_model3_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                                    length(object_par$f_vec_1)))
+KS_p_true_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
+                                    length(object_par$f_vec_1)))
+
+## Iteration on 50 simulations
+for(s in 1:n_sim){
+  load(here(comm_sim_path, paste0("sim_model3_fit123_",s,".RData")))
+  load(here(comm_sim_path, paste0("fit123_state_est_",s,".RData",sep='')))
+  clean_sim_data <- cleanSimulationData(raw_data=sim_model3_data, 
+                                        cut_off = cut_off,
+                                        N = length(object_par$f_vec_1))
+  
+  N_array[s,,] <- clean_sim_data$N_count
+  
+  ## model 1
+  #########
+  model1_par_est <- list(lambda0 = mean(sim_model3_stan_sim1$lambda0),
+                         eta_1 = mean(sim_model3_stan_sim1$eta_1),
+                         eta_2 = mean(sim_model3_stan_sim1$eta_2),
+                         eta_3 = mean(sim_model3_stan_sim1$eta_3),
+                         beta = mean(sim_model3_stan_sim1$beta),
+                         f = apply(sim_model3_stan_sim1$f, 2, mean))
+  
+  for(i in c(1:5)){
+    for(j in c(1:5)[-i]){
+      current_t <- sim_model3_data$mmhp_matrix[i,j][[1]]$tau
+      m1_object <- list(lambda0 = model1_par_est$lambda0,
+                        alpha = model1_fn$alpha.fun(model1_par_est$f[i],
+                                                  model1_par_est$f[j],
+                                                  model1_par_est$eta_1,
+                                                  model1_par_est$eta_2,
+                                                  model1_par_est$eta_3),
+                        beta = model1_par_est$beta)
+      Lambda_model1_array[s,i,j] <- 
+        uniHawkesIntegralIntensity(object = m1_object, 
+                                   events = current_t,
+                                   termination = tail(current_t,1))
+      Lambda_test <- uniHawkesCompensator(object = m1_object, 
+                                          events = current_t)
+      KS_model1_array[s,i,j] <-  ks.test(Lambda_test,"pexp")$statistic
+      KS_p_model1_array[s,i,j] <-  ks.test(Lambda_test,"pexp")$p.value
+      PR_model1_array[s,i,j] <- uniHawkesPearsonResidual(object = m1_object, 
+                                                         events = current_t,
+                                                         termination = 
+                                                           tail(current_t,1))
+    }
+  }
+  
+  ## model2
+  #############
+  model2_par_est <- list(gamma = apply(sim_model3_stan_sim2$gamma, 2, mean),
+                         zeta = apply(sim_model3_stan_sim2$zeta,2,mean),
+                         eta_1 = mean(sim_model3_stan_sim2$eta_1),
+                         eta_2 = mean(sim_model3_stan_sim2$eta_2),
+                         eta_3 = mean(sim_model3_stan_sim2$eta_3),
+                         beta = mean(sim_model3_stan_sim2$beta),
+                         f = apply(sim_model3_stan_sim2$f, 2, mean))
+  
+  for(i in c(1:5)){
+    for(j in c(1:5)[-i]){
+      current_t <- sim_model3_data$mmhp_matrix[i,j][[1]]$tau
+      m2_object <- list(lambda0 = model2_par_est$gamma[i] + 
+                          model2_par_est$zeta[j],
+                        alpha = model1_fn$alpha.fun(model2_par_est$f[i],
+                                                    model2_par_est$f[j],
+                                                    model2_par_est$eta_1,
+                                                    model2_par_est$eta_2,
+                                                    model2_par_est$eta_3),
+                        beta = model2_par_est$beta)
+      Lambda_model2_array[s,i,j] <-
+        uniHawkesIntegralIntensity(object = m1_object, 
+                                   events = current_t,
+                                   termination = tail(current_t,1))
+      Lambda_test <- uniHawkesCompensator(object = m2_object,
+                                          events = current_t)
+      KS_model2_array[s,i,j] <-  ks.test(Lambda_test,"pexp")$statistic
+      KS_p_model2_array[s,i,j] <-  ks.test(Lambda_test,"pexp")$p.value
+      PR_model2_array[s,i,j] <- 
+        uniHawkesPearsonResidual(object = m2_object, 
+                                 events = current_t,
+                                 termination = tail(current_t,1))
+    }
+  }
+  
+  ## Model3 & true model
+  ######
+  # lambda_0_est <- apply(sim_model3_stan_sim3$lambda0, 2, mean)
+  # lambda_1_est <- apply(sim_model3_stan_sim3$lambda1, 2, mean)
+  # ## then put these into a matrix
+  # lam0_par_est <- matrix(0, nrow = length(object_par$f_vec_1),
+  #                        ncol = length(object_par$f_vec_1))
+  # lam1_par_est <- matrix(0, nrow = length(object_par$f_vec_1),
+  #                        ncol = length(object_par$f_vec_1))
+  # for(i in seq_along(lambda_0_est)) {
+  #   row_id <- clean_sim_data$I_fit[i]
+  #   col_id <- clean_sim_data$J_fit[i]
+  #   lam0_par_est[row_id, col_id] <- lambda_0_est[i]
+  #   lam1_par_est[row_id, col_id] <- lambda_1_est[i]
+  # }
+  mmhp_par_est <- list(lambda0 = mean(sim_model3_stan_sim3$lambda0),
+                       lambda1 = mean(sim_model3_stan_sim3$lambda1),
+                       eta_1 = mean(sim_model3_stan_sim3$eta_1),
+                       eta_2 = mean(sim_model3_stan_sim3$eta_2),
+                       eta_3 = mean(sim_model3_stan_sim3$eta_3),
+                       beta = mean(sim_model3_stan_sim3$beta),
+                       f = apply(sim_model3_stan_sim3$f,2,mean))
+  clean_sim_data <- cleanSimulationData(raw_data = sim_model3_data, 
+                                        cut_off = cut_off,
+                                        N = length(object_par$f_vec_1))
+  
+  for(i in c(1:5)){
+    for(j in c(1:5)[-i]){
+      test.mmhp <- sim_model3_data$mmhp_matrix[i,j][[1]]
+      temp.t <- test.mmhp$tau
+      current.n <- length(temp.t)-1
+      time.segment <- seq(0,tail(temp.t,1),length.out=10000)
+      
+      object_hat <- list(lambda0=mmhp_par_est$lambda0,
+                         lambda1=mmhp_par_est$lambda1,
+                         alpha=model3_fn$alpha.fun(mmhp_par_est$f[i],
+                                                   mmhp_par_est$f[j],
+                                                   mmhp_par_est$eta_1,
+                                                   mmhp_par_est$eta_2),
+                         beta=mmhp_par_est$beta,
+                         q1=model3_fn$q1.fun(mmhp_par_est$f[i],
+                                             mmhp_par_est$f[j],
+                                             mmhp_par_est$eta_3),
+                         q2=model3_fn$q0.fun(mmhp_par_est$f[i],
+                                             mmhp_par_est$f[j],
+                                             mmhp_par_est$eta_3))
+      
+      object_true <- lapply(object_matrix,function(x) x[i,j])
+      names(object_true) <- c("lambda0","lambda1","alpha","beta","q1","q2")
+      
+      ## est Lmabda and [R]
+      Lambda.test <- mmhpCompensator(params = object_hat, 
+                                     t = temp.t,
+                                     pzt=2 - 
+                                       event_state_est_lst[i,j][[1]]$zt_v,
+                                     if.pzt = FALSE)
+      KS_model3_array[s,i,j] <-  ks.test(Lambda.test,"pexp")$statistic
+      KS_p_model3_array[s,i,j] <-  ks.test(Lambda_test,"pexp")$p.value
+      state.est.latent.mmhp <- interpolate_state_est_lst[i,j][[1]]
+      step.fun.est <- stepfun(state.est.latent.mmhp$x.hat,
+                              2 - state.est.latent.mmhp$z.hat)
+      est.intensity <- mmhpIntensityNumeric(params = object_hat,
+                                            t = temp.t[-1],
+                                            time.vec = time.segment,
+                                            latent.vec = 
+                                              step.fun.est(time.segment))
+      est.intensity.events <- mmhpIntensityAtEvents(params=object_hat,
+                                                    t = temp.t,
+                                  latent_z = 
+                                    event_state_est_lst[i,j][[1]]$zt_v)
+      Lambda_model3_array[s,i,j] <-
+        sum(est.intensity)*(time.segment[2]-time.segment[1])
+      PR_model3_array[s,i,j] <- sum(1/sqrt(est.intensity.events))-
+        sum(sqrt(est.intensity))*(time.segment[2]-time.segment[1])
+      
+      ## Under the true model
+      Lambda.test.true <- mmhpCompensator(params = object_true,
+                                          t = temp.t,
+                                          pzt = 2 - 
+                                            test.mmhp$zt[2:length(test.mmhp$zt)],
+                                          if.pzt=FALSE)
+      KS_true_array[s,i,j] <-  ks.test(Lambda.test.true,"pexp")$statistic
+      KS_p_true_array[s,i,j] <-  ks.test(Lambda.test.true,"pexp")$p.value
+      true.intensity <- 
+        mmhpTrueIntensityNumeric(params = object_true,
+                                                 t = temp.t,
+                                 latent = list(x = 
+                                                fixStateTransition(test.mmhp)$x,
+                                               z = 
+                                                fixStateTransition(test.mmhp)$z),
+                                     time.vec = time.segment)
+      true.intensity.events <- mmhpIntensityAtEvents(params = object_true,
+                                                     t = temp.t, 
+                                                     latent_z = test.mmhp$zt)
+      Lambda_true_array[s,i,j] <- sum(true.intensity$lambda.t)*(time.segment[2]-time.segment[1])
+      PR_true_array[s,i,j] <- sum(1/sqrt(true.intensity.events))-
+        sum(sqrt(true.intensity$lambda.t))*(time.segment[2]-time.segment[1])
+    }
+  }
+}
+
+
+cols_plot <- viridis::viridis(4)
+#load("../output/sim_model3_fit123_residuals.RData")
+par(mfrow=c(5,5),mar=c(0.2,0.2,0.2,0.2),oma=c(2.4,2.4,2.9,0.5))
+for(i in c(5:1)){
+  for(j in c(5:1)){
+    if(i==j){
+      plot(1,1,type="n",xlim=c(0,1),ylim=c(0,1),
+           bty="n", xlab="",ylab="",xaxt="n",yaxt="n",axes=FALSE)
+      if(i==5){
+        polygon(c(0,0,0.15,0.15),c(0.72,0.8,0.8,0.72)+0.04, 
+                col = cols_plot[1], border = NA)
+        polygon(c(0,0,0.15,0.15),c(0.72,0.8,0.8,0.72)+0.04-0.22,
+                col = cols_plot[2], border = NA)
+        polygon(c(0,0,0.15,0.15),c(0.72,0.8,0.8,0.72)+0.04-0.44,
+                col = cols_plot[3], border = NA)
+        polygon(c(0,0,0.15,0.15),c(0.72,0.8,0.8,0.72)+0.04-0.66,
+                col = cols_plot[4], border = NA)
+        text(c(0.43,0.58,0.61,0.4), seq(0.8,0.14,-0.22),
+             c("C-HP", "C-DCHP", "C-MMHP", "True"),
+             cex=1.7)
+      }
+    }else{
+      # PR <- c((N_array-Lambda_model1_array)[,i,j],(N_array-Lambda_model2_array)[,i,j],
+      #         (N_array-Lambda_model3_array)[,i,j],(N_array-Lambda_true_array)[,i,j])
+      PR <- c(KS_model1_array[,i,j], KS_model2_array[,i,j],
+              KS_model3_array[,i,j], KS_true_array[,i,j])
+      ### try pr scores instead
+      # PR <- c(PR_model1_array[,i,j],PR_model2_array[,i,j],
+      #         PR_model3_array[,i,j],PR_true_array[,i,j])
+      Type <- c(rep(1,n_sim), rep(2,n_sim), rep(3,n_sim), rep(4,n_sim))
+      boxplot(PR ~ Type,  
+              col = cols_plot,
+              #col = c("steelblue", "goldenrod2", "firebrick2", "chartreuse3"),   
+              xlab="",ylab="",xaxt="n",yaxt="n")
+      #names = c("C-HP", "C-HP-DC", "C-MMHP", "True")
+    }
+  }
+}
+mtext(text=c(1:5), side=2, line=0.5, outer=TRUE, cex=2, las=2,
+      at=c(0:4)/5+0.1)
+mtext(text=c(5:1), side=1, line=1, outer=TRUE, cex=2,
+      at=c(0:4)/5+0.1)
+mtext(text="Common Rate KS",side=3,line=0.5,outer=TRUE,cex=2.5,font=2)
+
+####
+cols_plot <- viridis::viridis(4)
+#load("../output/sim_model3_fit123_residuals.RData")
+par(mfrow=c(5,5),mar=c(0.2,0.2,0.2,0.2),oma=c(2.4,2.4,2.9,0.5))
+for(i in c(5:1)){
+  for(j in c(5:1)){
+    if(i==j){
+      plot(1,1,type="n",xlim=c(0,1),ylim=c(0,1),
+           bty="n", xlab="",ylab="",xaxt="n",yaxt="n",axes=FALSE)
+      if(i==5){
+        polygon(c(0,0,0.15,0.15),c(0.72,0.8,0.8,0.72)+0.04, 
+                col = cols_plot[1], border = NA)
+        polygon(c(0,0,0.15,0.15),c(0.72,0.8,0.8,0.72)+0.04-0.22,
+                col = cols_plot[2], border = NA)
+        polygon(c(0,0,0.15,0.15),c(0.72,0.8,0.8,0.72)+0.04-0.44,
+                col = cols_plot[3], border = NA)
+        polygon(c(0,0,0.15,0.15),c(0.72,0.8,0.8,0.72)+0.04-0.66,
+                col = cols_plot[4], border = NA)
+        text(c(0.43,0.58,0.61,0.4), seq(0.8,0.14,-0.22),
+             c("C-HP", "C-DCHP", "C-MMHP", "True"),
+             cex=1.7)
+      }
+    }else{
+      # PR <- c((N_array-Lambda_model1_array)[,i,j],(N_array-Lambda_model2_array)[,i,j],
+      #         (N_array-Lambda_model3_array)[,i,j],(N_array-Lambda_true_array)[,i,j])
+      # PR <- c(KS_model1_array[,i,j], KS_model2_array[,i,j],
+      #         KS_model3_array[,i,j], KS_true_array[,i,j])
+      ### try pr scores instead
+      PR <- c(PR_model1_array[,i,j],PR_model2_array[,i,j],
+              PR_model3_array[,i,j],PR_true_array[,i,j])
+      Type <- c(rep(1,n_sim), rep(2,n_sim), rep(3,n_sim), rep(4,n_sim))
+      boxplot(PR ~ Type,  
+              col = cols_plot,
+              #col = c("steelblue", "goldenrod2", "firebrick2", "chartreuse3"),   
+              xlab="",ylab="",xaxt="n",yaxt="n")
+      #names = c("C-HP", "C-HP-DC", "C-MMHP", "True")
+    }
+  }
+}
+mtext(text=c(1:5), side=2, line=0.5, outer=TRUE, cex=2, las=2,
+      at=c(0:4)/5+0.1)
+mtext(text=c(5:1), side=1, line=1, outer=TRUE, cex=2,
+      at=c(0:4)/5+0.1)
+mtext(text="Common Rate PR",side=3,line=0.5,outer=TRUE,cex=2.5,font=2)
+
+
+```
+
+
+This indicates a similar predictive performance for both these models,
+when correctly implemented.
+
+## Rank Single Cohort
+
+### Degree Corrected Model
+
+```{r single cohort rank dc}
+rank_cohort <- 5
+current_cohort <- rank_cohort
+
+load(paste(here("output", "/"),
+           cohort_names[current_cohort],
+           "/agg_rank_stan_result_",cohort_names[current_cohort],
+           ".RData",sep=''))
+load(paste(here("output", "/"),
+           cohort_names[current_cohort],
+           "/cohort_hp_stan_result_",cohort_names[current_cohort],
+           ".RData",sep=''))
+load(paste(here("output", "/"),
+           cohort_names[current_cohort],
+           "/cohort_dchp_stan_result_",cohort_names[current_cohort],
+           ".RData",sep=''))
+load(paste(here("output", "/"),
+           cohort_names[current_cohort],
+           "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
+           ".RData",sep=''))
+
+no_method <- 4
+plot_latent_df <- data.frame(Methods = rep(1:no_method,
+                                           each = 1000*mice_number),
+                             Mice = rep(rep(1:mice_number, each = 1000),
+                                        no_method),
+                             force = rep(0, 1000*mice_number*no_method))
+## agg
+plot_latent_df$force[(1:(1000*mice_number))] <-
+  as.vector(sim_agg_rank$x[1001:2000,])
+
+## M1
+plot_latent_df$force[(1:(1000*mice_number)) + 
+                       1000*mice_number] <- as.vector(sim_cohort_hp$f)
+
+## M2
+plot_latent_df$force[(1:(1000*mice_number)) + 
+                       2000*mice_number] <- as.vector(sim_cohort_dchp$f)
+
+## M3
+plot_latent_df$force[(1:(1000*mice_number)) + 
+                       3000*mice_number] <- as.vector(sim_cohort_mmhp$f)
+
+plot_latent_df$Mice <- factor(plot_latent_df$Mice,
+                              levels = expert_rank_10[[current_cohort]])
+plot_latent_df$Method <- factor(plot_latent_df$Method,
+                                labels =
+                                  c("AggRanking","C-HP","C-DCHP","C-MMHP"))
+
+
+p1 <- ggplot(plot_latent_df, 
+             aes(x = Mice, y = force, fill = Method)) +
+  geom_boxplot(alpha=0.7) +
+  scale_fill_manual(values = viridis::viridis(4)) +
+  ggtitle("Degree Corrected") +
+  theme_bw() +
+  theme(plot.title = element_text(size = 22, hjust = 0.5, face="bold"),
+        text = element_text(size = 20),
+        axis.text.x=element_text(size = 10),
+        legend.position="none") +
+  facet_grid(cols=vars(Method)) +
+  xlab("Mice (ranked by I&SI method)") +
+  ylab("Latent rank")
+p1
+
+```
+
+### Common Rate Model
+
+```{r single cohort rank common rate}
+current_cohort <- rank_cohort
+
+load(paste(here("output", "common_rate", "/"),
+           cohort_names[current_cohort],
+           "/agg_rank_stan_result_",cohort_names[current_cohort],
+           ".RData",sep=''))
+load(paste(here("output", "common_rate", "/"),
+           cohort_names[current_cohort],
+           "/cohort_hp_stan_result_",cohort_names[current_cohort],
+           ".RData",sep=''))
+load(paste(here("output", "common_rate", "/"),
+           cohort_names[current_cohort],
+           "/cohort_dchp_stan_result_",cohort_names[current_cohort],
+           ".RData",sep=''))
+load(paste(here("output", "common_rate", "/"),
+           cohort_names[current_cohort],
+           "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
+           ".RData",sep=''))
+
+no_method <- 4
+plot_latent_df <- data.frame(Methods = rep(1:no_method,
+                                           each = 1000*mice_number),
+                             Mice = rep(rep(1:mice_number, each = 1000),
+                                        no_method),
+                             force = rep(0, 1000*mice_number*no_method))
+## agg
+plot_latent_df$force[(1:(1000*mice_number))] <-
+  as.vector(sim_agg_rank$x[1001:2000,])
+
+## M1
+plot_latent_df$force[(1:(1000*mice_number)) + 
+                       1000*mice_number] <- as.vector(sim_cohort_hp$f)
+
+## M2
+plot_latent_df$force[(1:(1000*mice_number)) + 
+                       2000*mice_number] <- as.vector(sim_cohort_dchp$f)
+
+## M3
+plot_latent_df$force[(1:(1000*mice_number)) + 
+                       3000*mice_number] <- as.vector(sim_cohort_mmhp$f)
+
+plot_latent_df$Mice <- factor(plot_latent_df$Mice,
+                              levels = expert_rank_10[[current_cohort]])
+plot_latent_df$Method <- factor(plot_latent_df$Method,
+                                labels =
+                                  c("AggRanking","C-HP","C-DCHP","C-MMHP"))
+
+
+p1 <- ggplot(plot_latent_df, 
+             aes(x = Mice, y = force, fill = Method)) +
+  geom_boxplot(alpha=0.7) +
+  scale_fill_manual(values = viridis::viridis(4)) +
+  ggtitle("Degree Corrected") +
+  theme_bw() +
+  theme(plot.title = element_text(size = 22, hjust = 0.5, face="bold"),
+        text = element_text(size = 20),
+        axis.text.x=element_text(size = 10),
+        legend.position="none") +
+  facet_grid(cols=vars(Method)) +
+  xlab("Mice (ranked by I&SI method)") +
+  ylab("Latent rank")
+p1
+```
+
+## Overall Rank
+
+### Degree Corrected Model
+
+```{r all cohorts dc}
+load(here("output",
+          "weighted_rank_data.RData"))
+no_method <- 4
+plot_cor_df <- data.frame(Method=rep(c(1:no_method),each=10),
+                          cor=as.vector(spearman_df))
+plot_cor_df$Method <- factor(plot_cor_df$Method,
+                             labels = c("Agg-rank","C-HP","C-DCHP","C-MMHP"))
+p2 <- ggplot(plot_cor_df, aes(x="", y = cor, fill = Method)) +
+        geom_boxplot(alpha=0.7, width=0.5) +
+        scale_fill_manual(values = viridis::viridis(4)) + 
+        ggtitle("Degree Corrected Model") +
+        ylim(0,1) +
+        theme_bw() +
+        theme(plot.title = element_text(size = 22, hjust = 0.5, face="bold"),
+              text = element_text(size = 20),
+              axis.text.y =element_text(size = 11),
+              legend.position="none",
+              axis.title.x=element_blank()) +
+        facet_grid(cols=vars(Method)) +
+        ylab("Spearman rank correlation")
+p2
+
+```
+
+### Common Rate Model
+
+```{r all cohorts comm rate}
+load(here("output", "common_rate",
+          "weighted_rank_data.RData"))
+no_method <- 4
+plot_cor_df <- data.frame(Method=rep(c(1:no_method),each=10),
+                          cor=as.vector(spearman_df))
+plot_cor_df$Method <- factor(plot_cor_df$Method,
+                             labels = c("Agg-rank","C-HP","C-DCHP","C-MMHP"))
+p2 <- ggplot(plot_cor_df, aes(x="", y = cor, fill = Method)) +
+        geom_boxplot(alpha=0.7, width=0.5) +
+        scale_fill_manual(values = viridis::viridis(4)) + 
+        ggtitle("Common Rate Model") +
+        ylim(0,1) +
+        theme_bw() +
+        theme(plot.title = element_text(size = 22, hjust = 0.5, face="bold"),
+              text = element_text(size = 20),
+              axis.text.y =element_text(size = 11),
+              legend.position="none",
+              axis.title.x=element_blank()) +
+        facet_grid(cols=vars(Method)) +
+        ylab("Spearman rank correlation")
+p2
+```
+
+## Predicted Events Single Cohort
+
+### Degree Corrected Model
+
+```{r predict single cohort dc}
+load(here("output","plot_N_predict.RData"))
+current_cohort <- 5# cohort 1 looks worse than rest
+
+temp_plot_df <- predict_day_norm_df_lst[[current_cohort]]
+temp_plot_df$method <- factor(temp_plot_df$method,
+                              levels = c("mmhp","dsnl","m1","m2","m3"),
+                              labels = c("I-MMHP","DSNL","C-HP","C-DCHP","C-MMHP"))
+temp_plot_df$day <- factor(temp_plot_df$day)
+p3 <- temp_plot_df %>%
+  rowwise() %>%
+  #mutate(norm = min(norm,60)) %>%
+  # rename(Method = method) %>%
+  ggplot( aes(x = method, y = norm, fill = method)) +
+  geom_boxplot(alpha=0.7) +
+  scale_fill_manual(values = viridis::viridis(5)) +
+  ggtitle("(a)") +
+  theme_bw() +
+  theme(plot.title = element_text(size = 22, hjust = 0.5, face="bold"),
+        text = element_text(size = 20),
+        axis.text.x=element_blank(),
+        axis.ticks.x = element_blank(),
+        legend.position="right") +
+  facet_grid(cols=vars(day)) +
+  xlab("Prediction horizon (day)") + 
+  ylab("Frobenius norm of error") +
+  ylim(0, 150) + # aren't infinite but >150 and <200
+  NULL
+p3 + labs(fill = "Method")
+```
+
+### Common Rate Model
+
+```{r predict single cohort comm rate}
+load(here("output", "common_rate", "plot_N_predict.RData"))
+current_cohort <- 5# cohort 1 looks worse than rest
+
+temp_plot_df <- predict_day_norm_df_lst[[current_cohort]]
+temp_plot_df$method <- factor(temp_plot_df$method,
+                              levels = c("mmhp","dsnl","m1","m2","m3"),
+                              labels = c("I-MMHP","DSNL","C-HP","C-DCHP","C-MMHP"))
+temp_plot_df$day <- factor(temp_plot_df$day)
+#png(paste(plot_path,"real_predict_N_one_cohort.png",sep=""),
+# width=600,height=300)
+p3 <- temp_plot_df %>%
+  rowwise() %>%
+  #mutate(norm = min(norm,60)) %>%
+  # rename(Method = method) %>%
+  ggplot( aes(x = method, y = norm, fill = method)) +
+  geom_boxplot(alpha=0.7) +
+  scale_fill_manual(values = viridis::viridis(5)) +
+  ggtitle("Common Rate") +
+  theme_bw() +
+  theme(plot.title = element_text(size = 22, hjust = 0.5, face="bold"),
+        text = element_text(size = 20),
+        axis.text.x=element_blank(),
+        axis.ticks.x = element_blank(),
+        legend.position="right") +
+  facet_grid(cols=vars(day)) +
+  xlab("Prediction horizon (day)") + 
+  ylab("Frobenius norm of error") +
+  ylim(0, 100) + # aren't infinite but >150 and <200
+  NULL
+p3 + labs(fill = "Method")
+```
+
+
+## Predicted Events All Cohorts
+
+### Degree Corrected Model
+
+```{r all cohorts predict dc}
+load(here("output",
+          "plot_N_predict.RData"))
+
+# median prediction for each cohort here
+
+all_cohort_box <- all_cohort_norm_df
+
+all_cohort_box$method <- factor(all_cohort_box$method,
+                              levels = c("mmhp","dsnl","m1","m2","m3"),
+                              labels = c("I-MMHP","DSNL",
+                                         "C-HP","C-DCHP",
+                                         "C-MMHP"))
+all_cohort_box$day <- factor(all_cohort_box$day)
+
+all_cohort_box %>% 
+  ggplot(aes(x=method,y=norm, fill = method)) +
+  geom_boxplot() + 
+  facet_grid(cols = vars(day)) +
+  geom_boxplot(alpha=0.7) +
+  scale_fill_manual(values = viridis::viridis(5)) +
+  ggtitle("Degree Corrected") +
+  theme_bw() +
+  theme(plot.title = element_text(size = 22, hjust = 0.5, face="bold"),
+        text = element_text(size = 20),
+        axis.text.x=element_blank(),
+        axis.ticks.x = element_blank(),
+        legend.position="right") +
+  facet_grid(cols=vars(day)) +
+  # guides(color=guide_legend(title="Method")) +
+  xlab("Prediction horizon (day)") + 
+  ylab("Frobenius norm of error") +
+  labs(fill = "Method") +
+  # ylim(0, 80) +
+  NULL
+```
+
+### Common Rate Model
+
+```{r all cohort predict comm rate}
+load(here("output",
+          "common_rate",
+          "plot_N_predict.RData"))
+
+# median prediction for each cohort here
+
+all_cohort_box <- all_cohort_norm_df
+
+all_cohort_box$method <- factor(all_cohort_box$method,
+                              levels = c("mmhp","dsnl","m1","m2","m3"),
+                              labels = c("I-MMHP","DSNL",
+                                         "C-HP","C-DCHP",
+                                         "C-MMHP"))
+all_cohort_box$day <- factor(all_cohort_box$day)
+
+all_cohort_box %>% 
+  ggplot(aes(x=method,y=norm, fill = method)) +
+  geom_boxplot() + 
+  facet_grid(cols = vars(day)) +
+  geom_boxplot(alpha=0.7) +
+  scale_fill_manual(values = viridis::viridis(5)) +
+  ggtitle("Common Rate") +
+  theme_bw() +
+  theme(plot.title = element_text(size = 22, hjust = 0.5, face="bold"),
+        text = element_text(size = 20),
+        axis.text.x=element_blank(),
+        axis.ticks.x = element_blank(),
+        legend.position="right") +
+  facet_grid(cols=vars(day)) +
+  # guides(color=guide_legend(title="Method")) +
+  xlab("Prediction horizon (day)") + 
+  ylab("Frobenius norm of error") +
+  labs(fill = "Method") +
+  # ylim(0, 80) +
+  NULL
+
+
+# all_sims <- do.call(rbind,predict_day_norm_df_lst)
+# all_sims <- all_cohort_norm_df
+# 
+# all_sims$method <- factor(all_sims$method,
+#                               levels = c("mmhp","dsnl","m1","m2","m3"),
+#                               labels = c("I-MMHP","DSNL",
+#                                          "C-HP","C-DCHP",
+#                                          "C-MMHP"))
+# 
+# all_sims %>%
+#   ggplot(aes(x = method, y = norm, fill = method)) +
+#   geom_boxplot() +
+#   facet_grid(cols = vars(day)) +
+#   scale_fill_manual(values = viridis::viridis(5)) +
+#    ggtitle("Common Rate") +
+#   theme_bw() +
+#   theme(plot.title = element_text(size = 22, hjust = 0.5, face="bold"),
+#         text = element_text(size = 20),
+#         axis.text.x=element_blank(),
+#         axis.ticks.x = element_blank(),
+#         legend.position="right") +
+#   facet_grid(cols=vars(day)) +
+#   # guides(color=guide_legend(title="Method")) +
+#   xlab("Prediction horizon (day)") + 
+#   ylab("Frobenius norm of error") +
+#   labs(fill = "Method") +
+#   ylim(0, 80) +
+#   NULL
+
+```
+
+## Predicted Rank Single Cohort 
+
+### Degree Corrected Model
+
+```{r pred rank single cohort degree corrected}
+load(here("output", "plot_rank_predict.RData"))
+current_cohort <- 5
+temp_plot_df <- predict_day_rank_df_lst[[current_cohort]]
+temp_plot_df$method <- factor(temp_plot_df$method,
+                              levels = c("mmhp","dsnl","m1","m2","m3"),
+                              labels = c("I-MMHP","DSNL","C-HP",
+                                         "C-DCHP","C-MMHP"))
+temp_plot_df$day <- factor(temp_plot_df$day)
+# png(paste(plot_path,"real_predict_rank_one_cohort.png",sep=""),
+# width=600,height=300)
+p5 <- ggplot(temp_plot_df, aes(x = method, y = spearman, fill = method)) +
+  geom_boxplot(alpha=0.7) +
+  scale_fill_manual(values = viridis::viridis(5)) +
+  #scale_fill_manual(values =
+  # c("gray","yellowgreen","steelblue","goldenrod2","firebrick2")) + 
+  ggtitle("Degree Corrected") +
+  theme_bw() +
+  theme(plot.title = element_text(size = 22, hjust = 0.5, face="bold"),
+        text = element_text(size = 20),
+        axis.text.x=element_blank(),
+        axis.ticks.x = element_blank(), 
+        legend.position="right") +
+  facet_grid(cols=vars(day)) +
+  xlab("Prediction horizon (day)") + 
+  ylab("Spearman rank correlation") +
+  # ylim(0, 1) +
+  NULL
+p5
+```
+
+
+### Common Rate Model
+
+```{r rank predict single cohort common rate}
+load(here("output", "common_rate", "plot_rank_predict.RData"))
+current_cohort <- 5
+temp_plot_df <- predict_day_rank_df_lst[[current_cohort]]
+temp_plot_df$method <- factor(temp_plot_df$method,
+                              levels = c("mmhp","dsnl","m1","m2","m3"),
+                              labels = c("I-MMHP","DSNL","C-HP",
+                                         "C-DCHP","C-MMHP"))
+temp_plot_df$day <- factor(temp_plot_df$day)
+# png(paste(plot_path,"real_predict_rank_one_cohort.png",sep=""),
+# width=600,height=300)
+p5 <- ggplot(temp_plot_df, aes(x = method, y = spearman, fill = method)) +
+  geom_boxplot(alpha=0.7) +
+  scale_fill_manual(values = viridis::viridis(5)) +
+  #scale_fill_manual(values =
+  # c("gray","yellowgreen","steelblue","goldenrod2","firebrick2")) + 
+  ggtitle("Common Rate") +
+  theme_bw() +
+  theme(plot.title = element_text(size = 22, hjust = 0.5, face="bold"),
+        text = element_text(size = 20),
+        axis.text.x=element_blank(),
+        axis.ticks.x = element_blank(), 
+        legend.position="right") +
+  facet_grid(cols=vars(day)) +
+  xlab("Prediction horizon (day)") + 
+  ylab("Spearman rank correlation") 
+  # ylim(0, 1)
+p5 + labs(fill = "Method")
+
+```
+
+## Predicted Rank All Cohorts
+
+### Degree Corrected Model
+
+```{r pred rank all cohorts degree corrected}
+load(here("output", "plot_rank_predict.RData"))
+# temp_plot_df <- all_cohort_rank_df %>% 
+#   group_by(day, method) %>% 
+#   summarize(avg=mean(spearman), n= n(), sd=sd(spearman))
+
+all_cohort_rank_df$method <- factor(all_cohort_rank_df$method,
+                              levels = c("mmhp","dsnl","m1","m2","m3"),
+                              labels = c("I-MMHP","DSNL","C-HP","C-DCHP","C-MMHP"))
+all_cohort_rank_df$day <- factor(all_cohort_rank_df$day)
+
+
+p6 <- ggplot(all_cohort_rank_df,
+             aes(x=method, y=spearman, fill = method)) + 
+  geom_boxplot(alpha = 0.7) +
+  # geom_line(size=1.2, alpha=0.8, position=position_dodge(0.2)) +
+  # geom_errorbar(aes(ymin=avg-sd, ymax=avg+sd), width=0.8, size=0.8, alpha=0.8,
+  #               position=position_dodge(0.2)) +
+  scale_color_manual(values = viridis::viridis(5)) +
+  #scale_color_manual(values = c("gray","yellowgreen","steelblue","goldenrod2","firebrick2")) +
+  ggtitle("Degree Corrected") +
+  theme_bw() +
+  facet_grid(cols = vars(day)) +
+  theme(plot.title = element_text(size = 22, hjust = 0.5, face="bold"),
+        text = element_text(size = 20),
+        axis.text.x=element_blank(),
+        axis.ticks.x = element_blank(), 
+        legend.position="right") + 
+  xlab("Prediction horizon (day)") + 
+  ylab("Spearman rank correlation") + 
+  coord_cartesian(ylim=c(0,1)) + 
+  guides(color=guide_legend(title="Model")) 
+p6
+
+```
+
+
+### Common Rate Model
+
+```{r pred rank all cohorts comm rate}
+load(here("output", "common_rate", "plot_rank_predict.RData"))
+# temp_plot_df <- all_cohort_rank_df %>% 
+#   group_by(day, method) %>% 
+#   summarize(avg=mean(spearman), n= n(), sd=sd(spearman))
+
+all_cohort_rank_df$method <- factor(all_cohort_rank_df$method,
+                              levels = c("mmhp","dsnl","m1","m2","m3"),
+                              labels = c("I-MMHP","DSNL","C-HP","C-DCHP","C-MMHP"))
+all_cohort_rank_df$day <- factor(all_cohort_rank_df$day)
+
+
+p6 <- ggplot(all_cohort_rank_df,
+             aes(x=method, y=spearman, fill = method)) + 
+  geom_boxplot(alpha = 0.7) +
+  # geom_line(size=1.2, alpha=0.8, position=position_dodge(0.2)) +
+  # geom_errorbar(aes(ymin=avg-sd, ymax=avg+sd), width=0.8, size=0.8, alpha=0.8,
+  #               position=position_dodge(0.2)) +
+  scale_color_manual(values = viridis::viridis(5)) +
+  #scale_color_manual(values = c("gray","yellowgreen","steelblue","goldenrod2","firebrick2")) +
+  ggtitle("Common Rate") +
+  theme_bw() +
+  facet_grid(cols = vars(day)) +
+  theme(plot.title = element_text(size = 22, hjust = 0.5, face="bold"),
+        text = element_text(size = 20),
+        axis.text.x=element_blank(),
+        axis.ticks.x = element_blank(), 
+        legend.position="right") + 
+  xlab("Prediction horizon (day)") + 
+  ylab("Spearman rank correlation") + 
+  coord_cartesian(ylim=c(0,1)) + 
+  guides(color=guide_legend(title="Model")) 
+p6
+
+```
+
+
+## Pearson Residuals
+
+
+### Degree Corrected Model
+
+```{r dc pr matrix}
+dc_cohort <- 5
+current_cohort <- dc_cohort
+
+source(here("lib", "matrixPlotParameter.R"))
+
+m1_pr <- readRDS(paste(here("output", "/"),
+                       cohort_names[current_cohort],
+                   "/chp_pr_matrix_",cohort_names[current_cohort],
+                   ".RDS",sep=''))
+
+m2_pr <- readRDS(paste(here("output", "/"),
+                       cohort_names[current_cohort],
+                     "/dchp_pr_matrix_",cohort_names[current_cohort],
+                     ".RDS",sep=''))
+
+m3_pr <- readRDS(paste(here("output", "/"),
+                       cohort_names[current_cohort],
+                     "/cmmhp_pr_matrix_",cohort_names[current_cohort],
+                     ".RDS",sep=''))
+
+indep_pr <- readRDS(paste(here("output", "/"),
+                          cohort_names[current_cohort],
+                     "/immhp_pr_matrix_",cohort_names[current_cohort],
+                     ".RDS",sep=''))
+
+matrix_lst_plot <- list(
+                        indep_pr[rev(expert_rank_10[[current_cohort]]),
+                                                                   expert_rank_10[[current_cohort]]],
+                        m1_pr[rev(expert_rank_10[[current_cohort]]),
+                                                                 expert_rank_10[[current_cohort]]],
+                        m2_pr[rev(expert_rank_10[[current_cohort]]),
+                                                                 expert_rank_10[[current_cohort]]],
+                        m3_pr[rev(expert_rank_10[[current_cohort]]),
+                                                                 expert_rank_10[[current_cohort]]]) 
+#cat("Cohort ",current_cohort,"\n",sep="")
+myMultiMatrixPlot(X=matrix_lst_plot,no_matrix=4,n_row=2,
+                  xLabels=expert_rank_10[[current_cohort]],
+                  yLabels=rev(expert_rank_10[[current_cohort]]),
+                  min=-80,max=80,axis_cex=2,title_cex = 1.8,
+                  colorPalette="RdBu",if.emp=FALSE,
+                  #legend.mar=c(0.5,.5,0.5,0.5),
+                  title_lst=list("I-MMHP","C-HP","C-DCHP","C-MMHP"), 
+                  #title_lst = list("I-MMHP"),
+                  col_axis=c(-80,-40,0,40,80), fake_matrix=FALSE,
+                  matrix.mar=c(2.5,2.5,2.5,1)
+                  )
+
+```
+
+
+### Common Rate Model
+
+```{r PR matrix common rate}
+comm_data_path <- "../output/common_rate/"
+current_cohort <- dc_cohort
+
+source(here("lib", "matrixPlotParameter.R"))
+
+m1_pr <- readRDS(paste(here("output","common_rate","/"),
+                       cohort_names[current_cohort],
+                   "/chp_pr_matrix_",cohort_names[current_cohort],
+                   ".RDS",sep=''))
+
+m2_pr <- readRDS(paste(here("output","common_rate", "/"),
+                       cohort_names[current_cohort],
+                     "/dchp_pr_matrix_",cohort_names[current_cohort],
+                     ".RDS",sep=''))
+
+m3_pr <- readRDS(paste(here("output","common_rate", "/"),
+                       cohort_names[current_cohort],
+                     "/cmmhp_pr_matrix_",cohort_names[current_cohort],
+                     ".RDS",sep=''))
+
+indep_pr <- readRDS(paste(here("output", "common_rate", "/"),
+                          cohort_names[current_cohort],
+                     "/immhp_pr_matrix_",cohort_names[current_cohort],
+                     ".RDS",sep=''))
+
+matrix_lst_plot <- list(
+                        indep_pr[rev(expert_rank_10[[current_cohort]]),
+                                                                   expert_rank_10[[current_cohort]]],
+                        m1_pr[rev(expert_rank_10[[current_cohort]]),
+                                                                 expert_rank_10[[current_cohort]]],
+                        m2_pr[rev(expert_rank_10[[current_cohort]]),
+                                                                 expert_rank_10[[current_cohort]]],
+                        m3_pr[rev(expert_rank_10[[current_cohort]]),
+                                                                 expert_rank_10[[current_cohort]]]) 
+#cat("Cohort ",current_cohort,"\n",sep="")
+myMultiMatrixPlot(X=matrix_lst_plot,no_matrix=4,n_row=2,
+                  xLabels=expert_rank_10[[current_cohort]],
+                  yLabels=rev(expert_rank_10[[current_cohort]]),
+                  min=-80,max=80,axis_cex=2,title_cex = 1.8,
+                  colorPalette="RdBu",if.emp=FALSE,
+                  #legend.mar=c(0.5,.5,0.5,0.5),
+                  title_lst=list("I-MMHP","C-HP","C-DCHP","C-MMHP"), 
+                  #title_lst = list("I-MMHP"),
+                  col_axis=c(-80,-40,0,40,80), fake_matrix=FALSE,
+                  matrix.mar=c(2.5,2.5,2.5,1)
+                  )
+
+```
