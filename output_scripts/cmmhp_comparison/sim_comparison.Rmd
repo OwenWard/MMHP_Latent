@@ -35,7 +35,7 @@ source(here("lib",'drawIntensity.R'))
 # source(here("lib",'residualStructureScore.R',sep = ""))
 theme_set(theme_minimal())
 
-dc_sim_path <- here::here("output", "sims", "sims_m3_dc")
+dc_sim_path <- here::here("output", "sims_m3_sparse")
 comm_sim_path <- here::here("output", "common_rate", "sims_m3")
 cohort_names <- paste("cohort",c(9,10,12,15,16,17,18,37,38,45),sep='')
 
@@ -256,7 +256,7 @@ object_par <- list(sim_lambda_0 = 0.08,
                    sim_lambda_1 = 0.16,
                    sim_eta_1 = 2.5,
                    gamma_var = c(0.01, 0.02, 0.03, 0.06, 0.07),
-                   zeta_var = c(0.075, 0.02, 0.03, 0.05, 0.08),
+                   zeta_var = c(0.075, 0.06, 0.05, 0.03, 0.02),
                    sim_eta_2 = 0.6,
                    sim_eta_3 = 5,
                    sim_beta = 1.5,
@@ -297,9 +297,10 @@ KS_p_model3_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
                                     length(object_par$f_vec_1)))
 KS_p_true_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
                                     length(object_par$f_vec_1)))
-
+current_sims <- 1:n_sim
+# 7,31,34,43,47,49
 ## Iteration on 50 simulations
-for(s in c(1:n_sim)){
+for(s in 44:n_sim){
   load(here(dc_sim_path,paste0("sim_model3_fit123_",s,".RData")))
   load(here(dc_sim_path,paste0("fit123_state_est_",s,".RData",sep='')))
   clean_sim_data <- cleanSimulationData(raw_data=sim_model3_data, 
@@ -573,7 +574,7 @@ mtext(text="Degree Corrected PR",side=3,line=0.5,outer=TRUE,cex=2.5,font=2)
 
 ```{r ks-pr-common-rate model}
 complete_sims <- 1:n_sim
-complete_sims <- complete_sims[-29]
+#complete_sims <- complete_sims[-29]
 
 N_array <- array(0, dim = c(n_sim, length(object_par$f_vec_1),
                          length(object_par$f_vec_1))) 
@@ -611,7 +612,7 @@ KS_p_true_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
                                     length(object_par$f_vec_1)))
 
 ## Iteration on 50 simulations
-for(s in 30:n_sim){
+for(s in 1:n_sim){
   load(here(comm_sim_path, paste0("sim_model3_fit123_",s,".RData")))
   load(here(comm_sim_path, paste0("fit123_state_est_",s,".RData",sep='')))
   clean_sim_data <- cleanSimulationData(raw_data=sim_model3_data, 
