@@ -185,8 +185,7 @@ interpolate_state_est_lst <- matrix(list(),
                                     nrow = length(object_par$f_vec_1),
                                     ncol = length(object_par$f_vec_1))
 
-### this doesn't take into account the degree corrected nature 
-### of lambda0 and lambda1 now, which is important!
+
 
 lambda_0_est <- apply(sim_model3_stan_sim3$lambda0, 2, mean)
 lambda_1_est <- apply(sim_model3_stan_sim3$lambda1, 2, mean)
