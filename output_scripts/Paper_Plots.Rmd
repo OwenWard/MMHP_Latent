@@ -710,7 +710,7 @@ mgp.axis(2,mgp=c(0,0.1,0),at=seq(-0.2,0.6,0.2),cex.axis=1,lwd=0,lwd.ticks=0.8)
 
 ## Figure 4a Recover Latent Ranks
 ```{r fig-4a, fig.height=6,fig.width=8}
-sim_data_path <- "../output/sims/sims_m3_dc/"
+sim_data_path <- "../output/sims_m3_update/"
 
 # load(paste(sim_data_path,"sim_model3_fit123.RData",sep=''))
 # load(paste(sim_data_path,"fit123_state_est.RData",sep=''))
@@ -798,14 +798,16 @@ for(m in c(1:3)){
 
 
 ```{r prepare data for 4b,cache=TRUE}
-plot.s <- 1#7#9
+plot.s <- 6#7#9
 plot.i <- 4
 plot.j <- 5
 
 cur_i <- 4
 cur_j <- 5
 
-load(paste0(sim_data_path, "sim_model3_",
+
+
+load(paste0(sim_data_path,"/" ,"sim_model3_",
                                plot.s,
                               ".RData"))
 test.mmhp <- sim_model3_data$mmhp_matrix[plot.i,plot.j][[1]]
@@ -905,7 +907,7 @@ object_hat <- list(lambda0 = mmhp_par_est$lambda0[cur_i, cur_j],
                                        mmhp_par_est$eta_3))
 
 ## then need to load in the state estimate here
-load(paste0(sim_data_path, "fit123_state_est_", plot.s, ".RData"))
+load(paste0(sim_data_path,"/", "fit123_state_est_", plot.s, ".RData"))
 
 
 state.est.latent.mmhp <- interpolate_state_est_lst[plot.i,plot.j][[1]]
@@ -2265,7 +2267,7 @@ for(i in c(5:1)){
 }
 mtext(text=c(1:5), side=2, line=0.5, outer=TRUE, cex=2, las=2,
       at=c(0:4)/5+0.1)
-mtext(text=c(5:1), side=1, line=1, outer=TRUE, cex=2,
+mtext(text=c(5:1), side=1, line=1.5, outer=TRUE, cex=2,
       at=c(0:4)/5+0.1)
 mtext(text="(a)",side=3,line=0.5,outer=TRUE,cex=2.5,font=2)
 
