@@ -35,7 +35,7 @@ source(here("lib",'drawIntensity.R'))
 # source(here("lib",'residualStructureScore.R',sep = ""))
 theme_set(theme_minimal())
 
-dc_sim_path <- here::here("output", "sims_m3_sparse")
+dc_sim_path <- here::here("output", "sims_m3_update")
 comm_sim_path <- here::here("output", "common_rate", "sims_m3")
 cohort_names <- paste("cohort",c(9,10,12,15,16,17,18,37,38,45),sep='')
 
@@ -252,11 +252,10 @@ for(m in c(1:3)){
 ### Degree Corrected Model
 
 ```{r ks-pr-computation-dc}
-object_par <- list(sim_lambda_0 = 0.08,
-                   sim_lambda_1 = 0.16,
+object_par <- list(sim_lambda_1 = 0.2,
                    sim_eta_1 = 2.5,
-                   gamma_var = c(0.01, 0.02, 0.03, 0.06, 0.07),
-                   zeta_var = c(0.075, 0.06, 0.05, 0.03, 0.02),
+                   gamma_var = c(0.05, 0.02, 0.03, 0.08, 0.01),
+                   zeta_var = c(0.075, 0.1, 0.05, 0.01, 0.02),
                    sim_eta_2 = 0.6,
                    sim_eta_3 = 5,
                    sim_beta = 1.5,
@@ -300,7 +299,8 @@ KS_p_true_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
 current_sims <- 1:n_sim
 # 7,31,34,43,47,49
 ## Iteration on 50 simulations
-for(s in 44:n_sim){
+# 3,8,11,16,19,24,27,41,45,46,48
+for(s in 1:n_sim){
   load(here(dc_sim_path,paste0("sim_model3_fit123_",s,".RData")))
   load(here(dc_sim_path,paste0("fit123_state_est_",s,".RData",sep='')))
   clean_sim_data <- cleanSimulationData(raw_data=sim_model3_data, 

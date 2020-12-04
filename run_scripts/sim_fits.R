@@ -8,6 +8,7 @@ data_path <- "output/sims_m3_update/"
 
 library(rstan)
 options(mc.cores = parallel::detectCores())
+rstan_options(auto_write = TRUE)
 jobid <- Sys.getenv("SLURM_ARRAY_TASK_ID")
 jobid <- as.numeric(jobid)
 sim_id <- jobid
@@ -136,11 +137,13 @@ print(paste(i,"model1"))
 ## Fit in model 1
 sim_model3_stan_fit1[[1]] <- sampling(model1, data=data_list, 
                                          iter=1000, chains=4)
+
 print("model2")
 ## Fit in model 2
 sim_model3_stan_fit2[[1]] <- sampling(model2,
                                          data=data_list,
                                          iter=1000, chains=4)
+
 print("model3")
 ## Fit in model 3
 sim_model3_stan_fit3[[1]] <- sampling(model3,
@@ -155,11 +158,14 @@ sim_model3_stan_fit3[[1]] <- sampling(model3,
 sim_model3_stan_sim1 <- list()
 sim_model3_stan_sim2 <- list()
 sim_model3_stan_sim3 <- list()
-# for(i in 1:n_sim){
-  sim_model3_stan_sim1 <- rstan::extract(sim_model3_stan_fit1[[1]])
-  sim_model3_stan_sim2 <- rstan::extract(sim_model3_stan_fit2[[1]])
-  sim_model3_stan_sim3 <- rstan::extract(sim_model3_stan_fit3[[1]])
-# }
+
+sim_model3_stan_sim1 <- rstan::extract(sim_model3_stan_fit1[[1]])
+sim_model3_stan_sim2 <- rstan::extract(sim_model3_stan_fit2[[1]])
+sim_model3_stan_sim3 <- rstan::extract(sim_model3_stan_fit3[[1]])
+
+m1_rank <- order(apply(sim_model3_stan_sim1$f, 2, mean))
+m2_rank <- order(apply(sim_model3_stan_sim2$f, 2, mean))
+m3_rank <- order(apply(sim_model3_stan_sim3$f, 2, mean))
 
 ## Save the output
 save(object_fn, object_par, object_matrix, sim_model3_data,
@@ -243,3 +249,55 @@ for(cur_i in c(1:length(object_par$f_vec_1))){
 
 save(event_state_est_lst, interpolate_state_est_lst,
      file = paste(data_path, "fit123_state_est_", sim_id, ".RData", sep=''))
+
+
+
+#### Get Other Rankings
+
+count_data_dc <- get_wl_matrix(df = cbind(clean_sim_data$start, 
+                                          clean_sim_data$end))
+isi_dc.out <- compete::isi98(m = count_data_dc, random = TRUE)
+isi_rank_dc <- as.numeric(rev(isi_dc.out$best_order))
+
+
+agg_rank_data <- clean_sim_data_dc$N_count
+agg_rank_model <- stan_model(here("lib","latent_rank_agg_sim.stan"))
+
+agg_rank_fit <- rstan::sampling(agg_rank_model,
+                                data = list(n = 5,
+                                            n_matrix = agg_rank_data),
+                                iter = 1000,
+                                chains = 4)
+agg_sims <- rstan::extract(agg_rank_fit)
+
+agg_rank <- order(apply(agg_sims$x, 2, mean))
+
+
+
+### glicko ranking also ####
+glicko_data <- tibble(start = clean_sim_data$start,
+                      end = clean_sim_data$end)
+
+glicko_data <- glicko_data %>%
+  mutate(id = row_number(), score = 1) %>%
+  select(id, start, end, score)
+
+gl_train <- my_glicko(glicko_data, history=TRUE, cval=2)
+
+gl_train
+
+gl_ranks <- order(gl_train$ratings$Rating)
+
+## then save these
+
+output_rank <- tibble(truth = 1:5, 
+                      m1 = m1_rank,
+                      m2 = m2_rank,
+                      m3_dc = m3_dc_rank,
+                      isi = isi_rank_dc,
+                      agg = agg_rank,
+                      glicko = gl_ranks,
+                      sim = rep(sim_id,5))
+
+saveRDS(output_rank, 
+        file = paste(data_path,"rank_sim",sim_id,".RDS",sep=''))

@@ -53,6 +53,10 @@ source(paste(func_dir,'residualStructureScore.R',sep = ""))
 source(paste(func_dir,'drawIntensity.R',sep =""))
 source("https://gist.githubusercontent.com/jalapic/6ca3ece44bdcdc522bb735f183aa0ca0/raw/1a07f469eff08117121b6cbebcd22fb7569e3ee8/compete_extra.R")
 
+cohort_names <- paste("cohort",c(9,10,12,15,16,17,18,37,38,45),sep='')
+cohort_short_names <- paste("C",c(9,10,12,15,16,17,18,37,38,45),sep='')
+cut_off <- 3
+mice_number <- 12
 
 ```
 
@@ -61,10 +65,6 @@ source("https://gist.githubusercontent.com/jalapic/6ca3ece44bdcdc522bb735f183aa0
 ```{r load rankings,echo=FALSE,include=FALSE,results='hide',cache=TRUE}
 full_data <- readRDS("../data/mice.RData")
 # A=c9, B=c10, C=c12, D=c15, E=c16, F=c17, G=c18, H=c37, I=c38. J=c45
-cohort_names <- paste("cohort",c(9,10,12,15,16,17,18,37,38,45),sep='')
-cohort_short_names <- paste("C",c(9,10,12,15,16,17,18,37,38,45),sep='')
-cut_off <- 3
-mice_number <- 12
 
 # Define the cohorts will be fitted
 fit_cohorts <- c(1:10)
@@ -2275,7 +2275,7 @@ mtext(text="(a)",side=3,line=0.5,outer=TRUE,cex=2.5,font=2)
 
 # Figure 5b: Simulation Spearman Rank
 ```{r fig-5b-spearman-sim, fig.height=7}
-sim_files <- list.files(here("output", "rank_sims",
+sim_files <- list.files(here("output", "sims_m3_update",
                              "sims_m3_dc_isi_sparse"))
 
 all_sims <- list()
@@ -2543,7 +2543,7 @@ for(current_cohort in 1:10) {
   if(length(prob_id) != 0) {
     indep_pr <- indep_pr[-prob_id,-prob_id]
   }
-  if(current_cohort == 10) {
+  if(current_cohort %in% c(8,10)) {
     # one additional row
     # print("in here")
     new_prob_row <- which(rowSums(m1_pr) == 0)
@@ -2567,27 +2567,32 @@ for(current_cohort in 1:10) {
   names(current_score) <- c("C-HP","C-DCHP","C-MMHP","I-MMHP")
   current_score$type <- c("Positive Residuals","Negative Residuals")
   current_score$Cohort <- current_cohort
+  # current_score$resids <- list(m1 = m1_pr,
+  #                              m2 = m2_pr,
+  #                              m3 = m3_pr,
+  #                              ind = indep_pr)
   struct_scores <-struct_scores %>% bind_rows(current_score)
 }
 
 struct_plot <- struct_scores %>% 
   rename(Pos_Neg = type) %>%
   pivot_longer(cols = "C-HP":"I-MMHP",
-               names_to = "Method", values_to = "Score") %>%
-  filter(Score > 0) %>%
-  filter(!(Method == "I-MMHP" & Pos_Neg == "Positive"))
+               names_to = "Method", values_to = "Score") 
+  # filter(Score > 0) %>%
+  # filter(Score < 0.99) %>%
+  # filter(!(Method == "I-MMHP" & Pos_Neg == "Positive"))
   # mutate(Method = as.factor(Method, levels = c("I-MMHP","C-HP","C-DCHP",
   #                                              "C-MMHP"))) %>%
 struct_plot$Method <- factor(struct_plot$Method, levels = c("I-MMHP","C-HP","C-DCHP",
                                                "C-MMHP") )
 
-box_cols <- col_df %>% 
-  filter(method %in% c("I-MMHP","C-HP","C-DCHP","C-MMHP")) %>%
-  pull(cols)
+# box_cols <- col_df %>% 
+#   filter(method %in% c("I-MMHP","C-HP","C-DCHP","C-MMHP")) %>%
+#   pull(cols)
 
 struct_plot %>% 
   ggplot(aes(Method,Score, fill = Method)) + geom_boxplot() + 
-  scale_fill_manual(values = box_cols) +
+  # scale_fill_manual(values = box_cols) +
   ggtitle("(b)") +
   facet_wrap(~Pos_Neg) + theme_bw() +
   theme(plot.title = element_text(size = 22, hjust = 0.5, face="bold"),
@@ -2651,7 +2656,7 @@ myMultiMatrixPlot(X=matrix_lst_plot,no_matrix=3,n_row=1,
 
 ## Figure 8a: Frobenius norm of interaction predictions, single cohort
 
-```{r fig-8a-frob-norm-cohort5, fig.width=8,fig.height=4}
+```{r fig-8a-frob-norm-cohort5, fig.width=8,fig.height=4,eval=FALSE}
 load("../output/plot_N_predict.RData")
 current_cohort <- 5# cohort 1 looks worse than rest
 
@@ -2728,7 +2733,7 @@ p3_slides
 
 ## Figure 8b: Same plot aggregated for all cohorts
 
-```{r fig-8b-frob-norm-all-cohorts,fig.width=8,fig.height=4}
+```{r fig-8b-frob-norm-all-cohorts,fig.width=8,fig.height=4, eval=FALSE}
 load("../output/plot_N_predict.RData")
 temp_plot_df <- all_cohort_norm_df %>% 
   group_by(day, method) %>% 
@@ -2763,7 +2768,7 @@ p4
 ```
 
 
-```{r fig-8b-frob-norm-boxplot, fig.width=8, fig.height=4}
+```{r fig-7-pred-all-cohorts-box, fig.width=8, fig.height=4}
 load("../output/plot_N_predict.RData")
 
 all_cohort_box <- all_cohort_norm_df
@@ -2780,7 +2785,7 @@ all_cohort_box %>%
   # facet_grid(cols = vars(day)) +
   geom_boxplot(alpha=0.7) +
   scale_fill_manual(values = plot_cols_pred) +
-  ggtitle("(b)") +
+  ggtitle("(a)") +
   theme_bw() +
   theme(plot.title = element_text(size = 22, hjust = 0.5, face="bold"),
         text = element_text(size = 20),
@@ -2873,7 +2878,7 @@ p4_slides
 
 ## Figure 9a: Predicted Spearman rank for single cohort
 
-```{r fig-9a-spearman-rank-cohort1}
+```{r fig-9a-spearman-rank-cohort1, eval=FALSE}
 load(here("output","plot_rank_predict.RData"))
 # current_cohort <- 5
 temp_plot_df <- predict_day_rank_df_lst[[current_cohort]]
@@ -2939,7 +2944,7 @@ p5
 
 ## Figure 9b: Predicted Spearman rank for all cohorts
 
-```{r fig-9b-spearman-rank-all-cohorts}
+```{r fig-7-pred-rank-spearman-all-cohorts}
 load("../output/plot_rank_predict.RData")
 temp_plot_df <- all_cohort_rank_df %>% 
   group_by(day, method) %>% 
