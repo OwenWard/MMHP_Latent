@@ -1,11 +1,11 @@
-y.ub <- c(15,15,15)#c(130,72,31)
+y.ub <- c(35,35,35)#c(130,72,31)
 x_events <- 190#135#150
 layout(matrix(c(1:6), 6, 1), heights=rep(c(7.5,1),3))
 my.xlim <- 200#160#200#130
 my.long.x <- 205#205#134.5
-legend.x <- c(150,150,150)#c(135,135,135)
+legend.x <- c(50,50,50)#c(135,135,135)
 legend.y <- #c(34,32,32)
-legend.y <- c(12,12,12)#c(15,12,15)#c(62,37,18)#c(22,22,22)
+legend.y <- c(20,20,20)#c(15,12,15)#c(62,37,18)#c(22,22,22)
 legend.cex <- 1.5 #3
 line.alpha <- c(0.9,0.6)
 line.wdth <- c(2,2.5)
@@ -65,7 +65,7 @@ legend(legend.x[1]+22,legend.y[1],c("C-HP"),
 
 ## delta lambda
 par(mar = c(0,0.3,0,0.1))
-plot(0,0,xlim=c(0,my.xlim), ylim=c(-2,4), type="n",
+plot(0,0,xlim=c(0,my.xlim), ylim=c(-4,4), type="n",
      bty="n", xlab="",ylab="",xaxt="n",yaxt="n",axes=FALSE)
 delta.lambda <- lambda.m1$lambda.t-lambda.true$lambda.t
 delta.positive <- delta.lambda
@@ -110,21 +110,21 @@ legend(legend.x[2],legend.y[2],"C-DCHP",
 axis(1,at=c(-2,my.long.x),col="gray35",
      line=0.5,tick=T,labels=rep("",2),lwd=0.5,lwd.ticks=0,lty=3)
 
-legend(legend.x[2]-65,
+legend(legend.x[2]-50,
        legend.y[2]+2,c("State 0/1 events","State change point"),
        col = c(NA,"red"),
-       y.intersp=0.85,x.intersp=-0.1, bty = "n",
+       y.intersp=0.85,x.intersp=-0.5, bty = "n",
        pch = c(NA,4), pt.cex = c(NA,2), cex=legend.cex,
-       lty = c(NA,NA), lwd=c(NA,4))
-points(90,legend.y[2] - 1.5, pch = 1, cex = 2, col = "blue")
-points(93,legend.y[2] - 1.5, pch = 16, cex = 2, col = "blue")
+       lty = c(NA,NA), lwd=c(NA,2))
+points(legend.x[2]-42,legend.y[2] - 4.5, pch = 1, cex = 2, col = "blue")
+points(legend.x[2]-40,legend.y[2] - 4.5, pch = 16, cex = 2, col = "blue")
 
 ## delta lambda
 par(mar = c(0,0.3,0,0.1))
 delta.lambda <- lambda.m2$lambda.t-lambda.true$lambda.t
 
 plot(lambda.true$time.vec,delta.lambda,xlim=c(0,my.xlim), 
-     ylim=c(-2,4), type="n",
+     ylim=c(-4,4), type="n",
      bty="n", xlab="",ylab="",xaxt="n",yaxt="n",axes=FALSE)
 delta.lambda <- lambda.m2$lambda.t-lambda.true$lambda.t
 delta.positive <- delta.lambda
@@ -169,14 +169,14 @@ legend(legend.x[3],legend.y[3],"C-MMHP",
 axis(1,at=c(-2,my.long.x),col="gray35",
      line=0.5,tick=T,labels=rep("",2),lwd=0.5,lwd.ticks=0,lty=3)
 
-legend(legend.x[3]-65,legend.y[3]+2, c("Overestimation","Underestimation"),
+legend(legend.x[3]-50,legend.y[3]+2, c("Overestimation","Underestimation"),
        col = c(positive.col,negative.col),
-       y.intersp=0.6,x.intersp=0.5,bty = "n",
+       y.intersp=0.75,x.intersp=0.5,bty = "n",
        lty = c(1,1), lwd = c(10,10), cex=legend.cex,seg.len=0.8)
 
 ## delta lambda
 par(mar = c(0,0.3,0,0.1))
-plot(0,0,xlim=c(0,my.xlim), ylim=c(-2,4), type="n",
+plot(0,0,xlim=c(0,my.xlim), ylim=c(-4,4), type="n",
      bty="n", xlab="",ylab="",xaxt="n",yaxt="n",axes=FALSE)
 delta.lambda <- lambda.m3-lambda.true$lambda.t
 delta.positive <- delta.lambda

@@ -13,7 +13,7 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, fig.path = "paper_figure/",
-                      dev = 'png', fig.height = 4.5, fig.width = 7,
+                      dev = 'pdf', fig.height = 4.5, fig.width = 7,
                       warning = FALSE)
 
 slides_plots <- FALSE
@@ -302,7 +302,7 @@ matrixPlotParameter(latent_social_matrix[
 ```
 ## Figure 3b: Ranking Comparison
 
-```{r fig-3b-rank-comparison}
+```{r fig-3b-rank-comparison, include=FALSE,eval=FALSE}
 # current_cohort <- 5
 
 
@@ -370,346 +370,13 @@ mgp.axis(1,mgp=c(0,0.3,0),at=seq(0,120,10),cex.axis=1,lwd=0,lwd.ticks=0.1)
 mgp.axis(2,mgp=c(0,0.1,0),at=seq(-0.2,0.6,0.2),cex.axis=1,lwd=0,lwd.ticks=0.8)
 ```
 
-<!-- # Redone Figure 3 -->
 
-<!-- As discussed, it would be interesting to redo figure 3b -->
-<!-- to show the lack of fit in model 2 for one specific pair. This can be somewhat -->
-<!-- extracted from the diagnostics file. -->
-
-
-<!-- We actually want the empirical CDF plot here. -->
-
-
-
-<!-- ```{r fig_3b_update, fig.height=7, include=FALSE, eval=FALSE} -->
-<!-- # 2 -> 11 might be good here -->
-<!-- # current_cohort <- 5 -->
-<!-- clean_data <- cleanData(full_data[[cohort_names[current_cohort]]]) -->
-<!-- return_df <- cleanObservationPeriod(current_cohort, clean_data) -->
-<!-- unique_pairs_df <- return_df %>% group_by(initiator, recipient) %>% -->
-<!--   dplyr::summarize(count=n(), -->
-<!--             observe=list(observe.id), -->
-<!--             observe.length=list(observe.time), -->
-<!--             no.events=list(no.events))  -->
-<!-- top_pairs <- unique_pairs_df %>% arrange(desc(count)) -->
-
-<!-- best_i <- top_pairs$initiator[8] -->
-<!-- best_j <- top_pairs$recipient[8] -->
-
-<!-- current_i <- best_i #8 -->
-<!-- current_j <- best_j #2 -->
-
-<!-- ### then plots #### -->
-<!-- # par(mfrow = c(1, 2), oma = c(1, 1, 1, 1), -->
-<!-- #      mar = c(2, 3, 2, 1), mgp = c(0.8,0,0)) -->
-<!-- # layout(matrix(1:8,nrow=2,byrow=TRUE),widths=rep(2,4),height=c(3,3)) -->
-<!-- anno.cex <- 1.3 -->
-<!-- title.cex <- 2.2 -->
-<!-- title.line <- 0.5 -->
-<!-- y.upper <- 20 -->
-<!-- #### then the corresponding QQ plot #### -->
-<!-- load(paste(data_path,cohort_names[current_cohort], -->
-<!--              "/real_diag_four_models_",cohort_names[current_cohort], -->
-<!--              ".RData",sep='')) -->
-<!-- Lambda.dc_hawkes.test <- Lambda_dc_hawkes_matrix[current_i,current_j][[1]] -->
-
-<!-- p <- ppoints(length(Lambda.dc_hawkes.test)) -->
-<!-- # 100 equally spaced points on (0,1), excluding endpoints -->
-<!-- q <- quantile(Lambda.dc_hawkes.test,p=p,na.rm=TRUE) -->
-<!-- # percentiles of the sample distribution -->
-<!-- plot(qexp(p),q, -->
-<!--      xlab="",ylab="",xaxt="n",yaxt="n", -->
-<!--      pch=1, cex=1, col=viridis::viridis(1), ylim=c(0,1), xlim=c(0,4.5)) -->
-<!-- mtext(side = 1, text = "Theoretical", line=1.6, cex=anno.cex) -->
-<!-- mtext(side = 2, text = "Empirical", line = 1.2, cex = anno.cex) -->
-<!-- mtext(side = 3, text = "(b)", line = 0.8, cex = 1.6, font = 2) -->
-<!-- # Hmisc::mgp.axis(1,mgp=c(0,0.1,0),at=c(0:5),cex.axis=1,lwd=0,lwd.ticks=1) -->
-<!-- # Hmisc::mgp.axis(2,mgp=c(0,0.1,0),at=c(0:1),cex.axis=1,lwd=0,lwd.ticks=1) -->
-<!-- qqline(q, distribution=qexp,col="Black", lty=1, lwd=2.5) -->
-
-<!-- ### Empirical CDF #### -->
-
-<!-- plot(ecdf(Lambda.dc_hawkes.test), do.points = FALSE, -->
-<!--      verticals = TRUE, col = viridis::viridis(1), lwd = 2,  -->
-<!--      xlab = "", ylab = "", xaxt = "n", yaxt = "n", -->
-<!--      main = "", col.01line = NULL) -->
-<!-- curve(pexp(x,1/mean(Lambda.dc_hawkes.test)), -->
-<!--       min(Lambda.dc_hawkes.test), max(Lambda.dc_hawkes.test), -->
-<!--       ylab = "", xlab = "", -->
-<!--       add = TRUE, lwd = 2) -->
-
-<!-- ``` -->
-
-<!-- ```{r repeat entire fig2b for model 2, include=extra_plots, eval=extra_plots} -->
-<!-- # current_cohort <- 5 -->
-
-<!-- load(paste(data_path,cohort_names[current_cohort], -->
-<!--              "/real_diag_four_models_",cohort_names[current_cohort], -->
-<!--              ".RData",sep='')) -->
-
-<!-- load(paste(data_path,cohort_names[current_cohort], -->
-<!--            "/cohort_dchp_stan_result_",cohort_names[current_cohort], -->
-<!--            ".RData",sep='')) -->
-<!-- eta1_mean <- mean(sim_cohort_dchp$eta_1) -->
-<!-- eta2_mean <- mean(sim_cohort_dchp$eta_2) -->
-<!-- eta3_mean <- mean(sim_cohort_dchp$eta_3) -->
-<!-- f_est <- apply(sim_cohort_dchp$f,2,mean) -->
-<!-- clean_data <- cleanData(full_data[[cohort_names[current_cohort]]]) -->
-<!-- return_df <- cleanObservationPeriod(current_cohort, clean_data) -->
-<!-- unique_pairs_df <- return_df %>% group_by(initiator, recipient) %>% -->
-<!--   dplyr::summarize(count=n(), -->
-<!--                    observe=list(observe.id), -->
-<!--                    observe.length=list(observe.time), -->
-<!--                    no.events=list(no.events)) -->
-<!-- unique_observe_win <- unique(return_df[,c("observe.id","observe.time")]) -->
-
-<!-- ks.stat.matrix <- matrix(0,ncol=mice_number,nrow=mice_number) -->
-<!-- n_matrix <- matrix(0,ncol=mice_number,nrow=mice_number) -->
-<!-- Lambda_matrix <- matrix(list(),nrow=mice_number,ncol=mice_number) -->
-<!-- for(k in 1:mice_number){ -->
-<!--   for(l in c(1:mice_number)[-k]){ -->
-<!--     i<-expert_rank_10[[current_cohort]][k] -->
-<!--     j<-expert_rank_10[[current_cohort]][l] -->
-<!--     pair <- which(unique_pairs_df$initiator==i&unique_pairs_df$recipient==j) -->
-<!--     if(length(pair)>0){ -->
-<!--       param_mean <- list(lambda0=mean(sim_cohort_dchp$lambda0[,pair]), -->
-<!--                          alpha=model1_fn$alpha.fun(f_est[i], -->
-<!--                                                    f_est[j], -->
-<!--                                                    eta1_mean, -->
-<!--                                                    eta2_mean, -->
-<!--                                                    eta3_mean), -->
-<!--                          beta=mean(sim_cohort_dchp$beta)) -->
-<!--       current_window_vec <- unique_pairs_df$observe[[pair]] -->
-<!--       all_Lambda <- numeric(0) -->
-<!--       for(cur in c(1:length(current_window_vec))){ ## check length > 2 -->
-<!--         cur_win <- current_window_vec[cur] -->
-<!--         current_event_time <- return_df[return_df$initiator==i& -->
-<!--                                           return_df$recipient == j & -->
-<!--                             return_df$observe.id==cur_win,"event.times"][[1]] -->
-<!--         current_obs_time <- return_df[return_df$initiator==i& -->
-<!--                                         return_df$recipient==j& -->
-<!--                             return_df$observe.id==cur_win,"observe.time"] -->
-<!--         Lambda_vec <- uniHawkesCompensator(object = param_mean, -->
-<!--                               events = c(current_event_time, -->
-<!--                                          current_obs_time)) -->
-<!--         all_Lambda <- c(all_Lambda,Lambda_vec) -->
-<!--         n_matrix[i,j] <- n_matrix[i,j] + length(current_event_time) -->
-<!--       } -->
-<!--       if(length(all_Lambda)>0){ -->
-<!--         ks.stat.matrix[i,j] <-  ks.test(all_Lambda,"pexp", -->
-<!--                                         rate = 1/mean(all_Lambda))$statistic -->
-<!--         Lambda_matrix[i,j][[1]] <- all_Lambda -->
-<!--       } -->
-<!--     } -->
-<!--   } -->
-<!-- } -->
-
-<!-- m2_ks <- ks.stat.matrix -->
-
-<!-- # -------------- KS plot (stat) -->
-<!-- col.vec <- cRamp(as.vector(ks.stat.matrix)) -->
-<!-- ## need to do some sort of transformation between these here -->
-<!-- vir_cols <- viridis::viridis(length((as.vector(ks.stat.matrix)))) -->
-<!-- #order(as.vector(ks.stat.matrix),method = "") -->
-
-<!-- values <- as.vector(ks.stat.matrix) -->
-<!-- sorted_vals <- sort(ks.stat.matrix) -->
-<!-- #match(values,sorted_vals) -->
-<!-- col.vec.vir <- vir_cols[match(values,sorted_vals)] -->
-
-<!-- #### -->
-<!-- par(oma = c(6,4,4,1), mar=rep(0,4), -->
-<!--     mgp = c(0, .2, 0)) -->
-<!-- layout(cbind(matrix(data=c(1:(12*12)), nrow = 12, ncol = 12,  -->
-<!--                     byrow = TRUE),rep(12*12+1,12)),  -->
-<!--        widths=c(rep(1,12),2), heights=rep(1,12)) -->
-<!-- for(i in expert_rank_10[[current_cohort]]){ -->
-<!--   for(j in expert_rank_10[[current_cohort]]){ -->
-<!--     if(ks.stat.matrix[i,j]==0){ -->
-<!--       plot(0,0,xlim=c(0,5),ylim=c(0,5),type="n", xlab="", ylab="",  -->
-<!--            axes = FALSE, frame=TRUE) -->
-<!--       rect(par('usr')[1],par('usr')[3],par('usr')[2],par('usr')[4], -->
-<!--            border = 0, col = 'white') -->
-<!--     }else{ -->
-<!--       Lambda.test <- Lambda_matrix[i,j][[1]] -->
-<!--       curve(pexp(x,1/mean(Lambda.test)), min(Lambda.test), max(Lambda.test), -->
-<!--             ylab="",xlab="",axes = FALSE, frame=TRUE) -->
-<!--       rect(par('usr')[1],par('usr')[3],par('usr')[2],par('usr')[4],  -->
-<!--            border = 0, col = col.vec.vir[matrixToVecIdx(i,j,mice_number)]) -->
-<!--       curve(pexp(x,1/mean(Lambda.test)), min(Lambda.test), max(Lambda.test), -->
-<!--             ylab="",xlab="",axes = FALSE, frame=TRUE,add=TRUE, lwd=2) -->
-<!--       plot(ecdf(Lambda.test), add = TRUE, do.points = FALSE, -->
-<!--            verticals = TRUE, col = "red", lwd = 2) -->
-<!--     } -->
-<!--   } -->
-<!-- } -->
-<!-- par(mar = c(0,2,0,3),mgp=c(0,0.8,0)) -->
-
-<!-- col_obj <- list(x.vec = seq(0,max(as.vector(ks.stat.matrix)), -->
-<!--                             length.out = 100), -->
-<!--                 col.vec = viridis(100)) -->
-
-<!-- temp <- cLegend(as.vector(ks.stat.matrix)) -->
-
-<!-- image(1, col_obj$x.vec, -->
-<!--       matrix(data=col_obj$x.vec,  -->
-<!--              ncol=length(col_obj$x.vec),nrow=1), -->
-<!--       col=col_obj$col.vec, -->
-<!--       xlab="",ylab="",axes=FALSE) -->
-<!-- axis(4, at=c(0,0.3,0.6), labels=c(0,0.3,0.6), las= HORIZONTAL<-1, -->
-<!--      cex.axis=2.4) -->
-
-<!-- mtext(text=expert_rank_10[[current_cohort]], side=1, -->
-<!--       line=1.8, outer=TRUE, cex=1.8, -->
-<!--       at=1/14*c(1:12)-1/22) -->
-<!-- mtext(text = expert_rank_10[[current_cohort]], -->
-<!--       side = 2, line = 0.5, outer = TRUE, cex = 1.8, -->
-<!--       at =1/12*c(12:1)-1/20, las = 2) -->
-<!-- mtext(text = "(b)", side = 3, line = 1.4, outer = TRUE, -->
-<!--       cex = 2.2, -->
-<!--       at=0.45, font=2) -->
-
-<!-- ``` -->
-
-<!-- ```{r construct ks_diff} -->
-<!-- ks_diff <-  (m2_ks - m1_ks)/m1_ks -->
-<!-- ks_diff[is.nan(ks_diff)] <- 0 -->
-<!-- # -------------- KS plot (stat) -->
-<!-- col.vec <- cRamp(as.vector(ks_diff)) -->
-<!-- ## need to do some sort of transformation between these here -->
-<!-- vir_cols <- viridis::viridis(length((as.vector(ks_diff)))) -->
-<!-- #order(as.vector(ks.stat.matrix),method = "") -->
-
-<!-- values <- as.vector(ks_diff) -->
-<!-- sorted_vals <- sort(ks_diff) -->
-<!-- #match(values,sorted_vals) -->
-<!-- col.vec.vir <- vir_cols[match(values,sorted_vals)] -->
-
-<!-- #### -->
-<!-- par(oma = c(6,4,4,1), mar=rep(0,4), -->
-<!--     mgp = c(0, .2, 0)) -->
-<!-- layout(cbind(matrix(data=c(1:(12*12)), nrow = 12, ncol = 12,  -->
-<!--                     byrow = TRUE),rep(12*12+1,12)),  -->
-<!--        widths=c(rep(1,12),2), heights=rep(1,12)) -->
-<!-- for(i in expert_rank_10[[current_cohort]]){ -->
-<!--   for(j in expert_rank_10[[current_cohort]]){ -->
-<!--     if(ks_diff[i,j]==0){ -->
-<!--       plot(0,0,xlim=c(0,5),ylim=c(0,5),type="n", xlab="", ylab="",  -->
-<!--            axes = FALSE, frame=TRUE) -->
-<!--       rect(par('usr')[1],par('usr')[3],par('usr')[2],par('usr')[4], -->
-<!--            border = 0, col = 'white') -->
-<!--     }else{ -->
-<!--       Lambda.test <- Lambda_matrix[i,j][[1]] -->
-<!--       curve(pexp(x,1/mean(Lambda.test)), min(Lambda.test), max(Lambda.test), -->
-<!--             ylab="",xlab="",axes = FALSE, frame=TRUE) -->
-<!--       rect(par('usr')[1],par('usr')[3],par('usr')[2],par('usr')[4], -->
-<!--            border = 0, col = col.vec.vir[matrixToVecIdx(i,j,mice_number)]) -->
-
-<!--     } -->
-<!--   } -->
-<!-- } -->
-<!-- par(mar = c(0,2,0,3),mgp=c(0,0.8,0)) -->
-
-<!-- col_obj <- list(x.vec = seq(min(as.vector(ks_diff)),max(as.vector(ks_diff)), -->
-<!--                             length.out = 100), -->
-<!--                 col.vec = viridis(100)) -->
-
-<!-- # temp <- cLegend(as.vector(ks_diff)) -->
-
-<!-- image(1, col_obj$x.vec, -->
-<!--       matrix(data=col_obj$x.vec,  -->
-<!--              ncol=length(col_obj$x.vec),nrow=1), -->
-<!--       col=col_obj$col.vec, -->
-<!--       xlab="",ylab="") -->
-<!-- # axis(4, at=c(-0.2,0,0.2), labels=c(-0.2,0,0.2), las= HORIZONTAL<-1, -->
-<!-- #      cex.axis=2.4) -->
-
-<!-- mtext(text=expert_rank_10[[current_cohort]], side=1, -->
-<!--       line=1.8, outer=TRUE, cex=1.8, -->
-<!--       at=1/14*c(1:12)-1/22) -->
-<!-- mtext(text = expert_rank_10[[current_cohort]], -->
-<!--       side = 2, line = 0.5, outer = TRUE, cex = 1.8, -->
-<!--       at =1/12*c(12:1)-1/20, las = 2) -->
-<!-- mtext(text = "(M2 - M1)/M1", side = 3, line = 1.4, outer = TRUE, -->
-<!--       cex = 2.2, -->
-<!--       at=0.45, font=2) -->
-
-<!-- ``` -->
-
-<!-- ```{r construct ks diff normalised by num events} -->
-<!-- norm_diff <- (m2_ks - m1_ks)#/m1_ks -->
-<!-- norm_diff[is.nan(norm_diff)] <- 0 -->
-<!-- count_mat <- matrix(0, nrow = mice_number, ncol = mice_number) -->
-
-<!-- for(i in expert_rank_10[[current_cohort]]) { -->
-<!--   for(j in expert_rank_10[[current_cohort]]) { -->
-<!--     if( norm_diff[i,j] != 0 ) { -->
-<!--       num_events <- unique_pairs_df %>%  -->
-<!--       filter(initiator == i & recipient == j) %>% -->
-<!--       pull(count) -->
-<!--       # diff[i,j] <- diff[i,j] / num_events -->
-<!--       count_mat[i,j] <- num_events -->
-<!--     } -->
-<!--   } -->
-<!-- } -->
-
-
-<!-- tibble(diff_norm = as.vector(norm_diff), -->
-<!--        events = as.vector(count_mat)) %>% -->
-<!--   filter(events > 0 ) %>% -->
-<!--   ggplot(aes(events,diff_norm)) + geom_point() + -->
-<!--   ylab("M2-M1") + -->
-<!--   theme_minimal() -->
-
-<!-- tibble(diff_norm = as.vector(norm_diff), -->
-<!--        events = as.vector(count_mat)) %>% -->
-<!--   filter(events > 0) %>% -->
-<!--   ggplot(aes(diff_norm)) +  -->
-<!--   geom_histogram() + -->
-<!--   theme_minimal() -->
-
-<!-- ``` -->
-<!-- ```{r repeat for residuals} -->
-<!-- m1_pr <- readRDS(paste(data_path,cohort_names[current_cohort], -->
-<!--                    "/chp_pr_matrix_",cohort_names[current_cohort], -->
-<!--                    ".RDS",sep='')) -->
-
-<!-- m2_pr <- readRDS(paste(data_path,cohort_names[current_cohort], -->
-<!--                      "/dchp_pr_matrix_",cohort_names[current_cohort], -->
-<!--                      ".RDS",sep='')) -->
-
-<!-- tibble(m1pr = as.vector(m1_pr), -->
-<!--        m2pr = as.vector(m2_pr)) %>% -->
-<!--   mutate(diff = m2pr - m1pr) %>% -->
-<!--   ggplot(aes(diff)) +  -->
-<!--   geom_histogram() + -->
-<!--   labs(x = "M2 PR - M1 PR") + -->
-<!--   theme_minimal() -->
-
-<!-- ``` -->
-
-<!-- ```{r compute mean decrease in ks-score} -->
-<!-- summary(as.vector(m2_ks[m2_ks != 0])) -->
-<!-- summary(as.vector(m1_ks[m1_ks != 0])) -->
-
-<!-- t.test(as.vector(m2_ks[m2_ks != 0]), as.vector(m1_ks[m1_ks != 0])) -->
-
-<!-- diff <- as.vector(m2_ks[m2_ks != 0]) - as.vector(m1_ks[m1_ks != 0]) -->
-
-<!-- length(which(diff < 0))/length(diff) -->
-<!-- summary(diff) -->
-<!-- ``` -->
-
-
-<!-- This is good because it shows the most active animal, shows that individual -->
-<!-- out rate too large for this interaction. Just need to make this more -->
-<!-- like the plots in 2b. -->
 
 
 # Figure 4:
 
 ## Figure 4a Recover Latent Ranks
-```{r fig-4a, fig.height=6,fig.width=8}
+```{r fig-4a, fig.height=3.5,fig.width=8}
 sim_data_path <- "../output/sims_m3_update/"
 
 # load(paste(sim_data_path,"sim_model3_fit123.RData",sep=''))
@@ -798,7 +465,7 @@ for(m in c(1:3)){
 
 
 ```{r prepare data for 4b,cache=TRUE}
-plot.s <- 6#7#9
+plot.s <- 7#7 is pretty good
 plot.i <- 4
 plot.j <- 5
 
@@ -934,20 +601,20 @@ lambda.true <- mmhpTrueIntensityNumeric(params = object_true,
 ```
 
 
-```{r fig4b-recover-latent-states,fig.width=8,fig.height=5}
-y.ub <- c(15,15,15)#c(130,72,31)
+```{r fig-4b-recover-latent-states,fig.width=8,fig.height=4}
+y.ub <- c(35,35,35)#c(130,72,31)
 x_events <- 190#135#150
 layout(matrix(c(1:6), 6, 1), heights=rep(c(7.5,1),3))
 my.xlim <- 200#160#200#130
 my.long.x <- 205#205#134.5
-legend.x <- c(150,150,150)#c(135,135,135)
+legend.x <- c(60,60,60)#c(135,135,135)
 legend.y <- #c(34,32,32)
-legend.y <- c(12,12,12)#c(15,12,15)#c(62,37,18)#c(22,22,22)
+legend.y <- c(23,23,23)#c(15,12,15)#c(62,37,18)#c(22,22,22)
 legend.cex <- 1.5 #3
 line.alpha <- c(0.9,0.6)
 line.wdth <- c(2,2.5)
-negative.col <- add.alpha('lightskyblue',0.6)
-positive.col <- add.alpha('tomato',0.6)
+negative.col <- add.alpha('lightskyblue')
+positive.col <- add.alpha('tomato')
 #negative.col <- viridis::viridis(5,alpha = 0.6)[1]
 #positive.col <- viridis::viridis(5,alpha = 0.6)[4]
 par(mar = c(0,0.3,0,0.1), oma = c(3,3.5,4,0),
@@ -995,14 +662,14 @@ legend(legend.x[1],legend.y[1],c("True"),
        col = c("black"),
        y.intersp=0.88,x.intersp=0.15,bty = "n",
        lty = c(1), lwd = c(5), cex=legend.cex,seg.len=1)
-legend(legend.x[1]+18,legend.y[1],c("C-HP"),
+legend(legend.x[1]+22,legend.y[1],c("C-HP"),
        col = c(model_colors[1]),
        y.intersp=0.88,x.intersp=0.15,bty = "n",
        lty = c(1), lwd = c(5), cex=legend.cex,seg.len=1)
 
 ## delta lambda
 par(mar = c(0,0.3,0,0.1))
-plot(0,0,xlim=c(0,my.xlim), ylim=c(-2,4), type="n",
+plot(0,0,xlim=c(0,my.xlim), ylim=c(-4,4), type="n",
      bty="n", xlab="",ylab="",xaxt="n",yaxt="n",axes=FALSE)
 delta.lambda <- lambda.m1$lambda.t-lambda.true$lambda.t
 delta.positive <- delta.lambda
@@ -1047,21 +714,21 @@ legend(legend.x[2],legend.y[2],"C-DCHP",
 axis(1,at=c(-2,my.long.x),col="gray35",
      line=0.5,tick=T,labels=rep("",2),lwd=0.5,lwd.ticks=0,lty=3)
 
-legend(legend.x[2]-45,
+legend(legend.x[2]-50,
        legend.y[2]+2,c("State 0/1 events","State change point"),
        col = c(NA,"red"),
-       y.intersp=0.85,x.intersp=-0.1, bty = "n",
+       y.intersp=0.85,x.intersp=-0.5, bty = "n",
        pch = c(NA,4), pt.cex = c(NA,2), cex=legend.cex,
-       lty = c(NA,NA), lwd=c(NA,4))
-points(110,legend.y[2] - 3, pch = 1, cex = 2, col = "blue")
-points(113,legend.y[2] - 3, pch = 16, cex = 2, col = "blue")
+       lty = c(NA,NA), lwd=c(NA,2))
+points(legend.x[2]-46,legend.y[2] - 4.5, pch = 1, cex = 2, col = "blue")
+points(legend.x[2]-44,legend.y[2] - 4.5, pch = 16, cex = 2, col = "blue")
 
 ## delta lambda
 par(mar = c(0,0.3,0,0.1))
 delta.lambda <- lambda.m2$lambda.t-lambda.true$lambda.t
 
 plot(lambda.true$time.vec,delta.lambda,xlim=c(0,my.xlim), 
-     ylim=c(-2,4), type="n",
+     ylim=c(-4,4), type="n",
      bty="n", xlab="",ylab="",xaxt="n",yaxt="n",axes=FALSE)
 delta.lambda <- lambda.m2$lambda.t-lambda.true$lambda.t
 delta.positive <- delta.lambda
@@ -1106,14 +773,14 @@ legend(legend.x[3],legend.y[3],"C-MMHP",
 axis(1,at=c(-2,my.long.x),col="gray35",
      line=0.5,tick=T,labels=rep("",2),lwd=0.5,lwd.ticks=0,lty=3)
 
-legend(legend.x[3]-45,legend.y[3]+2, c("Overestimation","Underestimation"),
+legend(legend.x[3]-50,legend.y[3]+2, c("Overestimation","Underestimation"),
        col = c(positive.col,negative.col),
-       y.intersp=0.6,x.intersp=0.5,bty = "n",
+       y.intersp=0.75,x.intersp=0.5,bty = "n",
        lty = c(1,1), lwd = c(10,10), cex=legend.cex,seg.len=0.8)
 
 ## delta lambda
 par(mar = c(0,0.3,0,0.1))
-plot(0,0,xlim=c(0,my.xlim), ylim=c(-2,4), type="n",
+plot(0,0,xlim=c(0,my.xlim), ylim=c(-4,4), type="n",
      bty="n", xlab="",ylab="",xaxt="n",yaxt="n",axes=FALSE)
 delta.lambda <- lambda.m3-lambda.true$lambda.t
 delta.positive <- delta.lambda
@@ -1137,6 +804,7 @@ mtext(text="(b)",side=3,line=0.8,outer=TRUE,cex=2.5,font=2)
 mtext(text="Time",side=1,line=2,outer=TRUE,cex=2.25)
 ## left
 mtext(text="Intensity",side=2,line=0.6,outer=TRUE,cex=2.25)
+
 
 ```
 
@@ -1992,6 +1660,8 @@ mtext(text="Intensity",side=2,line=0.6,outer=TRUE,cex=2.5)
 
 
 
+
+
 # Figure 5:
 ```{r data for fig 5,cache=TRUE}
 # load(paste(sim_data_path,"sim_model3_fit123.RData",sep=''))
@@ -2220,7 +1890,7 @@ for(s in c(1:n_sim)){
 ```
 
 
-```{r fig5-residual-ks, fig.height=7}
+```{r fig5a-residual-ks, fig.height=7}
 # cols_plot <- col_df %>% filter(method %in% c("C-HP","C-DCHP","C-MMHP",
 #                                              "True"))
 
@@ -2277,13 +1947,12 @@ mtext(text="(a)",side=3,line=0.5,outer=TRUE,cex=2.5,font=2)
 
 # Figure 5b: Simulation Spearman Rank
 ```{r fig-5b-spearman-sim, fig.height=7}
-sim_files <- list.files(here("output", "sims_m3_update",
-                             "sims_m3_dc_isi_sparse"))
+sim_files <- list.files(here("output", "sims_m3_update"), 
+                        pattern = "rank_sim")
 
 all_sims <- list()
 for(i in seq_along(sim_files)) {
- single_fit <- readRDS(here("output", "rank_sims", 
-                            "sims_m3_dc_isi_sparse",
+ single_fit <- readRDS(here("output", "sims_m3_update",
                             sim_files[i]))
  all_sims[[i]] <- single_fit
 }
@@ -2433,34 +2102,16 @@ p2
 
 ```
 
-```{r fig-rank-slides, fig.height=3,include=slides_plots,eval=slides_plots}
-
-p2_slides <- plot_cor_df %>%
-  filter(Method != "Agg-rank") %>%      
-  ggplot(aes(x="", y = cor, fill = Method)) +
-        geom_boxplot(alpha=0.7, width=0.5) +
-        scale_fill_manual(values = viridis::viridis(3)) + 
-        #ggtitle("(b)") +
-        ylim(0,1) +
-        theme_bw() +
-        theme(plot.title = element_text(size = 22, hjust = 0.5, face="bold"),
-              text = element_text(size = 20),
-              axis.text.y =element_text(size = 11),
-              legend.position="none",
-              axis.title.x=element_blank()) +
-        facet_grid(cols=vars(Method)) +
-        ylab("Rank correlation")
-p2_slides
-
-```
 
 
 # Figure 7: Pearson residual matrices
 
 
 
-```{r fig-7-prMatrix-Cohort5, fig.width=7, fig.height=7}
-current_cohort <- 5
+```{r fig-7-prMatrix-Cohort3, fig.width=7, fig.height=7}
+current_cohort <- 3
+## 2 and 8 maybe look better
+## 3 probably looks the best
 
 m1_pr <- readRDS(paste(data_path,cohort_names[current_cohort],
                    "/chp_pr_matrix_",cohort_names[current_cohort],
@@ -2499,7 +2150,7 @@ myMultiMatrixPlot(X=matrix_lst_plot,no_matrix=4,n_row=2,
                   col_axis=c(-80,-40,0,40,80), fake_matrix=FALSE,
                   matrix.mar=c(2.5,2.5,2.5,1)
                   )
-mtext(text="(a)",side=3,line=0.5,outer=TRUE,cex=2.5,font=2)
+# mtext(text="(a)",side=3,line=0.5,outer=TRUE,cex=2.5,font=2)
 
 
 ```
@@ -2607,49 +2258,6 @@ struct_plot %>%
 
 
 
-```{r fig_pr_slides, fig.height=3, fig.width=7, include=slides_plots,eval=slides_plots}
-# current_cohort <- 5
-
-m1_pr <- readRDS(paste(data_path,cohort_names[current_cohort],
-                   "/chp_pr_matrix_",cohort_names[current_cohort],
-                   ".RDS",sep=''))
-
-m2_pr <- readRDS(paste(data_path,cohort_names[current_cohort],
-                     "/dchp_pr_matrix_",cohort_names[current_cohort],
-                     ".RDS",sep=''))
-
-m3_pr <- readRDS(paste(data_path,cohort_names[current_cohort],
-                     "/cmmhp_pr_matrix_",cohort_names[current_cohort],
-                     ".RDS",sep=''))
-
-indep_pr <- readRDS(paste(data_path,cohort_names[current_cohort],
-                     "/immhp_pr_matrix_",cohort_names[current_cohort],
-                     ".RDS",sep=''))
-
-matrix_lst_plot <- list(
-                        #indep_pr[rev(expert_rank_10[[current_cohort]]),
-#                                                                   #expert_rank_10[[current_cohort]]],
-                        m1_pr[rev(expert_rank_10[[current_cohort]]),
-                                                                  expert_rank_10[[current_cohort]]],
-                        m2_pr[rev(expert_rank_10[[current_cohort]]),
-                                                                 expert_rank_10[[current_cohort]]],
-                        m3_pr[rev(expert_rank_10[[current_cohort]]),
-                                                                 expert_rank_10[[current_cohort]]]) 
-#cat("Cohort ",current_cohort,"\n",sep="")
-myMultiMatrixPlot(X=matrix_lst_plot,no_matrix=3,n_row=1,
-                  xLabels=expert_rank_10[[current_cohort]],
-                  yLabels=rev(expert_rank_10[[current_cohort]]),
-                  min=-80,max=80,axis_cex=1,title_cex = 1.8,
-                  colorPalette="RdBu",if.emp=FALSE,
-                  #legend.mar=c(0.5,.5,0.5,0.5),
-                  title_lst=list("C-HP","C-DCHP","C-MMHP"), 
-                  #title_lst = list("I-MMHP"),
-                  col_axis=c(-80,-40,0,40,80), fake_matrix=FALSE,
-                  matrix.mar=c(2.5,2.5,2.5,0.5)
-                  )
-
-```
-
 
 
 <!-- The remaining plot code seems to mostly be in `PaperPlots.R`. -->
@@ -2703,6 +2311,7 @@ load("../output/plot_N_predict.RData")
 # current_cohort <- 5# cohort 1 looks worse than rest
 # 3 looks nice
 
+
 temp_plot_df <- predict_day_norm_df_lst[[current_cohort]]
 temp_plot_df$method <- factor(temp_plot_df$method,
                               levels = c("mmhp","dsnl","m1","m2","m3"),
@@ -2735,7 +2344,7 @@ p3_slides
 
 ## Figure 8b: Same plot aggregated for all cohorts
 
-```{r fig-8b-frob-norm-all-cohorts,fig.width=8,fig.height=4, eval=FALSE}
+```{r fig-8b-frob-norm-all-cohorts,fig.width=8,fig.height=4.5, eval=FALSE}
 load("../output/plot_N_predict.RData")
 temp_plot_df <- all_cohort_norm_df %>% 
   group_by(day, method) %>% 
@@ -2770,7 +2379,7 @@ p4
 ```
 
 
-```{r fig-7-pred-all-cohorts-box, fig.width=8, fig.height=4}
+```{r fig-7a-pred-all-cohorts-box}
 load("../output/plot_N_predict.RData")
 
 all_cohort_box <- all_cohort_norm_df
@@ -2782,6 +2391,13 @@ all_cohort_box$method <- factor(all_cohort_box$method,
                                          "C-MMHP"))
 all_cohort_box$day <- factor(all_cohort_box$day)
 
+
+plot_cols_pred <- col_df %>% 
+  filter(method %in% levels(all_cohort_box$method)) %>%
+   arrange(factor(method, levels = c("I-MMHP","DSNL",
+                                     "C-HP", "C-DCHP", "C-MMHP"))) %>%
+                    pull(cols)
+
 all_cohort_box %>% 
   ggplot(aes(x=method,y=norm, fill = method)) +
   # facet_grid(cols = vars(day)) +
@@ -2789,7 +2405,8 @@ all_cohort_box %>%
   scale_fill_manual(values = plot_cols_pred) +
   ggtitle("(a)") +
   theme_bw() +
-  theme(plot.title = element_text(size = 22, hjust = 0.5, face="bold"),
+  theme(plot.title = element_text(size = 22,
+                                  hjust = 0.5, face="bold"),
         text = element_text(size = 20),
         axis.text.x=element_blank(),
         axis.ticks.x = element_blank(),
@@ -2801,75 +2418,6 @@ all_cohort_box %>%
   labs(fill = "Method") +
   # ylim(0, 80) +
   NULL
-
-
-```
-
-```{r fig-slides-predict,include=slides_plots,eval=slides_plots,fig.height=3}
-load("../output/plot_N_predict.RData")
-temp_plot_df <- all_cohort_norm_df %>% 
-  group_by(day, method) %>% 
-  summarise(avg=mean(norm), n= n(), sd=sd(norm),
-            se = sd/sqrt(n))
-
-temp_plot_df$method <- factor(temp_plot_df$method,
-                              levels = c("mmhp","dsnl","m1","m2","m3"),
-                              labels = c("I-MMHP","DSNL","C-HP",
-                                         "C-DCHP","C-MMHP"))
-temp_plot_df$day <- factor(temp_plot_df$day)
-
-
-p4_slides <- ggplot(temp_plot_df, 
-                    aes(x=day, y=avg, group=method, color=method)) + 
-  geom_line(size=1.2, alpha=0.8, position=position_dodge(0.2)) +
-  geom_errorbar(aes(ymin=avg-sd, ymax=avg+sd), width=0.8, size=0.8, alpha=0.8,
-                 position=position_dodge(0.2)) +
-  scale_color_manual(values = viridis::viridis(5)) + 
-  #ggtitle("(b)") +
-  theme_bw() +
-  theme(plot.title = element_text(size = 22, hjust = 0.5, face="bold"),
-        text = element_text(size = 20),
-        axis.text.x=element_text(size = 18)) +
-  xlab("Prediction horizon (day)") + 
-  ylab("Frobenius norm of error") + 
-  coord_cartesian(ylim=c(2.5,57.5)) + 
-  guides(color=guide_legend(title="Model")) 
-p4_slides
-
-```
-
-
-
-```{r, include=FALSE,eval=FALSE}
-
-all_sims <- do.call(rbind,predict_day_norm_df_lst)
-
-temp_plot_df <- all_sims %>% 
-  group_by(day, method) %>% 
-  summarise(avg=mean(norm), n= n(), sd=sd(norm),
-            se = sd/n)
-
-temp_plot_df$method <- factor(temp_plot_df$method,
-                              levels = c("mmhp","dsnl","m1","m2","m3"),
-                              labels = c("I-MMHP","DSNL","C-HP","C-DCHP","C-MMHP"))
-temp_plot_df$day <- factor(temp_plot_df$day)
-p4_slides <- temp_plot_df %>% #filter(method != "C-HP") %>% 
-  filter(method != "I-MMHP") %>%
-  ggplot(aes(x=day, y=avg, group=method, color=method)) + 
-  geom_line(size=1.2, alpha=0.8, position=position_dodge(0.2)) +
-  geom_errorbar(aes(ymin=avg-sd, ymax=avg+sd), width=0.8, size=0.8, alpha=0.8,
-                 position=position_dodge(0.2)) +
-  scale_color_manual(values = viridis::viridis(5)) + 
-  #ggtitle("(b)") +
-  theme_bw() +
-  theme(plot.title = element_text(size = 22, hjust = 0.5, face="bold"),
-        text = element_text(size = 20),
-        axis.text.x=element_text(size = 18)) +
-  xlab("Prediction horizon (day)") + 
-  ylab("Frobenius norm of error") + 
-  coord_cartesian(ylim=c(2.5,57.5)) + 
-  guides(color=guide_legend(title="Model")) #+ ylim(c(0,1000))
-p4_slides
 
 
 ```
@@ -2912,70 +2460,11 @@ p5 + labs(fill = "Method")
 ```
 
 
-```{r fig-pred-cor, eval=slides_plots,include=slides_plots,fig.height=3}
-load("../output/plot_rank_predict.RData")
-current_cohort <- 5
-temp_plot_df <- predict_day_rank_df_lst[[current_cohort]]
-temp_plot_df$method <- factor(temp_plot_df$method,
-                              levels = c("mmhp","dsnl","m1","m2","m3"),
-                              labels = c("I-MMHP","DSNL","C-HP","C-DCHP","C-MMHP"))
-temp_plot_df$day <- factor(temp_plot_df$day)
-# png(paste(plot_path,"real_predict_rank_one_cohort.png",sep=""),width=600,height=300)
-temp_plot_df <- temp_plot_df %>%
-  filter(method != "I-MMHP") 
-p5 <- ggplot(temp_plot_df, aes(x = method, y = spearman, fill = method)) +
-  geom_boxplot(alpha=0.7) +
-  scale_fill_manual(values = viridis::viridis(5)) +
-  #scale_fill_manual(values = c("gray","yellowgreen","steelblue","goldenrod2","firebrick2")) + 
-  #ggtitle("(a)") +
-  theme_bw() +
-  theme(plot.title = element_text(size = 22, hjust = 0.5, face="bold"),
-        text = element_text(size = 20),
-        axis.text.x=element_blank(),
-        axis.ticks.x = element_blank(), 
-        legend.position="right") +
-  facet_grid(cols=vars(day)) +
-  xlab("Prediction horizon (day)") + 
-  ylab("Rank correlation") +
-  # ylim(0, 1) +
-  NULL
-p5
-```
-
-
 
 ## Figure 9b: Predicted Spearman rank for all cohorts
 
-```{r fig-7-pred-rank-spearman-all-cohorts}
+```{r fig-7b-pred-rank-spearman-all-cohorts}
 load("../output/plot_rank_predict.RData")
-temp_plot_df <- all_cohort_rank_df %>% 
-  group_by(day, method) %>% 
-  summarize(avg=mean(spearman), n= n(), sd=sd(spearman))
-
-temp_plot_df$method <- factor(temp_plot_df$method,
-                              levels = c("mmhp","dsnl","m1","m2","m3"),
-                              labels = c("I-MMHP","DSNL","C-HP",
-                                         "C-DCHP","C-MMHP"))
-temp_plot_df$day <- factor(temp_plot_df$day)
-
-# png(paste(plot_path,"real_predict_rank_all_cohort.png",sep=""),width=600,height=300)
-p6 <- ggplot(temp_plot_df, aes(x=day, y=avg, group=method, color=method)) + 
-  geom_line(size=1.2, alpha=0.8, position=position_dodge(0.2)) +
-  geom_errorbar(aes(ymin=avg-sd, ymax=avg+sd), width=0.8, size=0.8, alpha=0.8,
-                position=position_dodge(0.2)) +
-  scale_color_manual(values = plot_cols_pred) +
-  #scale_color_manual(values = c("gray","yellowgreen","steelblue","goldenrod2","firebrick2")) +
-  ggtitle("(b)") +
-  theme_bw() +
-  theme(plot.title = element_text(size = 22, hjust = 0.5, face="bold"),
-        text = element_text(size = 20),
-        axis.text.x=element_text(size = 18)) +
-  xlab("Prediction horizon (day)") + 
-  ylab("Spearman rank correlation") + 
-  # coord_cartesian(ylim=c(0,1)) + 
-  guides(color=guide_legend(title="Method")) 
-p6
-
 
 all_cohort_rank_df$method <- factor(all_cohort_rank_df$method,
                               levels = c("mmhp","dsnl","m1","m2","m3"),
@@ -2987,7 +2476,6 @@ p7 <- ggplot(all_cohort_rank_df,
   # geom_line(size=1.2, alpha=0.8, position=position_dodge(0.2)) +
   geom_boxplot(alpha = 0.7) +
   scale_fill_manual(values = plot_cols_pred) +
-  #scale_color_manual(values = c("gray","yellowgreen","steelblue","goldenrod2","firebrick2")) +
   ggtitle("(b)") +
   theme_bw() +
   theme(plot.title = element_text(size = 22, hjust = 0.5, face="bold"),
@@ -3011,7 +2499,7 @@ p7
 ## Figure 10a
 
 
-```{r construct data for plot, results='hide',message=FALSE}
+```{r construct data for plot, results='hide',message=FALSE,cache=TRUE}
 library(PlayerRatings)
 
 current_cohort <- 5
@@ -3152,10 +2640,10 @@ rm(fit_cohort_mmhp)
 
 ## Fig 10b
 
-```{r process for state separation cohort5,eval=FALSE}
+```{r process for state separation cohort1,eval=FALSE}
 # only run this once and save the results
 # this doesn't need to be rerun ever, even if the stan fits change
-# current_cohort <- 5
+# current_cohort <- 1
 
 load(paste(data_path,cohort_names[current_cohort],
              "/cmmhp_est_zt_",cohort_names[current_cohort],
@@ -3234,9 +2722,10 @@ rm(initial_state_list)
 ```
 
 
-```{r process data for plot 10b}
+```{r process data for plot 10b, cache=TRUE}
 library(PlayerRatings)
 # current_cohort <- 5
+current_cohort <- 1
 load(paste(data_path,cohort_names[current_cohort],
            "/dsnl_poisson_stan_result_",cohort_names[current_cohort],
            ".RData",sep=''))
