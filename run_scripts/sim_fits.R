@@ -28,7 +28,7 @@ source('lib/drawIntensity.R')
 # Define global variable
 n_sim <- 50
 cut_off <- 3
-obs_time <- 200
+obs_time <- 100
 
 model1_fn <- list(alpha.fun = function(x,y,eta1,eta2,eta3){return(eta1*x*y*exp(-eta2*abs(x-y))/(1+exp(-eta3*(x-y))))})
 
@@ -45,7 +45,7 @@ object_fn <- list(alpha.fun = function(x,y,eta1,eta2){return(eta1*x*y*exp(-eta2*
 
 object_par <- list(sim_lambda_1 = 0.2,
                    sim_eta_1 = 2.5,
-                   gamma_var = c(0.05, 0.02, 0.03, 0.08, 0.01),
+                   gamma_var = c(0.05, 0.02, 0.03, 0.08, 0.02),
                    zeta_var = c(0.075, 0.1, 0.05, 0.01, 0.02),
                    sim_eta_2 = 0.6,
                    sim_eta_3 = 5,
