@@ -7,6 +7,7 @@ source("/rigel/stats/users/ogw2103/code/MMHP/MMHP_Latent/run_scripts/cluster_set
 data_path <- "output/sims_m3_update/"
 
 library(rstan)
+# library(compete)
 options(mc.cores = parallel::detectCores())
 rstan_options(auto_write = TRUE)
 jobid <- Sys.getenv("SLURM_ARRAY_TASK_ID")
@@ -28,7 +29,7 @@ source('lib/drawIntensity.R')
 # Define global variable
 n_sim <- 50
 cut_off <- 3
-obs_time <- 100
+obs_time <- 200
 
 model1_fn <- list(alpha.fun = function(x,y,eta1,eta2,eta3){return(eta1*x*y*exp(-eta2*abs(x-y))/(1+exp(-eta3*(x-y))))})
 
