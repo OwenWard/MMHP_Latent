@@ -13,7 +13,7 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, fig.path = "paper_figure/",
-                      dev = 'pdf', fig.height = 4.5, fig.width = 7,
+                      dev = 'png', fig.height = 4.5, fig.width = 7,
                       warning = FALSE)
 
 slides_plots <- FALSE
@@ -2502,7 +2502,8 @@ p7
 ```{r construct data for plot, results='hide',message=FALSE,cache=TRUE}
 library(PlayerRatings)
 
-current_cohort <- 5
+current_cohort <- 7
+# 4 best so far, or 7
 
 load(paste(data_path,cohort_names[current_cohort],
            "/predict_simulation_",cohort_names[current_cohort],
@@ -2515,7 +2516,8 @@ df <- df[df$Actor!="Start"&df$Actor!="End",]
 df1 <- expandrows(df)
 df1 <- df1[order(df1$Timestamp),] #ensure in date order
 df1$event <- 1:nrow(df1)
-glick.df <- df1[, c("event","Actor","Recipient","score"), with = FALSE] #need event, actor, recipient, score
+glick.df <- df1[, c("event","Actor","Recipient","score"), with = FALSE]
+#need event, actor, recipient, score
 gl <- my_glicko(glick.df, history=TRUE, cval=2)
 
 # ------------------- period
@@ -2548,7 +2550,6 @@ for(s in 1:1000){
                                      nrow=testing_end-ncol(temp_gl$history[,,1]),
                                      byrow=TRUE)))
   }else{
-    # this line makes no sense, and should likely never happen
     # try(
     history_matrix <- history_matrix[,1:testing_end]#temp_gl$history[,1:testing_end]
     # )
@@ -2561,6 +2562,7 @@ for(s in 1:1000){
 
 ```{r fig-10a-glicko-rating}
 par(mar=c(3,5,3,1))
+testing_end <- testing_end - 1
 plot(1, type="n", xlab="", ylab="Glicko ranking", xlim=c(0,dim(gl$history)[2]),
      ylim=c(min(gl$history[,,1]),max(gl$history[,,1])),
      cex.axis=2, cex.lab=2)
@@ -2748,7 +2750,8 @@ glick.df <- df1[, c("event","Actor","Recipient","score"), with = FALSE] #need ev
 real.gl <- my_glicko(glick.df, history=TRUE, cval=2)
 clean_data_all <- cleanData(full_data[[cohort_names[current_cohort]]],
                               cut_off = 1)
-day_end_idx <- unlist(lapply(c(1:21),function(x) max(which(clean_data_all$day==x))))
+day_end_idx <- unlist(lapply(c(1:21),function(x) 
+  max(which(clean_data_all$day==x))))
 
 ## All aggregate
 for (t in 1:length(task.types)){
