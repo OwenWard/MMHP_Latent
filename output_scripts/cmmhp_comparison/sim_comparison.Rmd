@@ -299,8 +299,8 @@ KS_p_true_array <- array(0, dim = c(n_sim,length(object_par$f_vec_1),
 current_sims <- 1:n_sim
 # 7,31,34,43,47,49
 ## Iteration on 50 simulations
-# 3,8,11,16,19,24,27,41,45,46,48
-for(s in 1:n_sim){
+# 8,11,19,27,32,42,43,46
+for(s in 47:n_sim){
   load(here(dc_sim_path,paste0("sim_model3_fit123_",s,".RData")))
   load(here(dc_sim_path,paste0("fit123_state_est_",s,".RData",sep='')))
   clean_sim_data <- cleanSimulationData(raw_data=sim_model3_data, 
