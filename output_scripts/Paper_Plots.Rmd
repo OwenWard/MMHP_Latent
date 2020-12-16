@@ -460,6 +460,73 @@ for(m in c(1:3)){
 }
 
 ```
+```{r fig4a-new-hist, fig.height=3.5,fig.width=8}
+model_colors <- col_df %>% filter(method %in% c("C-HP",
+                                                "C-DCHP",
+                                                "C-MMHP"))
+
+model_colors <- model_colors %>% pull(cols)
+
+
+m1 <- sim_model3_stan_sim1_total %>%
+  map( ~apply(.x$f, 2, mean)  ) %>%
+  enframe() %>%
+  unnest(cols = value) %>%
+  mutate(node_id = rep(c("f1","f2","f3","f4","f5"), 50),
+         method = "C-HP")
+
+m2 <- sim_model3_stan_sim2_total %>%
+  map( ~apply(.x$f, 2, mean)  ) %>%
+  enframe() %>%
+  unnest(cols = value) %>%
+  mutate(node_id = rep(c("f1","f2","f3","f4","f5"), 50),
+         method = "C-DCHP")
+
+m3 <- sim_model3_stan_sim3_total %>%
+  map( ~apply(.x$f, 2, mean)  ) %>%
+  enframe() %>%
+  unnest(cols = value) %>%
+  mutate(node_id = rep(c("f1","f2","f3","f4","f5"), 50),
+         method = "C-MMHP")
+
+rank_means <- bind_rows(m1,m2,m3)
+
+# rank_means
+
+true_values <- tibble(
+  id = c("f1", "f2","f3","f4","f5"),
+  values = c(0.1,0.2,0.4,0.7,0.9),
+  val_names = c("   0.1","0.2","0.4","0.7","0.9")
+)
+
+
+rank_means %>% 
+  left_join(true_values, by = c("node_id" = "id")) %>%
+  ggplot(aes(value, fill = method)) + 
+  geom_histogram() + 
+  geom_vline(aes(xintercept = values), alpha = 0.6,
+             linetype = "dashed") +
+  ### add text here
+  geom_text(aes(values, 18, label = val_names),
+            size = 3, hjust = 1) +
+  scale_fill_manual(values = model_colors) +
+  facet_grid(cols = vars(node_id), rows = vars(method)) + 
+  theme_bw() + theme(
+    plot.title = element_text(size = 22, hjust = 0.5, face="bold"),
+    text = element_text(size = 12),
+    axis.text.x=element_blank(),
+    axis.ticks.x = element_blank(),
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    legend.position = "none",
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()
+  ) +
+  labs(x = "", y = "") 
+
+
+```
+
 
 ## Figure 4b: Recover Latent States
 
@@ -624,11 +691,13 @@ par(mar = c(0,0.3,0,0.1), oma = c(3,3.5,4,0),
 ############
 true.object <- object_true
 
-drawUniMMHPIntensityPaper(true.object,simulation=fixStateTransition(test.mmhp),
+drawUniMMHPIntensityPaper(true.object,
+                          simulation = fixStateTransition(test.mmhp),
                           yupper=y.ub[1], 
                           color=add.alpha("black", alpha=line.alpha[1]),
                           line.width=line.wdth[1],
-                          y.ratio=-0.05, min.y=-2, min.x=0, max.x=my.xlim,
+                          y.ratio=-0.05, min.y=-2,
+                          min.x=0, max.x=my.xlim,
                           title_name=paste(plot.i,"->",plot.j),
                           title.cex = 2,
                           box.type="n")
