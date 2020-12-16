@@ -1,0 +1,233 @@
+##### compare inferred rank for simulated data using i&si method
+
+source("/rigel/stats/users/ogw2103/code/MMHP/MMHP_Latent/run_scripts/cluster_setup.R")
+
+
+data_path <- "output/rank_sims/sims_m3_dc_isi/sparse/"
+
+
+jobid <- Sys.getenv("SLURM_ARRAY_TASK_ID")
+jobid <- as.numeric(jobid)
+sim_id <- jobid
+
+library(here)
+library(tidyverse)
+library(rstan)
+library(compete)
+library(PlayerRatings)
+
+options(mc.cores = parallel::detectCores())
+
+source(here("lib",'uniHawkes.R'))
+source(here("lib","mmhp.R"))
+source(here("lib",'simulatePrediction.R'))
+source(here("lib",'plotUtil.R'))
+source(here("lib",'inferLatentMmhp.R'))
+source(here("lib",'drawIntensity.R'))
+source(here("lib",'myGlicko.R'))
+source(here("lib",'naiveRankHierarchy.R'))
+source(here("lib",'expertRankHierarchy.R'))
+cut_off <- 3
+
+model1_fn <- list(alpha.fun = function(x, y, eta1, eta2, eta3){
+  return(eta1 * x * y *exp(-eta2 * abs(x - y))/(1 + exp(-eta3 * (x - y) ) ) ) })
+
+model3_fn <- list(alpha.fun = function(x, y, eta1, eta2){
+  return(eta1 * x * y * exp(-eta2 * abs(x - y) ) )},
+  q1.fun = function(x, y, eta3){
+    return(exp(-eta3 * x) )},
+  q0.fun = function(x, y, eta3){
+    return(exp(-eta3* y) ) })
+
+
+#### Save the simulation parameters ####
+
+object_fn <- list(alpha.fun = function(x, y, eta1, eta2){
+  return(eta1* x *y *exp(-eta2 * abs(x - y) ) )},
+  q1.fun = function(x, y, eta3){
+    return(exp(- eta3 * x) )},
+  q0.fun = function(x, y, eta3){
+    return(exp(- eta3 * y) )})
+
+object_par <- list(sim_lambda_0 = 0.08,
+                   sim_lambda_1 = 0.15,
+                   sim_eta_1 = 2.5,
+                   sim_eta_2 = 0.6,
+                   sim_eta_3 = 5,
+                   sim_beta = 1.5,
+                   f_vec_1=c(0.1, 0.2, 0.4, 0.7, 0.9))
+
+object_matrix <- list(lambda0_matrix = matrix(object_par$sim_lambda_0,
+                                              nrow = length(object_par$f_vec_1),
+                                              ncol = length(object_par$f_vec_1)),
+                      lambda1_matrix = matrix(object_par$sim_lambda_1,
+                                              nrow = length(object_par$f_vec_1),
+                                              ncol = length(object_par$f_vec_1)),
+                      alpha_matrix = formMatrix(function(x,y)
+                        object_fn$alpha.fun(x, y,
+                                            object_par$sim_eta_1, 
+                                            object_par$sim_eta_2),
+                        object_par$f_vec_1),
+                      beta_matrix = matrix(object_par$sim_beta,
+                                           nrow = length(object_par$f_vec_1),
+                                           ncol = length(object_par$f_vec_1)),
+                      q1_matrix = formMatrix(function(x, y) 
+                        object_fn$q1.fun(x, y, object_par$sim_eta_3),
+                        object_par$f_vec_1),
+                      q2_matrix = formMatrix(function(x, y) 
+                        object_fn$q0.fun(x, y, object_par$sim_eta_3),
+                        object_par$f_vec_1))
+
+
+#### Adjust for degree corrected sim
+
+gamma_var <- c(0.01, 0.02, 0.03, 0.06, 0.07)
+zeta_var <- c(0.075, 0.02, 0.03, 0.05, 0.08 )
+w_lambda <- 0.4
+lambda_dc_matrix <- outer(gamma_var, zeta_var, "+")
+# lambda_dc_matrix
+
+object_dc_matrix <- object_matrix
+object_dc_matrix$lambda0_matrix <- lambda_dc_matrix
+
+max_lam <- max(lambda_dc_matrix)
+object_dc_matrix$lambda1_matrix <- matrix(max_lam*(1 + w_lambda),
+                                          nrow = length(object_par$f_vec_1),
+                                          ncol = length(object_par$f_vec_1))
+
+
+sim_model3_data_dc <- 
+  simulateLatentMMHP(lambda0_matrix = object_dc_matrix$lambda0_matrix,
+                     lambda1_matrix = object_dc_matrix$lambda1_matrix,
+                     alpha_matrix = object_dc_matrix$alpha_matrix,
+                     beta_matrix = object_dc_matrix$beta_matrix,
+                     q1_matrix = object_dc_matrix$q1_matrix,
+                     q2_matrix = object_dc_matrix$q2_matrix,
+                     horizon = 50)
+clean_sim_data_dc <- cleanSimulationData(raw_data = sim_model3_data_dc, 
+                                         cut_off = cut_off, 
+                                         N = length(object_par$f_vec_1))
+
+
+### then fit the stan model (not cmdstanr)
+
+#### model 1 ####
+model1 <- stan_model(here("lib", "sim_model1.stan"))
+
+data_list <- list(max_Nm = max(clean_sim_data_dc$N_count),
+                     N_til = length(clean_sim_data_dc$I_fit),
+                     M=sum(clean_sim_data_dc$N_count>=cut_off),
+                     N=length(object_par$f_vec_1),
+                     I_fit = clean_sim_data_dc$I_fit,
+                     J_fit = clean_sim_data_dc$J_fit,
+                     T = tail(clean_sim_data_dc$day_hour,1),
+                     Nm = as.vector(clean_sim_data_dc$N_count[
+                       clean_sim_data_dc$N_count 
+                       >= cut_off]),
+                     event_matrix = clean_sim_data_dc$event_matrix,
+                     interevent_time_matrix = clean_sim_data_dc$time_matrix,
+                     max_interevent = clean_sim_data_dc$max_interevent)
+
+model1_stan_fit <- sampling(model1, data = data_list,
+                               iter = 1000, chains = 4,
+                               cores = getOption("mc.cores",1L))
+
+
+stansims_m1 <- rstan::extract(model1_stan_fit)
+
+m1_rank <- order(apply(stansims_m1$f, 2, mean))
+
+#### model 2 ####
+
+model2 <- stan_model(here("lib", "sim_model2.stan"))
+
+model2_stan_fit <- sampling(model2, data = data_list,
+                            iter = 1000, chains = 4,
+                            cores = getOption("mc.cores",1L))
+
+
+stansims_m2 <- rstan::extract(model2_stan_fit)
+
+m2_rank <- order(apply(stansims_m2$f, 2, mean))
+
+
+#### model 3 ####
+model3_dc <- stan_model(here("lib","sim_model3_dc.stan"))
+data_list_dc <- list(max_Nm = max(clean_sim_data_dc$N_count),
+                     N_til = length(clean_sim_data_dc$I_fit),
+                     M=sum(clean_sim_data_dc$N_count>=cut_off),
+                     N=length(object_par$f_vec_1),
+                     I_fit = clean_sim_data_dc$I_fit,
+                     J_fit = clean_sim_data_dc$J_fit,
+                     T = tail(clean_sim_data_dc$day_hour,1),
+                     Nm = as.vector(clean_sim_data_dc$N_count[
+                       clean_sim_data_dc$N_count 
+                       >= cut_off]),
+                     event_matrix = clean_sim_data_dc$event_matrix,
+                     interevent_time_matrix = clean_sim_data_dc$time_matrix,
+                     max_interevent = clean_sim_data_dc$max_interevent)
+
+
+
+model3_dc_stan_fit <- sampling(model3_dc, data = data_list_dc,
+                               iter = 1000, chains = 4,
+                               cores = getOption("mc.cores",1L))
+
+
+stansims_dc <- rstan::extract(model3_dc_stan_fit)
+
+m3_dc_rank <- order(apply(stansims_dc$f, 2, mean))
+
+
+### then get i&si ranking for this
+
+
+count_data_dc <- get_wl_matrix(df = cbind(clean_sim_data_dc$start, 
+                                          clean_sim_data_dc$end))
+isi_dc.out <- compete::isi98(m = count_data_dc, random = TRUE)
+isi_rank_dc <- as.numeric(rev(isi_dc.out$best_order)) 
+
+
+### compute agg ranking ####
+agg_rank_data <- clean_sim_data_dc$N_count
+agg_rank_model <- stan_model(here("lib","latent_rank_agg_sim.stan"))
+
+agg_rank_fit <- rstan::sampling(agg_rank_model,
+                                data = list(n = 5,
+                                            n_matrix = agg_rank_data),
+                                      iter = 1000,
+                                      chains = 4)
+agg_sims <- rstan::extract(agg_rank_fit)
+
+agg_rank <- order(apply(agg_sims$x, 2, mean))
+
+### glicko ranking also ####
+glicko_data <- tibble(start = clean_sim_data_dc$start,
+                      end = clean_sim_data_dc$end)
+
+glicko_data <- glicko_data %>%
+  mutate(id = row_number(), score = 1) %>%
+  select(id, start, end, score)
+
+gl_train <- my_glicko(glicko_data, history=TRUE, cval=2)
+
+gl_train
+
+gl_ranks <- order(gl_train$ratings$Rating)
+
+## then save these
+
+output_rank <- tibble(truth = 1:5, 
+                      m1 = m1_rank,
+                      m2 = m2_rank,
+                      m3_dc = m3_dc_rank,
+                      isi = isi_rank_dc,
+                      agg = agg_rank,
+                      glicko = gl_ranks,
+                      sim = rep(sim_id,5))
+
+dir.create(data_path, recursive = TRUE, showWarnings = FALSE)
+
+saveRDS(output_rank, 
+        file = paste(data_path,"rank_sim",sim_id,".RDS",sep=''))
+
