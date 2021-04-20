@@ -1987,14 +1987,21 @@ sim_data$name <- factor(sim_data$name, levels = c("I&SI",
                                                   "C-DCHP",
                                                   "C-MMHP"))
 
-plot_cols <- col_df %>% filter(method %in% levels(sim_data$name)) %>%
+plot_cols <- col_df %>%
+  filter(method %in% levels(sim_data$name)) %>%
+  pull(cols)
+
+plot_cols_slide <- col_df %>%
+  filter(method %in% levels(sim_data$name)) %>%
+  filter(method != "AggRank") %>%
   pull(cols)
   
 sim_data %>%
+  filter(name != "AggRank") %>%
   rename(Method = name, corr = value) %>%
   ggplot(aes(Method,corr)) + 
   geom_boxplot(aes(fill = Method), alpha = 0.7) +
-  scale_fill_manual(values = plot_cols) +
+  scale_fill_manual(values = plot_cols_slide) +
   labs(y = "Rank Correlation") + theme_bw() +
   theme(plot.title = element_text(size = 22, hjust = 0.5, face="bold"),
         text = element_text(size = 20),
@@ -2014,9 +2021,9 @@ sim_data %>%
 ### Rank Comparison for Single Cohort ####
 # current_cohort <- 5
 
-load(paste(data_path,cohort_names[current_cohort],
-           "/agg_rank_stan_result_",cohort_names[current_cohort],
-           ".RData",sep=''))
+# load(paste(data_path,cohort_names[current_cohort],
+#            "/agg_rank_stan_result_",cohort_names[current_cohort],
+#            ".RData",sep=''))
 load(paste(data_path,cohort_names[current_cohort],
            "/cohort_hp_stan_result_",cohort_names[current_cohort],
            ".RData",sep=''))
@@ -2027,37 +2034,42 @@ load(paste(data_path,cohort_names[current_cohort],
            "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
            ".RData",sep=''))
 
-no_method <- 4
-plot_latent_df <- data.frame(Methods=rep(1:no_method,each=1000*mice_number),
-                             Mice=rep(rep(1:mice_number,each=1000),no_method),
-                             force=rep(0,1000*mice_number*no_method))
-## agg
-plot_latent_df$force[(1:(1000*mice_number))] <- as.vector(sim_agg_rank$x[1001:2000,])
+no_method <- 3
+plot_latent_df <- data.frame(Methods = rep(1:no_method,
+                                         each=1000*mice_number),
+                             Mice = rep(rep(1:mice_number,each=1000),
+                                      no_method),
+                             force = rep(0,1000*mice_number*no_method))
+# ## agg
+# plot_latent_df$force[(1:(1000*mice_number))] <- as.vector(sim_agg_rank$x[1001:2000,])
 
 ## M1
-plot_latent_df$force[(1:(1000*mice_number))+1000*mice_number] <- as.vector(sim_cohort_hp$f)
+plot_latent_df$force[(1:(1000*mice_number))] <-
+  as.vector(sim_cohort_hp$f)
 
 ## M2
-plot_latent_df$force[(1:(1000*mice_number))+2000*mice_number] <- as.vector(sim_cohort_dchp$f)
+plot_latent_df$force[(1:(1000*mice_number)) + 
+                       1000*mice_number] <- as.vector(sim_cohort_dchp$f)
 
 ## M3
-plot_latent_df$force[(1:(1000*mice_number))+3000*mice_number] <- as.vector(sim_cohort_mmhp$f)
+plot_latent_df$force[(1:(1000*mice_number)) + 
+                       2000*mice_number] <- as.vector(sim_cohort_mmhp$f)
 
 plot_latent_df$Mice <- factor(plot_latent_df$Mice,
                               levels = expert_rank_10[[current_cohort]])
 plot_latent_df$Method <- factor(plot_latent_df$Method,
-                                labels = c("AggRanking","C-HP","C-DCHP","C-MMHP"))
+                                labels = c("C-HP","C-DCHP","C-MMHP"))
 
 # png(paste(plot_path,"real_rank_one_cohort.png",sep=""),width=600,height=300)
-plot_cols <- col_df %>% filter(method %in% c("AggRank", "C-HP",
-                                "C-DCHP", "C-MMHP")) %>%
+plot_cols_slide <- col_df %>%
+  filter(method %in% c( "C-HP","C-DCHP", "C-MMHP")) %>%
   pull(cols)
 
 
 p1 <- ggplot(plot_latent_df, 
              aes(x = Mice, y = force, fill = Method)) +
   geom_boxplot(alpha=0.7) +
-  scale_fill_manual(values = plot_cols) +
+  scale_fill_manual(values = plot_cols_slide) +
   # ggtitle("(a)") +
   theme_bw() +
   theme(plot.title = element_text(size = 22, hjust = 0.5, face="bold"),
@@ -2083,9 +2095,14 @@ plot_cor_df <- data.frame(Method=rep(c(1:no_method),each=10),
                           cor=as.vector(spearman_df))
 plot_cor_df$Method <- factor(plot_cor_df$Method,
                              labels = c("Agg-rank","C-HP","C-DCHP","C-MMHP"))
+
+cols_here <- col_df %>% 
+  filter(method %in% c("AggRank","C-HP","C-DCHP","C-MMHP")) %>%
+  pull(cols)
+
 p2 <- ggplot(plot_cor_df, aes(x="", y = cor, fill = Method)) +
         geom_boxplot(alpha=0.7, width=0.5) +
-        scale_fill_manual(values = plot_cols) + 
+        scale_fill_manual(values = cols_here) + 
         # ggtitle("(b)") +
         ylim(0,1) +
         theme_bw() +
