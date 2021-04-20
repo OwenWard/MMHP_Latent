@@ -13,9 +13,9 @@ int<lower=0,upper=12> alpha_id;
 vector<lower=0,upper=1>[N_til] delta_1;
 }
 parameters{
-  //real<lower=0.01> lambda0; //baseline rate for each pair
-  vector<lower=0>[12] gamma;
-  vector<lower=0>[12] zeta;
+  real<lower=0> lambda0; //baseline rate for each pair
+  //vector<lower=0>[12] gamma;
+  //vector<lower=0>[12] zeta;
   //real<lower = 0> scale;
   real<lower=0> w_lambda;
   vector<lower=0,upper=1>[12] f;
@@ -28,8 +28,8 @@ parameters{
   //vector<lower=0,upper=1>[N_til] delta_1; // P(initial state = 1)
 }
 transformed parameters{
-  vector<lower=0>[N_til] lambda1;
-  vector<lower=0>[N_til] lambda0;
+  //vector<lower=0>[N_til] lambda1;
+  //vector<lower=0>[N_til] lambda0;
   //vector<lower=0,upper=1>[N_til] delta_1; // P(initial state = 1)
   vector[N_til] q1; // P(initial state = 1)
   vector[N_til] q2; // P(initial state = 1)
@@ -37,10 +37,11 @@ transformed parameters{
   row_vector[2] log_delta[N_til];
   real alpha_max;
   real beta;
+  real lambda1;
   
   for(i in 1:N_til){
-    lambda0[i] = gamma[I_fit[i]]+zeta[J_fit[i]];  
-    lambda1[i] = lambda0[i]*(1+w_lambda);
+    //lambda0[i] = gamma[I_fit[i]]+zeta[J_fit[i]];  
+    //lambda1[i] = lambda0[i]*(1+w_lambda);
     alpha[i] = exp(-eta_2*fabs(f[I_fit[i]]-f[J_fit[i]]))*f[I_fit[i]]*f[J_fit[i]]*eta_1;///(1+exp(-eta_3*(f[I_fit[i]]-f[J_fit[i]])));//eta_1*f[I_fit[i]]*f[J_fit[i]];
     //f_max = (f[I_fit[i]]+f[J_fit[i]]+fabs(f[I_fit[i]]-f[J_fit[i]]))/2;
     //f_min = (f[I_fit[i]]+f[J_fit[i]]-fabs(f[I_fit[i]]-f[J_fit[i]]))/2;
@@ -52,6 +53,7 @@ transformed parameters{
   }
   alpha_max = max(alpha);
   beta = alpha_max*(1 + beta_delta);
+  lambda1 = lambda0*(1 + w_lambda);
 }
 model{
   real integ; // Placeholder variable for calculating integrals
@@ -79,8 +81,8 @@ model{
   
   //priors
   //lambda0 ~ gamma(0.1,1); // prior has mean 0.1, var 0.1
-  gamma ~ inv_gamma(3,0.5);//exponential(5);//(0,1); // sigma smaller, sparser
-  zeta ~ inv_gamma(3,0.5);//exponential(5);//lognormal(0,1);
+  //gamma ~ inv_gamma(3,0.5);//exponential(5);//(0,1); // sigma smaller, sparser
+  //zeta ~ inv_gamma(3,0.5);//exponential(5);//lognormal(0,1);
   w_lambda ~ lognormal(0,2);
   eta_1 ~ lognormal(0,1);
   eta_2 ~ lognormal(0,1);
@@ -89,8 +91,8 @@ model{
   f[alpha_id] ~ normal(1,0.05);
   
   for(i in 1:N_til){ //for each pair
-    temp_lambda0 = lambda0[i];
-    temp_lambda1 = lambda1[i];
+    temp_lambda0 = lambda0;
+    temp_lambda1 = lambda1;
     temp_alpha = alpha[i];
     temp_beta = beta;
     temp_q1 = q1[i];
@@ -122,15 +124,19 @@ model{
                          (temp_q1*temp_q2*temp_lambda1+temp_lambda0*temp_q2^2)*K0*interevent[1] +
                          (temp_lambda0-temp_lambda1)*temp_q1*temp_q2*K1 + (temp_lambda0-temp_lambda1)*temp_q1*temp_q2*K2)/(temp_q1+temp_q2)^2/exp(probs_2[1][2]); //2->2
         
-        forward_termination[1] = log_sum_exp(temp_log_delta + probs_1[1] - int_1[1]);
-        forward_termination[2] = log_sum_exp(temp_log_delta + probs_2[1] - int_2[1]);
+        forward_termination[1] = log_sum_exp(temp_log_delta +
+        probs_1[1] - int_1[1]);
+        forward_termination[2] = log_sum_exp(temp_log_delta +
+        probs_2[1] - int_2[1]);
         target += log_sum_exp(forward_termination);
         //target += -temp_lambda0*interevent[1]*temp_delta_1-temp_lambda1*interevent[1]*(1-temp_delta_1);
       }else{ 
         // --- log probability of Markov transition logP_ij(t)
         for(n in 1:(Nm[i,j]+1)){
-          probs_1[n][1] = log(temp_q2/(temp_q1+temp_q2)+temp_q1/(temp_q1+temp_q2)*exp(-(temp_q1+temp_q2)*interevent[n])); //1->1
-          probs_2[n][2] = log(temp_q1/(temp_q1+temp_q2)+temp_q2/(temp_q1+temp_q2)*exp(-(temp_q1+temp_q2)*interevent[n])); //2->2
+          probs_1[n][1] = log(temp_q2/(temp_q1+temp_q2) + 
+          temp_q1/(temp_q1+temp_q2)*exp(-(temp_q1+temp_q2)*interevent[n])); //1->1
+          probs_2[n][2] = log(temp_q1/(temp_q1+temp_q2) + 
+          temp_q2/(temp_q1+temp_q2)*exp(-(temp_q1+temp_q2)*interevent[n])); //2->2
           probs_1[n][2] = log1m_exp(probs_2[n][2]); //2->1
           probs_2[n][1] = log1m_exp(probs_1[n][1]); //1->2
         }
@@ -172,18 +178,24 @@ model{
         }
         
         //consider n = 1
-        forward[1][1] = log(temp_lambda1) + log_sum_exp(probs_1[1]-int_1[1]+temp_log_delta); 
-        forward[1][2] = log(temp_lambda0) + log_sum_exp(probs_2[1]-int_2[1]+temp_log_delta); 
+        forward[1][1] = log(temp_lambda1) + log_sum_exp(probs_1[1] - 
+        int_1[1]+temp_log_delta); 
+        forward[1][2] = log(temp_lambda0) + log_sum_exp(probs_2[1] - 
+        int_2[1]+temp_log_delta); 
         
         if(Nm[i,j]>1){
           for(n in 2:Nm[i,j]){
-            forward[n][1] = log_sum_exp(forward[n-1] + probs_1[n] - int_1[n]) + log(temp_lambda1+temp_alpha*R[n]);
-            forward[n][2] = log_sum_exp(forward[n-1] + probs_2[n] - int_2[n]) + log(temp_lambda0);
+            forward[n][1] = log_sum_exp(forward[n-1] + probs_1[n] - int_1[n]) + 
+            log(temp_lambda1+temp_alpha*R[n]);
+            forward[n][2] = log_sum_exp(forward[n-1] + probs_2[n] - int_2[n]) + 
+            log(temp_lambda0);
           }
         }
         
-        forward_termination[1] = log_sum_exp(forward[Nm[i,j]] + probs_1[Nm[i,j]+1] - int_1[Nm[i,j]+1]);
-        forward_termination[2] = log_sum_exp(forward[Nm[i,j]] + probs_2[Nm[i,j]+1] - int_2[Nm[i,j]+1]);
+        forward_termination[1] = log_sum_exp(forward[Nm[i,j]] + 
+        probs_1[Nm[i,j]+1] - int_1[Nm[i,j]+1]);
+        forward_termination[2] = log_sum_exp(forward[Nm[i,j]] + 
+        probs_2[Nm[i,j]+1] - int_2[Nm[i,j]+1]);
         
         target += log_sum_exp(forward_termination);
       }

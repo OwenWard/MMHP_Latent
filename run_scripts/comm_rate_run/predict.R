@@ -10,7 +10,7 @@ jobid <- as.numeric(jobid)
 cohort_id <- jobid
 #cohort_id <- 1
 ####
-data_path <- "output/"
+data_path <- "output/common_rate/"
 
 
 library(rstan)
@@ -239,8 +239,8 @@ for(s in 1:predict_sim){
   for(l in c(1:length(mmhp_par_names))){
     for(pair in c(1:nrow(unique_pairs_df))){
       mmhp_par_matrix[[mmhp_matrix_names[l]]][unique_pairs_df$initiator[pair],
-                                              unique_pairs_df$recipient[pair]] 
-      <- sim_mmhp_sep[[mmhp_par_names[l]]][s,pair]
+                                              unique_pairs_df$recipient[pair]] <-
+        sim_mmhp_sep[[mmhp_par_names[l]]][s,pair]
     }
   }
   for(cur_win in c(1:nrow(to_predice_obs))){

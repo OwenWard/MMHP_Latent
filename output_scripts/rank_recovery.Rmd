@@ -1,0 +1,957 @@
+---
+title: "Rank Recovery"
+author: "Owen G. Ward"
+date: '`r Sys.Date()`'
+output: 
+  html_document:
+    toc: true
+    toc_depth: 2
+    toc_float: true
+    number_sections: TRUE
+    code_folding: hide
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, tidy = TRUE)
+library(here)
+library(tidyverse)
+library(rstan)
+library(cmdstanr)
+library(compete)
+library(posterior)
+
+theme_set(theme_minimal())
+```
+
+
+
+# Introduction 
+
+We want to consider two further concepts related to the models we have built
+and used as comparisons in this paper. In particular:
+
+1. Examine the performance of the comparison models in recovering data simulated under
+the (degree corrected) C-MMHP model.
+1. Based on the above, and using the I&SI objective, evaluate the 
+performance of models when we estimate the latent ranking on a subset of the
+data, such as the first half of the events, and then infer the I and SI scores
+based on those rankings for the remaining events.
+
+
+# Comparison models on simulated data
+
+We first simulate a single dense network from the C-MMHP model,
+with a latent rank vector given by
+
+$$
+f = (0.1, 0.2, 0.4, 0.7, 0.9).
+$$
+
+```{r load functions}
+source(here("lib",'uniHawkes.R'))
+source(here("lib","mmhp.R"))
+source(here("lib",'simulatePrediction.R'))
+source(here("lib",'plotUtil.R'))
+source(here("lib",'inferLatentMmhp.R'))
+source(here("lib",'drawIntensity.R'))
+source(here("lib",'myGlicko.R'))
+source(here("lib",'naiveRankHierarchy.R'))
+source(here("lib",'expertRankHierarchy.R'))
+cut_off <- 3
+
+model1_fn <- list(alpha.fun = function(x, y, eta1, eta2, eta3){
+  return(eta1 * x * y *exp(-eta2 * abs(x - y))/(1 + exp(-eta3 * (x - y) ) ) ) })
+
+model3_fn <- list(alpha.fun = function(x, y, eta1, eta2){
+  return(eta1 * x * y * exp(-eta2 * abs(x - y) ) )},
+                  q1.fun = function(x, y, eta3){
+                    return(exp(-eta3 * x) )},
+                  q0.fun = function(x, y, eta3){
+                    return(exp(-eta3* y) ) })
+
+
+#### Save the simulation parameters ####
+
+object_fn <- list(alpha.fun = function(x, y, eta1, eta2){
+  return(eta1* x *y *exp(-eta2 * abs(x - y) ) )},
+                  q1.fun = function(x, y, eta3){
+                    return(exp(- eta3 * x) )},
+                  q0.fun = function(x, y, eta3){
+                    return(exp(- eta3 * y) )})
+
+object_par <- list(sim_lambda_0 = 0.08,
+                   sim_lambda_1 = 0.15,
+                   sim_eta_1 = 2.5,
+                   sim_eta_2 = 0.6,
+                   sim_eta_3 = 5,
+                   sim_beta = 1.5,
+                   f_vec_1=c(0.1, 0.2, 0.4, 0.7, 0.9))
+
+object_matrix <- list(lambda0_matrix = matrix(object_par$sim_lambda_0,
+                                            nrow = length(object_par$f_vec_1),
+                                            ncol = length(object_par$f_vec_1)),
+                      lambda1_matrix = matrix(object_par$sim_lambda_1,
+                                            nrow = length(object_par$f_vec_1),
+                                            ncol = length(object_par$f_vec_1)),
+                      alpha_matrix = formMatrix(function(x,y)
+                        object_fn$alpha.fun(x, y,
+                                            object_par$sim_eta_1, 
+                                            object_par$sim_eta_2),
+                        object_par$f_vec_1),
+                      beta_matrix = matrix(object_par$sim_beta,
+                                         nrow = length(object_par$f_vec_1),
+                                         ncol = length(object_par$f_vec_1)),
+                      q1_matrix = formMatrix(function(x, y) 
+                        object_fn$q1.fun(x, y, object_par$sim_eta_3),
+                                           object_par$f_vec_1),
+                      q2_matrix = formMatrix(function(x, y) 
+                        object_fn$q0.fun(x, y, object_par$sim_eta_3),
+                                           object_par$f_vec_1))
+
+```
+
+## Simulated data from original model
+
+```{r sim data from c-mmhp, eval=FALSE}
+sim_model3_data <- simulateLatentMMHP(lambda0_matrix = object_matrix$lambda0_matrix,
+                                      lambda1_matrix = object_matrix$lambda1_matrix,
+                                      alpha_matrix = object_matrix$alpha_matrix,
+                                      beta_matrix = object_matrix$beta_matrix,
+                                      q1_matrix = object_matrix$q1_matrix,
+                                      q2_matrix = object_matrix$q2_matrix,
+                                      horizon = 200)
+clean_sim_data <- cleanSimulationData(raw_data = sim_model3_data, 
+                                        cut_off = cut_off, 
+                                      N = length(object_par$f_vec_1))
+
+saveRDS(clean_sim_data,file = here("output", "rank_sims", 
+                                        "rmd_stan",
+                                        "sim_data_M3.RDS"))
+
+```
+
+
+```{r recover cmmhp model, eval=FALSE}
+# model3 <- stan_model(here("lib","sim_model3.stan"))
+clean_sim_data <- readRDS(file = here("output", "rank_sims", 
+                                        "rmd_stan",
+                                        "sim_data_M3.RDS"))
+model3 <- cmdstan_model(here("lib","sim_model3.stan"))
+data_list <- list(max_Nm=max(clean_sim_data$N_count),
+                    N_til = length(clean_sim_data$I_fit),
+                    M=sum(clean_sim_data$N_count>=cut_off),
+                    N=length(object_par$f_vec_1),
+                    I_fit = clean_sim_data$I_fit,
+                    J_fit = clean_sim_data$J_fit,
+                    T = tail(clean_sim_data$day_hour,1),
+                    Nm = as.vector(clean_sim_data$N_count[clean_sim_data$N_count 
+                                                          >= cut_off]),
+                    event_matrix = clean_sim_data$event_matrix,
+                    interevent_time_matrix = clean_sim_data$time_matrix,
+                    max_interevent = clean_sim_data$max_interevent)
+
+model3_stan_fit <- model3$sample(data = data_list,
+                                seed = 123,
+                                iter_warmup = 500,
+                                iter_sampling = 500,
+                                chains = 4, 
+                                parallel_chains = 4,
+                                refresh = 100)
+model3_stan_fit$save_object(file = here("output", "rank_sims", 
+                                        "rmd_stan",
+                                        "model_3_stan_fit.RDS"))
+
+```
+
+We can then extract the posterior mean rank from our fitted model.
+
+```{r extract stan fit}
+model3_stan_fit <- readRDS(here("output", "rank_sims", 
+                                        "rmd_stan",
+                                        "model_3_stan_fit.RDS"))
+
+m3_draws <- as_draws_df(model3_stan_fit$draws())
+m3_post_rank <- m3_draws %>% select(starts_with("f")) %>% apply(2,mean)
+m3_post_rank
+## truth is .1, .2, .4, .7, .9
+
+# posterior mean
+# posterior sd
+# apply(stansims$f, 2, sd)
+
+# most important is the order
+m3_rank <- order(m3_post_rank)
+#order(apply(stansims$f, 2, sd))
+```
+
+We can compare this to the ranking from I&SI on the count data alone, which
+is given below. This incorrectly orders the two lowest ranked nodes.
+
+```{r fit I&SI, results='hide'}
+clean_sim_data <- readRDS(file = here("output", "rank_sims", 
+                                        "rmd_stan",
+                                        "sim_data_M3.RDS") )
+count_data <- get_wl_matrix(df = cbind(clean_sim_data$start,clean_sim_data$end))
+isi.out <- compete::isi98(m = count_data, random = TRUE)
+isi_rank <- as.numeric(rev(isi.out$best_order)) # ranked from lowest to highest
+```
+```{r print isi result}
+isi_rank
+```
+
+Similarly we can compare these and the true ranking pairwise.
+
+```{r overall sim ranks}
+true_rank <- c(1:5)
+
+table(true_rank, m3_rank)
+table(true_rank, isi_rank)
+table(isi_rank, m3_rank)
+```
+
+
+## Simulated from degree corrected model
+
+How does this ranking inference compare when we instead simulate
+data from the proposed degree corrected model.
+
+
+```{r sim dc mmhp, eval=FALSE}
+gamma_var <- c(0.01, 0.02, 0.03, 0.06, 0.07)
+zeta_var <- c(0.075, 0.02, 0.03, 0.05, 0.08 )
+lambda_dc_matrix <- outer(gamma_var, zeta_var, "+")
+# lambda_dc_matrix
+
+object_dc_matrix <- object_matrix
+object_dc_matrix$lambda0_matrix <- lambda_dc_matrix
+
+
+sim_model3_data_dc <- 
+  simulateLatentMMHP(lambda0_matrix = object_dc_matrix$lambda0_matrix,
+                      lambda1_matrix = object_dc_matrix$lambda1_matrix,
+                      alpha_matrix = object_dc_matrix$alpha_matrix,
+                      beta_matrix = object_dc_matrix$beta_matrix,
+                      q1_matrix = object_dc_matrix$q1_matrix,
+                      q2_matrix = object_dc_matrix$q2_matrix,
+                      horizon = 200)
+clean_sim_data_dc <- cleanSimulationData(raw_data = sim_model3_data_dc, 
+                                        cut_off = cut_off, 
+                                      N = length(object_par$f_vec_1))
+
+saveRDS(clean_sim_data_dc,file = here("output", "rank_sims", 
+                                        "rmd_stan",
+                                        "sim_data_M3_dc.RDS"))
+
+
+```
+
+
+```{r fit dc mmhp, eval=FALSE}
+clean_sim_data_dc <- readRDS(file = here("output", "rank_sims", 
+                                        "rmd_stan",
+                                        "sim_data_M3_dc.RDS"))
+model3_dc <- cmdstan_model(here("lib","sim_model3_dc.stan"))
+data_list_dc <- list(max_Nm = max(clean_sim_data_dc$N_count),
+                    N_til = length(clean_sim_data_dc$I_fit),
+                    M=sum(clean_sim_data_dc$N_count>=cut_off),
+                    N=length(object_par$f_vec_1),
+                    I_fit = clean_sim_data_dc$I_fit,
+                    J_fit = clean_sim_data_dc$J_fit,
+                    T = tail(clean_sim_data_dc$day_hour,1),
+                    Nm = as.vector(clean_sim_data_dc$N_count[
+                      clean_sim_data_dc$N_count 
+                                                          >= cut_off]),
+                    event_matrix = clean_sim_data_dc$event_matrix,
+                    interevent_time_matrix = clean_sim_data_dc$time_matrix,
+                    max_interevent = clean_sim_data_dc$max_interevent)
+
+model3_dc_stan_fit <- model3_dc$sample(data = data_list_dc,
+                                seed = 123,
+                                iter_warmup = 500,
+                                iter_sampling = 500,
+                                chains = 4, 
+                                parallel_chains = 4,
+                                refresh = 100)
+
+model3_dc_stan_fit$save_object(file = here("output", "rank_sims", 
+                                        "rmd_stan",
+                                        "model_3_dc_stan_fit.RDS"))
+```
+
+```{r load dc stan fit}
+model3_dc_stan_fit <- readRDS(here("output", "rank_sims", 
+                                        "rmd_stan",
+                                        "model_3_dc_stan_fit.RDS"))
+m3_dc_draws <- as_draws_df(model3_dc_stan_fit$draws())
+m3_dc_rank <- m3_dc_draws %>% select(starts_with("f")) %>% apply(2,mean)
+m3_dc_rank
+## truth is .1, .2, .4, .7, .9
+# apply(stansims_dc$f, 2, sd)
+
+# most important is the order
+m3_dc_rank <- order(m3_dc_rank)
+```
+
+Then we can compare the I&SI model here also. Here there is exact agreement.
+
+```{r i and si dc, results='hide'}
+clean_sim_data_dc <- readRDS(file = here("output", "rank_sims", 
+                                        "rmd_stan",
+                                        "sim_data_M3_dc.RDS") ) 
+count_data_dc <- get_wl_matrix(df = cbind(clean_sim_data_dc$start, 
+                                       clean_sim_data_dc$end))
+isi_dc.out <- compete::isi98(m = count_data_dc, random = TRUE)
+isi_rank_dc <- as.numeric(rev(isi_dc.out$best_order)) 
+# ranked from lowest to highest
+```
+
+
+```{r tables of agreement}
+isi_rank_dc
+true_rank <- c(1:5)
+
+table(true_rank, m3_rank)
+table(true_rank, isi_rank_dc)
+table(isi_rank_dc, m3_rank)
+```
+
+So when we consider this degree corrected model we
+correctly recover the latent ranking order in this simulation from 
+both the stan fit and the I&SI model.
+
+## Multiple Simulations
+
+To confirm this result we simulate and fit these models to data from 
+the degree corrected model 20 times. We wish to see how many times 
+they agree.
+
+We see that the C-MMHP model somewhat better recovers the true
+ranks in this simulation, with both performing well. We also
+see that any discrepancies from the true ranking are small, with the
+order of a pair of nodes being swapped.
+
+```{r load in sims, options}
+sim_files <- list.files(here("output", "rank_sims",
+                             "sims_m3_dc_isi"))
+
+all_sims <- tibble()
+for(i in seq_along(sim_files)) {
+ single_fit <- readRDS(here("output", "rank_sims", 
+                            "sims_m3_dc_isi",
+                            sim_files[i]))
+ all_sims <- all_sims %>% bind_rows(single_fit)
+}
+
+```
+
+We can look at the overall summary of the ranking of the two models and
+the truth.
+
+```{r summary ranks}
+all_sims %>% 
+  group_by(truth,m3_dc,isi) %>%
+  count() %>% arrange(-n) 
+```
+
+
+We would like to identify how many times each model correctly recovers the
+full ranking.
+We see that the C-MMHP is fully correct 80% of the time while the 
+I&SI ranking is fully correct in 60% of these simulations.
+
+```{r prop full recover}
+all_sims$sim <- rep(1:50, each = 5)
+
+all_sims %>% select(sim, truth, m3_dc) %>%
+  mutate(diff = truth - m3_dc) %>%
+  group_by(sim) %>%
+  summarise(prop_diff = mean(diff!=0)) %>%
+  summarise(full_recovery = mean(prop_diff == 0))
+
+
+all_sims %>% select(sim, truth, isi) %>%
+  mutate(diff = truth - isi) %>%
+  group_by(sim) %>%
+  summarise(prop_diff = mean(diff!=0)) %>%
+  summarise(full_recovery = mean(prop_diff == 0))
+```
+
+
+We see strong agreement between our model and the true ranking of
+the simulated data for most nodes.
+
+```{r truth_m3}
+all_sims %>%
+  group_by(truth, m3_dc) %>%
+  count() %>%
+  mutate(per = n/50) %>%
+  arrange(-per)
+```
+
+Finally, we look at the agreement between the ISI ranking and the truth.
+
+```{r truth isi}
+all_sims %>%
+  group_by(truth, isi) %>%
+  count() %>%
+  mutate(per = n/50) %>%
+  arrange(-per)
+
+```
+
+
+Similarly, we can summarise this by
+computing the Spearman rank correlation between each of these 
+models and the truth. The C-MMHP model unsurprisingly best recovers the
+true rankings, with the I&SI model performing similarly.
+
+
+```{r analyse sims}
+sim_files <- list.files(here("output", "rank_sims",
+                             "sims_m3_dc_isi_sparse"))
+
+all_sims <- list()
+for(i in seq_along(sim_files)) {
+ single_fit <- readRDS(here("output", "rank_sims", 
+                            "sims_m3_dc_isi_sparse",
+                            sim_files[i]))
+ all_sims[[i]] <- single_fit
+}
+
+spear <- function(sim_data) {
+  truth <- sim_data$truth
+  sim_data %>%
+    select(m1:glicko) %>%
+    map( ~cor.test(truth, .x,
+                   method = "spearman")$estimate  ) %>%
+    enframe() %>%
+    unnest(cols = c(value))
+}
+
+
+sim_data <- map_dfr(all_sims, spear) 
+
+name <- sim_data$name
+
+sim_data$name <- case_when(
+          name == "isi" ~ "I&SI",
+          name == "m1" ~ "C-HP",
+          name == "m2" ~ "C-DCHP",
+          name == "m3_dc" ~ "C-MMHP",
+          name == "agg" ~ "AggRank",
+          name == "glicko" ~ "Glicko")
+
+sim_data$name <- factor(sim_data$name, levels = c("I&SI",
+                                                  "AggRank",
+                                                  "Glicko",
+                                                  "C-HP",
+                                                  "C-DCHP",
+                                                  "C-MMHP"))
+
+sim_data %>% 
+  rename(Method = name, corr = value) %>%
+  ggplot(aes(Method,corr)) + geom_boxplot() +
+  labs(y = "Rank Correlation")
+  # in a nice long format
+
+```
+
+# Extrapolation from inferred rank on subset
+
+We also wish to consider how well we can infer the latent rank 
+over time. To investigate this, we wish to split the data in a Mice cohort
+(or simulation data) temporally, and examine the inferred model on the 
+first half of the interactions compared to on the remaining data,
+by looking at the inferred I&SI scores.
+
+
+```{r compute isi}
+# taking code from compete package
+compute_isi <- function(win_loss_matrix, curr_ranking) {
+  # this takes ranking from highest to lowest
+  wl <- win_loss_matrix[curr_ranking,curr_ranking]
+  n <- as.numeric(dim(wl)[1])
+  m <- matrix(0, n, n)
+  siind <- matrix(0, n, n)
+  I = 0
+  SI = 0
+  for (j in 2:n) {
+      for (i in 1:(j - 1)) {
+          siind[j, i] = j - i
+          siind[i, j] = j - i
+          if (wl[j, i] == 0 & wl[i, j] == 0) {
+              m[j, i] = 0
+              m[i, j] = 0
+          }
+          else {
+              if (wl[j, i] > wl[i, j]) {
+                m[j, i] = 1
+                m[i, j] = -1
+              }
+              if (wl[j, i] < wl[i, j]) {
+                m[j, i] = -1
+                m[i, j] = 1
+              }
+              if (wl[j, i] == wl[i, j]) {
+                m[j, i] = 0.5
+                m[i, j] = 0.5
+              }
+          }
+      }
+  }
+  I = sum(lower.tri(m) * m == 1)
+  SI = sum((lower.tri(m) * m == 1) * siind)
+  
+  list(I_score = I, SI_score = SI, wl_mat = wl)
+}
+
+    
+```
+
+
+
+```{r check isi function, results='hide'}
+clean_sim_data <- readRDS(file = here("output", "rank_sims", 
+                                        "rmd_stan",
+                                        "sim_data_M3_dc.RDS"))
+clean_sim_data_dc$N_count
+
+count_data_dc <- get_wl_matrix(df = cbind(clean_sim_data_dc$start, 
+                                       clean_sim_data_dc$end))
+isi_dc.out <- compete::isi98(m = count_data_dc, random = TRUE)
+
+# these agree 
+
+compute_isi(count_data_dc, curr_ranking = c(2,5,4,1,3))
+
+```
+
+
+We want to fit our models on the first half of the data
+and then compare the ranking estimated from it on 
+the remaining data, in terms of I&SI score.
+
+```{r sim data and split, eval=FALSE}
+sim_model3_data_dc <- 
+  simulateLatentMMHP(lambda0_matrix = object_dc_matrix$lambda0_matrix,
+                      lambda1_matrix = object_dc_matrix$lambda1_matrix,
+                      alpha_matrix = object_dc_matrix$alpha_matrix,
+                      beta_matrix = object_dc_matrix$beta_matrix,
+                      q1_matrix = object_dc_matrix$q1_matrix,
+                      q2_matrix = object_dc_matrix$q2_matrix,
+                      horizon = 200)
+
+sim_data <- tibble(start = sim_model3_data_dc$start,
+                   end = sim_model3_data_dc$end,
+                   day_hour = sim_model3_data_dc$day_hour)
+
+training_data <- sim_data %>% filter(day_hour <= 100)
+test_data <- sim_data %>% filter(day_hour > 100 )
+
+saveRDS(training_data,file = here("output", "rank_sims", 
+                                        "rmd_stan",
+                                        "train_data_dc.RDS"))
+saveRDS(test_data,file = here("output", "rank_sims", 
+                                        "rmd_stan",
+                                        "test_data_dc.RDS"))
+
+```
+
+
+```{r fit m3 to first half, eval=FALSE}
+training_data <- readRDS(file = here("output", "rank_sims", 
+                                        "rmd_stan",
+                                        "train_data_dc.RDS"))
+
+clean_training <- cleanSimulationData(training_data, cut_off = 3, N = 5)
+
+
+
+data_list_training <- list(max_Nm = max(clean_training$N_count),
+                    N_til = length(clean_training$I_fit),
+                    M=sum(clean_training$N_count>=cut_off),
+                    N=length(object_par$f_vec_1),
+                    I_fit = clean_training$I_fit,
+                    J_fit = clean_training$J_fit,
+                    T = tail(clean_training$day_hour,1),
+                    Nm = as.vector(clean_training$N_count[
+                      clean_training$N_count 
+                                                          >= cut_off]),
+                    event_matrix = clean_training$event_matrix,
+                    interevent_time_matrix = clean_training$time_matrix,
+                    max_interevent = clean_training$max_interevent)
+
+model3_dc <- cmdstan_model(here("lib","sim_model3_dc.stan"))
+
+model3_dc_train <- model3_dc$sample(data = data_list_training,
+                                seed = 123,
+                                iter_warmup = 500,
+                                iter_sampling = 500,
+                                chains = 4, 
+                                parallel_chains = 4,
+                                refresh = 100)
+
+model3_dc_train$save_object(file = here("output", "rank_sims",
+                                        "rmd_stan",
+                                        "model_3_dc_train_fit.RDS"))
+
+```
+
+```{r get rank from this,results='hide'}
+model3_dc_train <- readRDS(here("output", "rank_sims",
+                                        "rmd_stan",
+                                        "model_3_dc_train_fit.RDS"))
+
+m3_draws_train <- as_draws_df(model3_dc_train$draws())
+m3_train_rank <- m3_draws_train %>% select(starts_with("f")) %>% apply(2,mean)
+
+m3_train_rank
+
+m3_train_rank <- rev(order(m3_train_rank))
+# then feed this ranking into the test data
+
+test_data <- readRDS(file = here("output", "rank_sims", 
+                                        "rmd_stan",
+                                        "test_data_dc.RDS"))
+
+```
+
+We can compare the I&SI score from the posterior ranks from the
+first half of the data with that obtained from using the I&SI
+ranks from the first half of the data, which agree here.
+
+```{r fit isi train, results='hide'}
+
+test_wl <- get_wl_matrix(cbind(test_data$start,test_data$end))
+m3_test_score <- compute_isi(test_wl,curr_ranking = m3_train_rank)
+
+# then compare this to isi for test data
+
+training_data <- readRDS(file = here("output", "rank_sims", 
+                                        "rmd_stan",
+                                        "train_data_dc.RDS"))
+
+
+train_wl <- get_wl_matrix(cbind(training_data$start,training_data$end))
+
+isi_train <- isi98(train_wl)
+isi_train_rank <- isi_train$best_order
+
+isi_test_score <- compute_isi(test_wl,curr_ranking = isi_train_rank)
+
+```
+
+
+
+```{r}
+m3_test_score
+isi_test_score
+```
+
+
+How does this compare to the optimal score using only the test data.
+They agree in this instance.
+```{r fit isi to test}
+isi98(test_wl)
+```
+
+## Aggregate Ranking Model
+
+We can similarly do this for some of the other models we use
+as comparison, such as the Aggregate ranking model.
+
+
+```{r fit agg rank training, results='hide'}
+training_data <- readRDS(file = here("output", "rank_sims", 
+                                        "rmd_stan",
+                                        "train_data_dc.RDS"))
+
+clean_training <- cleanSimulationData(training_data, cut_off = 3, N = 5)
+
+agg_rank_training <- clean_training$N_count
+
+agg_rank_model <- cmdstan_model(here("lib","latent_rank_agg_sim.stan"))
+
+agg_rank_fit <- agg_rank_model$sample(data = list(n = 5,
+                                                  n_matrix = agg_rank_training),
+                                      seed = 123,
+                                      iter_warmup = 500,
+                                      iter_sampling = 500,
+                                      chains = 4, 
+                                      parallel_chains = 4,
+                                      refresh = 100)
+
+agg_rank_draws_train <- as_draws_df(agg_rank_fit$draws())
+agg_train_mean_rank <- agg_rank_draws_train %>%
+  select(starts_with("x")) %>% apply(2,mean)
+
+# for highest to lowest
+agg_rank_train <- rev(order(agg_train_mean_rank))
+```
+
+```{r show agg rank mean}
+agg_train_mean_rank
+```
+
+
+The aggregate ranking model struggles to correctly identify the correct
+ranking, resulting in a large I&SI score.
+
+```{r compute_isi for agg rank}
+test_data <- readRDS(file = here("output", "rank_sims", 
+                                        "rmd_stan",
+                                        "test_data_dc.RDS"))
+test_wl <- get_wl_matrix(cbind(test_data$start, test_data$end))
+
+agg_test_score <- compute_isi(test_wl,curr_ranking = agg_rank_train)
+agg_test_score
+```
+
+
+## Glicko Model
+
+
+We can also perform this comparison with the Glicko 
+model on the training data.
+
+```{r fit glicko}
+library(PlayerRatings)
+source(here("lib","myGlicko.R"))
+
+training_data <- readRDS(file = here("output", "rank_sims", 
+                                        "rmd_stan",
+                                        "train_data_dc.RDS"))
+
+
+# training_data
+### need score (1) for all of these, along with the row number
+
+glick_df <- training_data %>% 
+  mutate(id = row_number(), score = 1) %>%
+  select(id, start, end , score)
+
+gl_train <- my_glicko(glick_df, history=TRUE, cval=2)
+
+gl_train
+
+gl_ranks <- rev(gl_train$ratings$Rating)
+# highest to lowest
+
+```
+
+
+This correctly recovers the true ranking and will therefore result in 
+the same optimal I&SI score.
+
+```{r glicko test}
+test_data <- readRDS(file = here("output", "rank_sims", 
+                                        "rmd_stan",
+                                        "test_data_dc.RDS"))
+test_wl <- get_wl_matrix(cbind(test_data$start, test_data$end))
+
+glicko_test_score <- compute_isi(test_wl,curr_ranking = gl_ranks)
+glicko_test_score
+
+```
+
+
+## Real Data
+
+Here we estimate the rankings from each model using data from the
+first 15 days of events, and then compute the estimate I&SI scores
+from using those ranks on the remaining held out data.
+
+```{r plot isi scores}
+sim_files <- list.files(here("output","rank_sims","predict_isi"))
+
+all_sims <- list()
+for(i in seq_along(sim_files)) {
+  single_fit <- readRDS(here("output", "rank_sims", 
+                             "predict_isi",
+                             sim_files[i]))
+  all_sims[[i]] <- single_fit
+}
+
+cohort_scores <- all_sims %>%
+  map(~as_tibble(.)) %>%
+  bind_rows(.id="index")
+
+cohort_scores %>% 
+  mutate(ISI = I_score + SI_score) %>%
+  ggplot(aes(model,ISI)) + geom_boxplot()
+```
+
+
+
+We can similarly repeat this for fitting each model to all 
+data and look at the estimated I&SI scores based on those
+inferred rankings.
+
+```{r compute isi total, results='hide'}
+score_fits_all <- list()
+source(here("lib","cleanData.R"))
+
+data_path <- "../output/"
+
+full_data <- readRDS(here("data","mice.RData"))
+# A=c9, B=c10, C=c12, D=c15, E=c16, F=c17, G=c18, H=c37, I=c38. J=c45
+cohort_names <- paste("cohort",c(9,10,12,15,16,17,18,37,38,45),sep='')
+cohort_short_names <- paste("C",c(9,10,12,15,16,17,18,37,38,45),sep='')
+cut_off <- 3
+mice_number <- 12
+
+
+mini_wl_matrix <- function(df, num_mice = 12) {
+  # to avoid issues with reordering the data
+  df <- as.data.frame(df)
+  mylevs <- 1:num_mice
+  df[, 1] <- factor(df[, 1], levels = mylevs)
+  df[, 2] <- factor(df[, 2], levels = mylevs)
+  df$result <- 1
+  m1 = stats::xtabs(result ~ ., data = df)
+  m1
+}
+
+compute_isi_score <- function(win_loss_matrix, curr_ranking) {
+  # this takes ranking from highest to lowest
+  wl <- win_loss_matrix[curr_ranking,curr_ranking]
+  n <- as.numeric(dim(wl)[1])
+  m <- matrix(0, n, n)
+  siind <- matrix(0, n, n)
+  I = 0
+  SI = 0
+  for (j in 2:n) {
+    for (i in 1:(j - 1)) {
+      siind[j, i] = j - i
+      siind[i, j] = j - i
+      if (wl[j, i] == 0 & wl[i, j] == 0) {
+        m[j, i] = 0
+        m[i, j] = 0
+      }
+      else {
+        if (wl[j, i] > wl[i, j]) {
+          m[j, i] = 1
+          m[i, j] = -1
+        }
+        if (wl[j, i] < wl[i, j]) {
+          m[j, i] = -1
+          m[i, j] = 1
+        }
+        if (wl[j, i] == wl[i, j]) {
+          m[j, i] = 0.5
+          m[i, j] = 0.5
+        }
+      }
+    }
+  }
+  I = sum(lower.tri(m) * m == 1)
+  SI = sum((lower.tri(m) * m == 1) * siind)
+  
+  list(I_score = I, SI_score = SI)
+}
+
+for(current_cohort in 1:10) {
+  # current_cohort <- cohort_id
+  print(paste("Cohort",current_cohort))
+  
+  training_day <- 15
+  ## if I change this then I need to refit
+  
+  print(current_cohort)
+  clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
+  return_df <- cleanObservationPeriod(current_cohort, clean_data)
+  
+  
+  
+  #### Fit M1 ####
+  load(paste(data_path,cohort_names[current_cohort],
+             "/cohort_hp_stan_result_",cohort_names[current_cohort],
+             ".RData",sep=''))
+  
+  # highest to lowest
+  
+  rank_m1 <- rev(order(apply(sim_cohort_hp$f, 2, mean)))
+  
+  #### Predict M2 ####
+  load(paste(data_path,cohort_names[current_cohort],
+             "/cohort_dchp_stan_result_",cohort_names[current_cohort],
+             ".RData",sep=''))
+  # highest to lowest
+  rank_m2 <- rev(order(apply(sim_cohort_dchp$f, 2, mean)))
+  
+  #### Predict M3 ####
+  load(paste(data_path,cohort_names[current_cohort],
+             "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
+             ".RData",sep=''))
+  
+  # highest to lowest
+  rank_m3 <- rev(order(apply(sim_cohort_mmhp$f, 2, mean)))
+  
+  #### Predict Agg Ranking ####
+  load(paste(data_path,cohort_names[current_cohort],
+             "/agg_rank_stan_result_",cohort_names[current_cohort],
+             ".RData",sep=''))
+  
+  # highest to lowest
+  rank_agg <- rev(order(apply(sim_agg_rank$x, 2, mean)))
+  
+  #### ISI Predict ####
+  full_wl <- mini_wl_matrix(df = cbind(return_df$initiator,
+                                        return_df$recipient))
+  
+  
+  isi_train <- isi98(full_wl)
+  isi_rank <- as.numeric(isi_train$best_order)
+  
+  #### glicko predict
+  glick_df <- return_df %>% 
+    mutate(id = row_number(), score = 1) %>%
+    select(id, initiator, recipient , score)
+  
+  gl_train <- my_glicko(glick_df, history=TRUE, cval=2)
+  
+  gl_ranks <- rev(order(gl_train$ratings$Rating))
+  
+  
+  #### save this output ####
+  
+  ### need to make sure the isi ordering is correct here
+  
+  est_ranks <- tibble(isi_full = isi_rank,
+                      agg_full = rank_agg,
+                      glicko_full = gl_ranks,
+                      m1_full = rank_m1,
+                      m2_full = rank_m2,
+                      m3_full = rank_m3)
+  
+  # full_wl <- mini_wl_matrix(cbind(return_df$initiator, return_df$recipient))
+  # best_isi <- isi98(full_wl)
+  # this is giving me the ranks correctly but am I mapping them
+  # correctly for reordering the wl matrix?
+  
+  ###
+  ## do I want order here?
+  ###
+  scores <- est_ranks %>% map_dfr(~ compute_isi_score(full_wl, .x))
+  
+  
+  scores$model <- c("isi","agg", "glicko", "m1","m2","m3")
+  # scores <- scores %>% add_row(tibble_row(I_score = best_isi$I, 
+  #                              SI_score = best_isi$SI,
+  #                              model = "test_isi"))
+  
+  score_fits_all[[current_cohort]] <- scores
+  
+}
+
+```
+
+
+```{r plot these isi scores}
+score_fits_all %>%
+  map(~as_tibble(.)) %>%
+  bind_rows(.id="index") %>%
+  mutate(ISI = I_score + SI_score) %>%
+  ggplot(aes(model,ISI)) + geom_boxplot()
+```

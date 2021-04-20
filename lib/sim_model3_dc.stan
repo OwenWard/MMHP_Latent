@@ -9,16 +9,19 @@ data{
   vector[max_Nm] interevent_time_matrix[N_til];
 }
 parameters{
-  real<lower=0> lambda0; //baseline rate for each pair
+  //real<lower=0> lambda0; //baseline rate for each pair
   real<lower=0> r_lambda1;
   vector<lower=0,upper=1>[N] f;
+  vector<lower=0>[N] gamma;
+  vector<lower=0>[N] zeta;
   real<lower=0> eta_1;
   real<lower=0> eta_2;
   real<lower=0> eta_3;
   real<lower=0> beta_delta;
 }
 transformed parameters{
-  real<lower=0> lambda1;
+  vector<lower=0>[N_til] lambda0;
+  vector<lower=0>[N_til] lambda1;
   row_vector[2] log_delta;
   vector[N_til] q1; // P(initial state = 1)
   vector[N_til] q2; // P(initial state = 1)
@@ -26,11 +29,13 @@ transformed parameters{
   real alpha_max;
   real beta;
 
-  lambda1 = lambda0*(1+r_lambda1);
+  // lambda1 = lambda0*(1+r_lambda1);
   log_delta[1] = log(0.5);
   log_delta[2] = log(0.5);
 
   for(i in 1:N_til){
+    lambda0[i] = gamma[I_fit[i]]+zeta[J_fit[i]];
+    lambda1[i] = lambda0[i]*(1+r_lambda1);
     alpha[i] = exp(-eta_2*fabs(f[I_fit[i]]-f[J_fit[i]]))*f[I_fit[i]]*f[J_fit[i]]*eta_1;
     q1[i] = exp(-eta_3*f[I_fit[i]]);
     q2[i] = exp(-eta_3*f[J_fit[i]]);
@@ -61,7 +66,9 @@ model{
   row_vector[2] temp_log_delta;
   
   //priors
-  lambda0 ~ lognormal(0,2);
+  //lambda0 ~ lognormal(0,2);
+  gamma ~ inv_gamma(3,0.5);
+  zeta ~ inv_gamma(3,0.5);
   r_lambda1 ~ lognormal(0,2);
   beta_delta ~ lognormal(0,2);
   eta_1 ~ lognormal(0,1);
@@ -73,8 +80,8 @@ model{
     if(I_fit[i]!=J_fit[i]){
       interevent = interevent_time_matrix[i];
 
-      temp_lambda0 = lambda0;
-      temp_lambda1 = lambda1;
+      temp_lambda0 = lambda0[i];
+      temp_lambda1 = lambda1[i];
       temp_alpha = alpha[i];
       temp_beta = beta;
       temp_q1 = q1[i];

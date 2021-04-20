@@ -1,4 +1,5 @@
-my_glicko <- function(x, status=NULL, init=c(2200,300), gamma=0, cval=15, history=FALSE, sort=FALSE, ...)
+my_glicko <- function(x, status=NULL, init=c(2200,300), gamma=0,
+                      cval=15, history=FALSE, sort=FALSE, ...)
 { 
   gammas <- rep(gamma, length.out = nrow(x)) 
   names(x) <- c("Month","White","Black","Score")
@@ -12,14 +13,16 @@ my_glicko <- function(x, status=NULL, init=c(2200,300), gamma=0, cval=15, histor
     npadd <- play[!(play %in% status$Player)]
     zv <- rep(0, length(npadd))
     npstatus <- data.frame(Player = npadd, Rating = rep(init[1],length(npadd)), 
-                           Deviation = rep(init[2],length(npadd)), Games = zv, Win = zv, Draw = zv, 
+                           Deviation = rep(init[2],length(npadd)), Games = zv,
+                           Win = zv, Draw = zv, 
                            Loss = zv, Lag = zv)
     if(!("Games" %in% names(status))) status <- cbind(status, Games = 0)
     if(!("Win" %in% names(status))) status <- cbind(status, Win = 0)
     if(!("Draw" %in% names(status))) status <- cbind(status, Draw = 0)
     if(!("Loss" %in% names(status))) status <- cbind(status, Loss = 0)
     if(!("Lag" %in% names(status))) status <- cbind(status, Lag = 0)
-    status <- rbind(status[,c("Player","Rating","Deviation","Games","Win","Draw","Loss","Lag")], npstatus)
+    status <- rbind(status[,c("Player","Rating","Deviation","Games","Win",
+                              "Draw","Loss","Lag")], npstatus)
     rinit <- status[,2]
     dinit <- status[,3]
     ngames <- status[,4]
@@ -60,7 +63,9 @@ my_glicko <- function(x, status=NULL, init=c(2200,300), gamma=0, cval=15, histor
   x <- split(x, x$Month)
   players <- lapply(x, function(y) unique(c(y$White, y$Black)))
   if(history) {
-    histry <- array(NA, dim=c(np,nm,4), dimnames=list(play,1:nm,c("Rating","Deviation","Games","Lag")))
+    histry <- array(NA, dim=c(np,nm,4),
+                    dimnames=list(play, 1:nm,
+                                  c("Rating","Deviation","Games","Lag")))
   }
   
   for(i in 1:nm) {
@@ -73,16 +78,21 @@ my_glicko <- function(x, status=NULL, init=c(2200,300), gamma=0, cval=15, histor
     gdevs <- 1/sqrt(1 + qip3*cdevs) 
     ngamesi <- tabulate(c(traini$White,traini$Black), np)
     dscore <- .C("glicko_c",
-                 as.integer(np), as.integer(nr), as.integer(traini$White-1), as.integer(traini$Black-1),
-                 as.double(traini$Score), as.double(crats), as.double(gdevs), as.double(gammai),
+                 as.integer(np), as.integer(nr),
+                 as.integer(traini$White-1), as.integer(traini$Black-1),
+                 as.double(traini$Score),
+                 as.double(crats), as.double(gdevs), as.double(gammai),
                  dscore = double(2*np))$dscore
     dval <- dscore[(np+1):(2*np)]; dscore <- dscore[1:np]
     cdevs <- 1/(1/cdevs + dval)
     crats <- crats + cdevs * qv * dscore
     
-    trainiplw <- c(traini$White[traini$Score==1],traini$Black[traini$Score==0])
-    trainipld <- c(traini$White[traini$Score==0.5],traini$Black[traini$Score==0.5])
-    trainipll <- c(traini$White[traini$Score==0],traini$Black[traini$Score==1])
+    trainiplw <- c(traini$White[traini$Score==1],
+                   traini$Black[traini$Score==0])
+    trainipld <- c(traini$White[traini$Score==0.5],
+                   traini$Black[traini$Score==0.5])
+    trainipll <- c(traini$White[traini$Score==0],
+                   traini$Black[traini$Score==1])
     ngames <- ngames + ngamesi
     nwin <- nwin + tabulate(trainiplw, np)
     ndraw <- ndraw + tabulate(trainipld, np)
@@ -100,25 +110,33 @@ my_glicko <- function(x, status=NULL, init=c(2200,300), gamma=0, cval=15, histor
   if(!history) histry <- NULL
   player <- suppressWarnings(as.numeric(names(c(crats,orats))))
   if (any(is.na(player))) player <- names(c(crats,orats))
-  dfout <- data.frame(Player=player, Rating=c(crats,orats), Deviation=sqrt(c(cdevs,odevs)), 
-                      Games=c(ngames,ongames), Win=c(nwin,onwin), Draw=c(ndraw,ondraw), Loss=c(nloss,onloss), 
-                      Lag=c(nlag,olag),
+  dfout <- data.frame(Player = player, Rating = c(crats,orats),
+                      Deviation = sqrt(c(cdevs,odevs)), 
+                      Games = c(ngames,ongames), 
+                      Win = c(nwin,onwin), 
+                      Draw = c(ndraw,ondraw),
+                      Loss = c(nloss,onloss), 
+                      Lag = c(nlag,olag),
                       stringsAsFactors = FALSE)
   if(sort) dfout <- dfout[order(dfout$Rating,decreasing=TRUE),] else dfout <- dfout[order(dfout$Player),]
   row.names(dfout) <- 1:nrow(dfout)
   
-  lout <- list(ratings=dfout, history=histry, gamma=gamma, cval=cval, type = "Glicko")
+  lout <- list(ratings = dfout, history = histry,
+               gamma = gamma, cval = cval, type = "Glicko")
   class(lout) <- "rating"
   lout
 }
 
-myPlotGlicko <- function(df, cval=3, mycolors=c("black", "grey", "orange", "red"), 
-                         ltypes=c(1,2,3,1,2,3,1,2,3,1,2,3), thetitle="",  linewd=1, ylim1=1000,ylim2=3250,
-                         ndays=1){
+myPlotGlicko <- function(df, cval = 3, 
+                         mycolors=c("black", "grey", "orange", "red"), 
+                         ltypes=c(1,2,3,1,2,3,1,2,3,1,2,3),
+                         thetitle = "",  linewd = 1,
+                         ylim1 = 1000, ylim2 = 3250,
+                         ndays = 1){
   
   df <- as.data.frame(df)
   
-  robj <- my_glicko(df, cval=cval, history=T)
+  robj <- my_glicko(df, cval = cval, history = T)
   
   x<-as.data.frame(unlist(robj$history))  
   z<-as.factor(df[,1])  #this is the df the glicko was conducted on
@@ -144,7 +162,8 @@ myPlotGlicko <- function(df, cval=3, mycolors=c("black", "grey", "orange", "red"
   x.ratingsmelt$rank<-rank(-xrn$finalrating, ties.method="random")
   
   #make ids1 a factor with levels defined by rank
-  x.ratingsmelt1 <- data.frame(ids=unique(x.ratingsmelt$ids),rank=unique(x.ratingsmelt$rank))
+  x.ratingsmelt1 <- data.frame(ids = unique(x.ratingsmelt$ids),
+                               rank = unique(x.ratingsmelt$rank))
   x.ratingsmelt1 <- x.ratingsmelt1[order(x.ratingsmelt1$rank),]
   x.ratingsmelt$ids1 <- factor(x.ratingsmelt$ids,levels=x.ratingsmelt1$ids)
   
@@ -154,9 +173,10 @@ myPlotGlicko <- function(df, cval=3, mycolors=c("black", "grey", "orange", "red"
   
   
   ### now plot using ids1 instead of ids.
-  p1<-ggplot(x.ratingsmelt, aes(x = event, y = value, col=ids1, linetype=ids1)) +
+  p1<-ggplot(x.ratingsmelt, aes(x = event, y = value,
+                                col = ids1, linetype=ids1)) +
     scale_colour_manual(values = getPalette(colourCount)) +
-    scale_linetype_manual(values=ltypes) +
+    scale_linetype_manual(values = ltypes) +
     ylab("Glicko Rating") +
     xlab("Event") +
     ggtitle(thetitle)+
@@ -165,7 +185,8 @@ myPlotGlicko <- function(df, cval=3, mycolors=c("black", "grey", "orange", "red"
     theme(plot.title = element_text(hjust = 0, vjust = 1, size = rel(1.7)), 
           panel.background = element_blank(), 
           plot.background = element_blank(), 
-          panel.grid.major.y = element_line(color = "gray75",linetype = 'dotted'), 
+          panel.grid.major.y = element_line(color = "gray75",
+                                            linetype = 'dotted'), 
           panel.grid.major.x = element_blank(), 
           panel.grid.minor = element_blank(), 
           strip.background  = element_blank(),
