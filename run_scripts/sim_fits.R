@@ -85,7 +85,7 @@ object_matrix <- list(lambda0_matrix=outer(object_par$gamma_var,
 
 ## Simulate
 # sim_model3_data <- list()
-N_array <- array(0,c(1,num_nodes, num_nodes))
+N_array <- array(0, c(1, num_nodes, num_nodes))
 # for(i in c(1:n_sim)){
 sim_model3_data <- simulateLatentMMHP(lambda0_matrix = object_matrix$lambda0_matrix,
                                       lambda1_matrix = object_matrix$lambda1_matrix,
@@ -142,18 +142,18 @@ data_list <- list(max_Nm=max(clean_sim_data$N_count),
                   max_interevent = clean_sim_data$max_interevent)
 print(paste(i,"model1"))
 ## Fit in model 1
-start_time <- Sys.time()
-sim_model3_stan_fit1[[1]] <- sampling(model1, data=data_list, 
-                                         iter=1000, chains=4)
-m1_time <- Sys.time() - start_time
+# start_time <- Sys.time()
+# sim_model3_stan_fit1[[1]] <- sampling(model1, data=data_list, 
+#                                          iter=1000, chains=4)
+# m1_time <- Sys.time() - start_time
 
-print("model2")
-## Fit in model 2
-start_time <- Sys.time()
-sim_model3_stan_fit2[[1]] <- sampling(model2,
-                                         data=data_list,
-                                         iter=1000, chains=4)
-m2_time <- Sys.time() - start_time
+# print("model2")
+# ## Fit in model 2
+# start_time <- Sys.time()
+# sim_model3_stan_fit2[[1]] <- sampling(model2,
+#                                          data=data_list,
+#                                          iter=1000, chains=4)
+# m2_time <- Sys.time() - start_time
 
 print("model3")
 ## Fit in model 3
@@ -172,18 +172,18 @@ sim_model3_stan_sim1 <- list()
 sim_model3_stan_sim2 <- list()
 sim_model3_stan_sim3 <- list()
 
-sim_model3_stan_sim1 <- rstan::extract(sim_model3_stan_fit1[[1]])
-sim_model3_stan_sim2 <- rstan::extract(sim_model3_stan_fit2[[1]])
+# sim_model3_stan_sim1 <- rstan::extract(sim_model3_stan_fit1[[1]])
+# sim_model3_stan_sim2 <- rstan::extract(sim_model3_stan_fit2[[1]])
 sim_model3_stan_sim3 <- rstan::extract(sim_model3_stan_fit3[[1]])
 
-m1_rank <- order(apply(sim_model3_stan_sim1$f, 2, mean))
-m2_rank <- order(apply(sim_model3_stan_sim2$f, 2, mean))
+# m1_rank <- order(apply(sim_model3_stan_sim1$f, 2, mean))
+# m2_rank <- order(apply(sim_model3_stan_sim2$f, 2, mean))
 m3_rank <- order(apply(sim_model3_stan_sim3$f, 2, mean))
 
 ## Save the output
 save(object_fn, object_par, object_matrix, sim_model3_data,
-     sim_model3_stan_fit1, sim_model3_stan_sim1,
-     sim_model3_stan_fit2, sim_model3_stan_sim2,
+     # sim_model3_stan_fit1, sim_model3_stan_sim1,
+     # sim_model3_stan_fit2, sim_model3_stan_sim2,
      sim_model3_stan_fit3, sim_model3_stan_sim3,
      file = paste(data_path,"sim_model3_fit123_",
                   sim_id,
