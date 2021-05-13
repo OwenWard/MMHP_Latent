@@ -156,7 +156,10 @@ for(current_cohort in 1:10){
                                            cut_off = 0, N = 12, train_period = 15)
   test_day_end <- unlist(lapply(c(16:21),function(x) clean_data$day_hour[max(which(clean_data$day==x))]))
   test_start <- tail(train_clean_data$day_hour,1)
-  return_df <- cleanObservationPeriod(current_cohort, clean_data)
+  ### this causing issue
+  return_df <- cleanObservationPeriod(current_cohort, 
+                                      raw_df = full_data[[cohort_names[current_cohort]]],
+                                      clean_data)
   to_predice_obs <- unique(return_df[return_df$day>=16,c("day","observe.id","observe.time")])
   
   real_N_matrix_list <- list()
