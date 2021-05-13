@@ -141,6 +141,7 @@ all_cohort_norm_df <- data.frame(norm = rep(NA,10*6*no_method),
                                  method = rep(NA,10*6*no_method),
                                  cohort = rep(NA,10*6*no_method))
 predict_day_norm_df_lst <- list()
+predict_day_mae_df_lst <- list()
 cur_all <- 1
 for(current_cohort in 1:10){
   print(current_cohort)
@@ -160,6 +161,9 @@ for(current_cohort in 1:10){
   
   real_N_matrix_list <- list()
   predict_day_norm_df <- data.frame(norm = rep(NA,predict_sim*6*no_method),
+                                    day = rep(NA,predict_sim*6*no_method),
+                                    method = rep(NA,predict_sim*6*no_method))
+  predict_day_mae_df <- data.frame(mae = rep(NA,predict_sim*6*no_method),
                                     day = rep(NA,predict_sim*6*no_method),
                                     method = rep(NA,predict_sim*6*no_method))
   est_array_m1 <- array(0,dim=c(6, predict_sim, mice_number, mice_number))
@@ -190,6 +194,9 @@ for(current_cohort in 1:10){
       }
       predict_day_norm_df[cur,'norm'] <- sqrt(sum((real_N_matrix_list[[d_test]] - 
                                                      est_array_m1[d_test-15,s,,])^2))
+      ### try MAE for this
+      predict_day_mae_df[cur, 'mae'] <- mean(abs(real_N_matrix_list[[d_test]] - 
+                                                   est_array_m1[d_test-15,s,,]))
       
       # M2
       if(d_test>16){
@@ -199,7 +206,11 @@ for(current_cohort in 1:10){
         est_array_m2[d_test-15,s,,] <- est_array_m2[d_test-15,s,,] +
           cleanSimulationDataForNCount(m2_predict_sim[win,s][[1]])$N_count
       }
-      predict_day_norm_df[cur+1,'norm'] <- sqrt(sum((real_N_matrix_list[[d_test]]-est_array_m2[d_test-15,s,,])^2))
+      predict_day_norm_df[cur+1,'norm'] <- sqrt(sum((real_N_matrix_list[[d_test]] - 
+                                                       est_array_m2[d_test-15,s,,])^2))
+      ### try MAE 
+      predict_day_mae_df[cur+1, 'mae'] <- mean(abs(real_N_matrix_list[[d_test]] - 
+                                                     est_array_m2[d_test-15,s,,]))
       
       # M3
       if(d_test>16){
@@ -209,7 +220,11 @@ for(current_cohort in 1:10){
         est_array_m3[d_test-15,s,,] <- est_array_m3[d_test-15,s,,] +
           cleanSimulationDataForNCount(m3_predict_sim[win,s][[1]])$N_count
       }
-      predict_day_norm_df[cur+2,'norm'] <- sqrt(sum((real_N_matrix_list[[d_test]]-est_array_m3[d_test-15,s,,])^2))
+      predict_day_norm_df[cur+2,'norm'] <- sqrt(sum((real_N_matrix_list[[d_test]] - 
+                                                       est_array_m3[d_test-15,s,,])^2))
+      ### MAE here
+      predict_day_mae_df[cur+2, 'mae'] <- mean(abs(real_N_matrix_list[[d_test]] - 
+                                                     est_array_m3[d_test-15,s,,]))
       
       # I-MMHP
       if(d_test>16){
@@ -219,7 +234,12 @@ for(current_cohort in 1:10){
         est_array_mmhp[d_test-15,s,,] <- est_array_mmhp[d_test-15,s,,] +
           cleanSimulationDataForNCount(mmhp_predict_sim[win,s][[1]])$N_count
       }
-      predict_day_norm_df[cur+3,'norm'] <- sqrt(sum((real_N_matrix_list[[d_test]]-est_array_mmhp[d_test-15,s,,])^2))
+      predict_day_norm_df[cur+3,'norm'] <- sqrt(sum((real_N_matrix_list[[d_test]] - 
+                                                       est_array_mmhp[d_test-15,s,,])^2))
+      
+      ### MAE
+      predict_day_mae_df[cur+3, 'mae'] <- mean(abs(real_N_matrix_list[[d_test]] - 
+                                                     est_array_mmhp[d_test-15,s,,]))
       
       # DSNL
       if(d_test==16){
@@ -228,10 +248,18 @@ for(current_cohort in 1:10){
         est_array_dsnl[d_test-15,s,,] <- est_array_dsnl[d_test-16,s,,]+
           sim_predict_dsnl$lambda_d[1000+s,d_test-15,,]*(test_day_end[d_test-15]-test_day_end[d_test-16])
       }
-      predict_day_norm_df[cur+4,'norm'] <- sqrt(sum((real_N_matrix_list[[d_test]]-est_array_dsnl[d_test-15,s,,])^2))
+      predict_day_norm_df[cur+4,'norm'] <- sqrt(sum((real_N_matrix_list[[d_test]] - 
+                                                       est_array_dsnl[d_test-15,s,,])^2))
+      
+      ### MAE
+      predict_day_mae_df[cur+4, 'mae'] <- mean(abs(real_N_matrix_list[[d_test]] - 
+                                                     est_array_dsnl[d_test-15,s,,]))
       
       predict_day_norm_df[c(cur:(cur+no_method-1)),'day'] <- rep(d_test,no_method)
       predict_day_norm_df[c(cur:(cur+no_method-1)),'method'] <- c("m1","m2","m3","mmhp","dsnl")
+      ### MAE
+      predict_day_mae_df[c(cur:(cur+no_method-1)),'day'] <- rep(d_test,no_method)
+      predict_day_mae_df[c(cur:(cur+no_method-1)),'method'] <- c("m1","m2","m3","mmhp","dsnl")
       cur <- cur+no_method
     }
     all_cohort_norm_df[cur_all,'norm'] <- sqrt(sum((real_N_matrix_list[[d_test]]-
@@ -250,9 +278,16 @@ for(current_cohort in 1:10){
     cur_all <- cur_all+no_method
   }
   predict_day_norm_df_lst[[current_cohort]] <- predict_day_norm_df
+  predict_day_mae_df_lst[[current_cohort]] <- predict_day_mae_df
 }
-save(predict_day_norm_df_lst, all_cohort_norm_df, est_array_m1, est_array_m2, est_array_m3,
-     est_array_mmhp, est_array_dsnl,
+save(predict_day_norm_df_lst,
+     predict_day_mae_df_lst,
+     all_cohort_norm_df,
+     est_array_m1,
+     est_array_m2,
+     est_array_m3,
+     est_array_mmhp,
+     est_array_dsnl,
      file = paste(data_path,"plot_N_predict.RData",sep=""))
 
 
