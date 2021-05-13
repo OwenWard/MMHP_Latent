@@ -320,7 +320,9 @@ for(current_cohort in fit_cohorts){
   clean_data_all <- cleanData(full_data[[cohort_names[current_cohort]]],
                               cut_off = 1)
   clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
-  return_df <- cleanObservationPeriod(current_cohort, clean_data)
+  return_df <- cleanObservationPeriod(current_cohort,
+                                      raw_df = full_data[[cohort_names[current_cohort]]],
+                                      clean_data)
   to_predice_obs <- unique(return_df[(return_df$day>=16)&(return_df$day<=21),c("day","observe.id","observe.time")]) ## change with day info
   
   #------------ gl score
