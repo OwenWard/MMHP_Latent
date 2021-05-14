@@ -50,8 +50,8 @@ model{
   row_vector[2] probs_2[max_Nm+1]; // Probability vector for transition to state 2 (inactive state)
   row_vector[2] int_1[max_Nm+1]; // Integration of lambda when state transit to 1 (active state)
   row_vector[2] int_2[max_Nm+1]; // Integration of lambda when state transit to 2 (inactive state)
-  real R[max_Nm+1]; // record variable for Hawkes process
-  vector[max_Nm+1] interevent;
+  real R[max_Nm]; // record variable for Hawkes process
+  vector[max_Nm] interevent;
   real K0;
   real K1;
   real K2;
