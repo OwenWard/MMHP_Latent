@@ -14,16 +14,32 @@
 ############################################################################
 prepareDataStan <- function(current_cohort){
   clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
-  return_df <- cleanObservationPeriod(current_cohort, full_data[[cohort_names[current_cohort]]], clean_data)
+  return_df <- cleanObservationPeriod(current_cohort,
+                                      full_data[[cohort_names[current_cohort]]],
+                                      clean_data)
   
-  unique_pairs_df <- return_df %>% group_by(initiator, recipient) %>% dplyr::summarize(count=n(), observe=list(observe.id))
-  unique_observe_win <- unique(return_df[,c("observe.id","observe.time","observe.start","observe.end")])
+  unique_pairs_df <- return_df %>% 
+    group_by(initiator, recipient) %>%
+    dplyr::summarize(count=n(), observe=list(observe.id))
+  unique_observe_win <- unique(return_df[,c("observe.id",
+                                            "observe.time",
+                                            "observe.start",
+                                            "observe.end")])
   
-  time_array <- array(0,dim=c(nrow(unique_pairs_df),max(return_df$observe.id),max(unlist(lapply(return_df$event.times,length)))+1))
-  event_array <- array(0,dim=c(nrow(unique_pairs_df),max(return_df$observe.id),max(unlist(lapply(return_df$event.times,length)))))
-  count_matrix <- matrix(0,nrow=nrow(unique_pairs_df),ncol=max(return_df$observe.id))
-  delta_window <- c(0,unique_observe_win$observe.start[-1]-unique_observe_win$observe.end[-nrow(unique_observe_win)])
-  finishing_time <- matrix(0,nrow=nrow(unique_pairs_df),ncol=max(return_df$observe.id))
+  time_array <- array(0, dim = c(nrow(unique_pairs_df),
+                              max(return_df$observe.id),
+                              max(unlist(lapply(return_df$event.times,length)))+1))
+  event_array <- array(0, dim = c(nrow(unique_pairs_df),
+                               max(return_df$observe.id),
+                               max(unlist(lapply(return_df$event.times,length)))))
+  count_matrix <- matrix(0, nrow = nrow(unique_pairs_df),
+                         ncol = max(return_df$observe.id))
+  delta_window <- c(0,
+                    unique_observe_win$observe.start[-1] - 
+                      unique_observe_win$observe.end[-nrow(unique_observe_win)])
+  finishing_time <- matrix(0,
+                           nrow=nrow(unique_pairs_df),
+                           ncol=max(return_df$observe.id))
   max_interevent <- rep(0,nrow(unique_pairs_df))
   
   for(pair in 1:nrow(unique_pairs_df)){
@@ -131,7 +147,9 @@ prepareDataStanTrain <- function(current_cohort, train_day = 15){
 ############################################################################
 prepareDataStanIMMHP <- function(current_cohort){
   clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
-  return_df <- cleanObservationPeriod(current_cohort, clean_data)
+  return_df <- cleanObservationPeriod(current_cohort,
+                                      full_data[[cohort_names[current_cohort]]],
+                                      clean_data)
   
   unique_pairs_df <- return_df %>% group_by(initiator, recipient) %>% dplyr::summarize(count=n(), observe=list(observe.id))
   unique_observe_win <- unique(return_df[,c("observe.id","observe.time")])

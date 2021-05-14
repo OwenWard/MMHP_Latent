@@ -1,5 +1,5 @@
 #### Rerun the modified simulation fits based on the modified Stan models ####
-### Simulate Data from Model 3 and fit each of the 3 models to this data
+### Simulate Data from Model 3 and fit I-MMHP to each Pair
 
 #### if running on cluster ####
 source("/rigel/stats/users/ogw2103/code/MMHP/MMHP_Latent/run_scripts/cluster_setup.R")
@@ -38,16 +38,16 @@ model1_fn <- list(alpha.fun = function(x, y, eta1, eta2, eta3){
 
 model3_fn <- list(alpha.fun = function(x, y, eta1, eta2){
   return(eta1*x*y*exp(-eta2*abs(x-y)))},
-                  q1.fun = function(x,y,eta3){return(exp(-eta3*x))},
-                  q0.fun = function(x,y,eta3){return(exp(-eta3*y))})
+  q1.fun = function(x,y,eta3){return(exp(-eta3*x))},
+  q0.fun = function(x,y,eta3){return(exp(-eta3*y))})
 
 
 #### Save the simulation parameters ####
 
 object_fn <- list(alpha.fun = function(x,y,eta1,eta2){
   return(eta1*x*y*exp(-eta2*abs(x-y)))},
-                  q1.fun = function(x,y,eta3){return(exp(-eta3*x))},
-                  q0.fun = function(x,y,eta3){return(exp(-eta3*y))})
+  q1.fun = function(x,y,eta3){return(exp(-eta3*x))},
+  q0.fun = function(x,y,eta3){return(exp(-eta3*y))})
 
 object_par <- list(sim_lambda_1 = 0.2,
                    sim_eta_1 = 2.5,
@@ -74,11 +74,11 @@ object_matrix <- list(lambda0_matrix=outer(object_par$gamma_var,
                       q1_matrix=formMatrix(function(x,y) 
                         object_fn$q1.fun(x, y,
                                          object_par$sim_eta_3),
-                                         object_par$f_vec_1),
+                        object_par$f_vec_1),
                       q2_matrix=formMatrix(function(x,y) 
                         object_fn$q0.fun(x, y, 
                                          object_par$sim_eta_3),
-                                         object_par$f_vec_1))
+                        object_par$f_vec_1))
 
 # matrixPlotParameter(object_matrix$alpha_matrix)
 # object_matrix$q1_matrix
@@ -114,13 +114,14 @@ save(object_fn, object_par,
 load(paste(data_path, "sim_model3_", sim_id, ".RData", sep = ''))
 
 ## fit in the model
-sim_model3_stan_fit1 <- list()
-sim_model3_stan_fit2 <- list()
-sim_model3_stan_fit3 <- list()
+# sim_model3_stan_fit1 <- list()
+# sim_model3_stan_fit2 <- list()
+sim_model_immhp_stan_fit <- list()
 
-model1 <- stan_model("lib/sim_model1.stan")
-model2 <- stan_model("lib/sim_model2.stan")
-model3 <- stan_model("lib/sim_model3_dc.stan")
+immhp_model <- stan_model("lib/sim_immhp.stan")
+# model1 <- stan_model("lib/sim_model1.stan")
+# model2 <- stan_model("lib/sim_model2.stan")
+# model3 <- stan_model("lib/sim_model3_dc.stan")
 
 # for(i in c(1:n_sim)){
 i <- sim_id
@@ -131,7 +132,7 @@ clean_sim_data <- cleanSimulationData(raw_data=sim_model3_data,
 # these have different stan files because they're simulation models
 
 
-data_list <- list(max_Nm=max(clean_sim_data$N_count),
+data_list <- list(max_Nm = max(clean_sim_data$N_count),
                   N_til = length(clean_sim_data$I_fit),
                   M=sum(clean_sim_data$N_count>=cut_off),
                   N=length(object_par$f_vec_1),
@@ -142,7 +143,7 @@ data_list <- list(max_Nm=max(clean_sim_data$N_count),
                   event_matrix = clean_sim_data$event_matrix,
                   interevent_time_matrix = clean_sim_data$time_matrix,
                   max_interevent = clean_sim_data$max_interevent)
-print(paste(i,"model1"))
+# print(paste(i,"model1"))
 ## Fit in model 1
 # start_time <- Sys.time()
 # sim_model3_stan_fit1[[1]] <- sampling(model1, data=data_list, 
@@ -157,40 +158,51 @@ print(paste(i,"model1"))
 #                                          iter=1000, chains=4)
 # m2_time <- Sys.time() - start_time
 
-print("model3")
+# print("model3")
+# ## Fit in model 3
+# start_time <- Sys.time()
+# sim_model3_stan_fit3[[1]] <- sampling(model3,
+#                                       data=data_list,
+#                                       iter=1000, chains=4,
+#                                       control = list(adapt_delta = 0.95,
+#                                                      max_treedepth = 15))
+# m3_time <- Sys.time() - start_time
+print("I-mmhp")
 ## Fit in model 3
 start_time <- Sys.time()
-sim_model3_stan_fit3[[1]] <- sampling(model3,
-                                         data=data_list,
-                                         iter=1000, chains=4,
+sim_model_immhp_stan_fit[[1]] <- sampling(immhp_model,
+                                      data=data_list,
+                                      iter=1000, chains=4,
                                       control = list(adapt_delta = 0.95,
                                                      max_treedepth = 15))
-m3_time <- Sys.time() - start_time
-  
+immhp_time <- Sys.time() - start_time
+
+
 # }
 
 ## Extract the model fit
-sim_model3_stan_sim1 <- list()
-sim_model3_stan_sim2 <- list()
-sim_model3_stan_sim3 <- list()
+# sim_model3_stan_sim1 <- list()
+# sim_model3_stan_sim2 <- list()
+sim_model_stan_sim_immhp <- list()
 
 # sim_model3_stan_sim1 <- rstan::extract(sim_model3_stan_fit1[[1]])
 # sim_model3_stan_sim2 <- rstan::extract(sim_model3_stan_fit2[[1]])
-sim_model3_stan_sim3 <- rstan::extract(sim_model3_stan_fit3[[1]])
+sim_model_stan_sim_immhp <- rstan::extract(sim_model_immhp_stan_fit[[1]])
 
 # m1_rank <- order(apply(sim_model3_stan_sim1$f, 2, mean))
 # m2_rank <- order(apply(sim_model3_stan_sim2$f, 2, mean))
-m3_rank <- order(apply(sim_model3_stan_sim3$f, 2, mean))
+# m3_rank <- order(apply(sim_model3_stan_sim3$f, 2, mean))
 
 ## Save the output
 save(object_fn, object_par, object_matrix, sim_model3_data,
      # sim_model3_stan_fit1, sim_model3_stan_sim1,
      # sim_model3_stan_fit2, sim_model3_stan_sim2,
-     sim_model3_stan_fit3, sim_model3_stan_sim3,
-     file = paste(data_path,"sim_model3_fit123_",
+     sim_model_immhp_stan_fit, sim_model_stan_sim3_immhp,
+     file = paste(data_path,"sim_model3_fit_immhp_",
                   sim_id,
-     ".RData",sep=''))
+                  ".RData",sep=''))
 
+### not sure if stuff below here will work
 
 
 #### Interpolate the Latent States ####
@@ -199,8 +211,9 @@ event_state_est_lst <- list()
 interpolate_state_est_lst <- list()
 # for(cur_sim in c(1:n_sim)){
 #   print(cur_sim)
-event_state_est_lst <- matrix(list(), nrow = length(object_par$f_vec_1),
-                                      ncol = length(object_par$f_vec_1))
+event_state_est_lst <- matrix(list(),
+                              nrow = length(object_par$f_vec_1),
+                              ncol = length(object_par$f_vec_1))
 interpolate_state_est_lst <- matrix(list(),
                                     nrow = length(object_par$f_vec_1),
                                     ncol = length(object_par$f_vec_1))

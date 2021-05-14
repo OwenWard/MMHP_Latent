@@ -91,7 +91,8 @@ fit_mmhp_sep <- stan("lib/I-MMHP.stan",
                      data=stan_input_lst,
                      warmup = 2000, iter = 3000, thin = 4, chains = 4) 
 sim_mmhp_sep <- rstan::extract(fit_mmhp_sep)
-dir.create(paste(save_data_path, cohort_names[current_cohort],sep=''), recursive = TRUE, showWarnings = FALSE)
+dir.create(paste(save_data_path, cohort_names[current_cohort], sep = ''),
+           recursive = TRUE, showWarnings = FALSE)
 save(sim_mmhp_sep, fit_mmhp_sep,
      file = paste(save_data_path,cohort_names[current_cohort],
                   "/sep_mmhp_stan_result_",cohort_names[current_cohort],
