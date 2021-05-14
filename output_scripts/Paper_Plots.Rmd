@@ -2339,7 +2339,7 @@ struct_plot %>%
 load("../output/plot_N_predict.RData")
 current_cohort <- 5# cohort 1 looks worse than rest
 
-temp_plot_df <- predict_day_norm_df_lst[[current_cohort]]
+temp_plot_df <- predict_day_mae_df_lst[[current_cohort]]
 temp_plot_df$method <- factor(temp_plot_df$method,
                               levels = c("mmhp","dsnl","m1","m2","m3"),
                               labels = c("I-MMHP","DSNL","C-HP","C-DCHP","C-MMHP"))
@@ -2347,7 +2347,8 @@ temp_plot_df$day <- factor(temp_plot_df$day)
 #png(paste(plot_path,"real_predict_N_one_cohort.png",sep=""),
 # width=600,height=300)
 
-plot_cols_pred <- col_df %>% filter(method %in% levels(temp_plot_df$method)) %>%
+plot_cols_pred <- col_df %>% 
+  filter(method %in% levels(temp_plot_df$method)) %>%
    arrange(factor(method, levels = c("I-MMHP","DSNL",
                                      "C-HP", "C-DCHP", "C-MMHP"))) %>%
                     pull(cols)
@@ -2356,7 +2357,7 @@ p3 <- temp_plot_df %>%
   rowwise() %>%
   #mutate(norm = min(norm,60)) %>%
   # rename(Method = method) %>%
-  ggplot( aes(x = method, y = norm, fill = method)) +
+  ggplot( aes(x = method, y = mae, fill = method)) +
   geom_boxplot(alpha=0.7) +
   scale_fill_manual(values = plot_cols_pred) +
   ggtitle("(a)") +
@@ -2368,8 +2369,8 @@ p3 <- temp_plot_df %>%
         legend.position="right") +
   facet_grid(cols=vars(day)) +
   xlab("Prediction horizon (day)") + 
-  ylab("Frobenius norm of error") +
-  ylim(0, 100) + # aren't infinite but >150 and <200
+  ylab("MAE") +
+  ylim(0, 8) + # aren't infinite but >150 and <200
   NULL
 p3 + labs(fill = "Method")
 ```
@@ -2381,7 +2382,7 @@ load("../output/plot_N_predict.RData")
 # 3 looks nice
 
 
-temp_plot_df <- predict_day_norm_df_lst[[current_cohort]]
+temp_plot_df <- predict_day_mae_df_lst[[current_cohort]]
 temp_plot_df$method <- factor(temp_plot_df$method,
                               levels = c("mmhp","dsnl","m1","m2","m3"),
                               labels = c("I-MMHP","DSNL","C-HP","C-DCHP","C-MMHP"))
@@ -2392,7 +2393,7 @@ p3_slides <- temp_plot_df %>%
   filter(method != "I-MMHP") %>%
   rowwise() %>%
   #mutate(norm = min(norm,100)) %>%
-  ggplot( aes(x = method, y = norm, fill = method)) +
+  ggplot( aes(x = method, y = mae, fill = method)) +
   geom_boxplot(alpha=0.7) +
   scale_fill_manual(values = plot_cols_pred) +
   #ggtitle("(a)") +
@@ -2405,7 +2406,7 @@ p3_slides <- temp_plot_df %>%
   facet_grid(cols=vars(day)) +
   xlab("Prediction horizon (day)") + 
   ylab("Frobenius norm of error") +
-  ylim(0, 80) +
+  ylim(0, 10) +
   NULL
 p3_slides
 ```
@@ -2875,7 +2876,7 @@ par(mar=c(3,5,3,1))
 cx <- 1.75  # cex for axis label text; 
 # default is 1. bigger numbers make the text bigger, smaller, smaller.  
 x.ttl <- ""; # blank x-axis label  
-y.ttl <- "rank corr. (expert rank)";  
+y.ttl <- "rank corr. (Glicko rank)";  
 ttl <- "(b)";  
 #y.lim <- c(min(data.tbl$data.value), max(data.tbl$data.value)+.5);
 # y-axis limits. +2 at top to give room for legend  

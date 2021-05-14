@@ -7,6 +7,7 @@ source("/rigel/stats/users/ogw2103/code/MMHP/MMHP_Latent/run_scripts/cluster_set
 data_path <- "output/revisions/"
 
 library(rstan)
+library(R.utils)
 # library(compete)
 options(mc.cores = parallel::detectCores())
 rstan_options(auto_write = TRUE)
@@ -50,10 +51,10 @@ object_fn <- list(alpha.fun = function(x,y,eta1,eta2){
 
 object_par <- list(sim_lambda_1 = 0.2,
                    sim_eta_1 = 2.5,
-                   gamma_var = runif(n = num_nodes, min = 0.01, max = 0.12),
-                   zeta_var = runif(n = num_nodes, min = 0.01, max = 0.12),
+                   gamma_var = runif(n = num_nodes, min = 0.01, max = 0.05),
+                   zeta_var = runif(n = num_nodes, min = 0.01, max = 0.05),
                    sim_eta_2 = 0.6,
-                   sim_eta_3 = 5,
+                   sim_eta_3 = 3,
                    sim_beta = 1.5,
                    f_vec_1 = seq(from = 0.05, to = 0.95,
                                  length.out = num_nodes))
