@@ -174,9 +174,11 @@ save(true_mmhp, mean_fit,
      file = paste(data_path,"sim_model3_fit_immhp_",
                   sim_id,
                   ".RData",sep=''))
+true_mmhp
 
-### not sure if stuff below here will work
+cat("=========\n")
 
+mean_fit
 
 #### Interpolate the Latent States ####
 
