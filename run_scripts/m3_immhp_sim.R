@@ -9,6 +9,7 @@ data_path <- "output/revisions/"
 # library(rstan)
 library(cmdstanr)
 library(R.utils)
+library(ppdiag)
 # library(compete)
 options(mc.cores = parallel::detectCores())
 # rstan_options(auto_write = TRUE)
@@ -168,9 +169,17 @@ mean_fit <- list(lambda1 = mean(post_draws$`lambda1[1]`),
                  q1 = mean(post_draws$`q1[1]`),
                  q2 = mean(post_draws$`q2[1]`))
 
+#### PPDiag Output
+mean_fit$Q <- matrix(c(-mean_fit$q1, mean_fit$q1, mean_fit$q2, -mean_fit$q2),
+                     nrow = 2, ncol = 2, byrow = TRUE)
+class(mean_fit) <- "mmhp"
+(resid <- pp_residual(object = mean_fit, events = time_vec, end = obs_time) )
+
 ## Save the output
 save(true_mmhp, mean_fit,
-     sim_model_immhp_stan_fit, sim_model_stan_sim_immhp,
+     resid, i_ind, j_ind,
+     sim_model_immhp_stan_fit,
+     sim_model_stan_sim_immhp,
      file = paste(data_path,"sim_model3_fit_immhp_",
                   sim_id,
                   ".RData",sep=''))
@@ -179,6 +188,7 @@ true_mmhp
 cat("=========\n")
 
 mean_fit
+
 
 #### Interpolate the Latent States ####
 
@@ -212,4 +222,5 @@ save(event_state_est_lst, interpolate_state_est_lst,
                   "indep_mmhp_state_est_",
                   sim_id,
                   ".RData", sep=''))
+
 
