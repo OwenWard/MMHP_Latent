@@ -170,7 +170,7 @@ mean_fit <- list(lambda1 = mean(post_draws$`lambda1[1]`),
 
 ## Save the output
 save(true_mmhp, mean_fit,
-     sim_model_immhp_stan_fit, sim_model_stan_sim3_immhp,
+     sim_model_immhp_stan_fit, sim_model_stan_sim_immhp,
      file = paste(data_path,"sim_model3_fit_immhp_",
                   sim_id,
                   ".RData",sep=''))
