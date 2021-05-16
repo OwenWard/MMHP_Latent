@@ -2,7 +2,7 @@
 ### Simulate Data from Model 3 and fit I-MMHP to each Pair
 
 #### if running on cluster ####
-source("/rigel/stats/users/ogw2103/code/MMHP/MMHP_Latent/run_scripts/cluster_setup.R")
+source("/moto/stats/users/ogw2103/Code/MMHP_Latent/run_scripts/cluster_setup.R")
 
 data_path <- "output/revisions/"
 
