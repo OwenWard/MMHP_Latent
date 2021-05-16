@@ -87,123 +87,123 @@ object_matrix <- list(lambda0_matrix=outer(object_par$gamma_var,
 
 ## Simulate
 # sim_model3_data <- list()
-N_array <- array(0, c(1, num_nodes, num_nodes))
-# for(i in c(1:n_sim)){
-sim_model3_data <- simulateLatentMMHP(lambda0_matrix = object_matrix$lambda0_matrix,
-                                      lambda1_matrix = object_matrix$lambda1_matrix,
-                                      alpha_matrix = object_matrix$alpha_matrix,
-                                      beta_matrix = object_matrix$beta_matrix,
-                                      q1_matrix = object_matrix$q1_matrix,
-                                      q2_matrix = object_matrix$q2_matrix,
-                                      horizon = obs_time)
-clean_sim_data <- cleanSimulationData(raw_data = sim_model3_data, 
-                                      cut_off = cut_off,
-                                      N = length(object_par$f_vec_1))
-N_array <- clean_sim_data$N_count
-# }
-# apply(N_array,c(2,3),mean)
-
-dir.create(data_path, recursive = TRUE, showWarnings = FALSE)
-save(object_fn, object_par, 
-     object_matrix, sim_model3_data, 
-     file = paste(data_path,"sim_model3_immhp_", ".RData", sep=''))
+# N_array <- array(0, c(1, num_nodes, num_nodes))
+# # for(i in c(1:n_sim)){
+# sim_model3_data <- simulateLatentMMHP(lambda0_matrix = object_matrix$lambda0_matrix,
+#                                       lambda1_matrix = object_matrix$lambda1_matrix,
+#                                       alpha_matrix = object_matrix$alpha_matrix,
+#                                       beta_matrix = object_matrix$beta_matrix,
+#                                       q1_matrix = object_matrix$q1_matrix,
+#                                       q2_matrix = object_matrix$q2_matrix,
+#                                       horizon = obs_time)
+# clean_sim_data <- cleanSimulationData(raw_data = sim_model3_data, 
+#                                       cut_off = cut_off,
+#                                       N = length(object_par$f_vec_1))
+# N_array <- clean_sim_data$N_count
+# # }
+# # apply(N_array,c(2,3),mean)
+# 
+# dir.create(data_path, recursive = TRUE, showWarnings = FALSE)
+# save(object_fn, object_par, 
+#      object_matrix, sim_model3_data, 
+#      file = paste(data_path,"sim_model3_immhp_", ".RData", sep=''))
 
 
 ##### comment out above for fitting ####
 ### Fit each model to simulated data ####
 
-# load(paste(data_path, "sim_model3_immhp_", ".RData", sep = ''))
-# 
-# 
-# sim_model_immhp_stan_fit <- list()
-# time_vec <- clean_sim_data$event_matrix[sim_id, ]
-# time_vec <- time_vec[time_vec > 0]
-# diff_times <- diff(c(0, time_vec, obs_time))
-# a = as.matrix(diff_times, nrow = 1, ncol = length(diff_times))
-# 
-# immhp_model <- cmdstan_model("lib/mmhp_single.stan")
-# 
-# 
-# print("I-mmhp")
-# ## Fit in model 3
-# start_time <- Sys.time()
-# sim_model_immhp_stan_fit <- immhp_model$sample(data = list(N_til = 1,
-#                                                 max_Nm = length(time_vec),
-#                                                 Nm = as.array(length(time_vec)),
-#                                                 time_matrix= t(a),
-#                                                 max_interevent =
-#                                                 as.array(max(diff_times))),
-#                                            chains = 4, thin = 5,
-#                                            iter_sampling = 2500,
-#                                            refresh = 500,
-#                                            adapt_delta = 0.9)
-# immhp_time <- Sys.time() - start_time
-# sim_model_immhp_stan_fit$summary()
-# 
-# 
-# sim_model_stan_sim_immhp <- sim_model_immhp_stan_fit$draws()
-# post_draws <- posterior::as_draws_df(sim_model_stan_sim_immhp)
-# 
-# # }
-# 
-# ### save true parameters also
-# i_ind <- clean_sim_data$I_fit[sim_id]
-# j_ind <- clean_sim_data$J_fit[sim_id]
-# 
-# true_mmhp <- list(lambda1 = object_matrix$lambda1_matrix[i_ind, j_ind],
-#                   lambda0 = object_matrix$lambda0_matrix[i_ind, j_ind],
-#                   alpha = object_matrix$alpha_matrix[i_ind, j_ind],
-#                   beta = object_matrix$beta_matrix[i_ind, j_ind],
-#                   q1 = object_matrix$q1_matrix[i_ind, j_ind],
-#                   q2 = object_matrix$q2_matrix[i_ind, j_ind])
-# 
-# mean_fit <- list(lambda1 = mean(post_draws$`lambda1[1]`),
-#                  lambda0 = mean(post_draws$`lambda0[1]`),
-#                  alpha = mean(post_draws$`alpha[1]`),
-#                  beta = mean(post_draws$beta),
-#                  q1 = mean(post_draws$`q1[1]`),
-#                  q2 = mean(post_draws$`q2[1]`))
-# 
-# ## Save the output
-# save(true_mmhp, mean_fit,
-#      sim_model_immhp_stan_fit, sim_model_stan_sim3_immhp,
-#      file = paste(data_path,"sim_model3_fit_immhp_",
-#                   sim_id,
-#                   ".RData",sep=''))
-# 
-# ### not sure if stuff below here will work
-# 
-# 
-# #### Interpolate the Latent States ####
-# 
-# event_state_est_lst <- list()
-# interpolate_state_est_lst <- list()
-# 
-# mmhp_par_est <- mean_fit
-# 
-# # delta_vec <- c(mean(sim_model_stan_sim_immhp$delta_1), 
-# #                1- mean(sim_model_stan_sim_immhp$delta_1))
-# 
-# 
-# 
-# viterbi_result <- myViterbi(events = time_vec,
-#                             param = mmhp_par_est,
-#                             termination = obs_time)
-# latent_inter <- interpolateLatentTrajectory(mmhp_par_est,
-#                                             time_vec,
-#                                             viterbi_result$zt_v,
-#                                             initial.state = 
-#                                               viterbi_result$initial_state,
-#                                             termination.time = obs_time,
-#                                             termination.state = 
-#                                               viterbi_result$termination_state)
-# event_state_est_lst <- viterbi_result
-# interpolate_state_est_lst <- latent_inter
-# 
-# 
-# save(event_state_est_lst, interpolate_state_est_lst,
-#      file = paste(data_path,
-#                   "indep_mmhp_state_est_",
-#                   sim_id,
-#                   ".RData", sep=''))
-# 
+load(paste(data_path, "sim_model3_immhp_", ".RData", sep = ''))
+
+
+sim_model_immhp_stan_fit <- list()
+time_vec <- clean_sim_data$event_matrix[sim_id, ]
+time_vec <- time_vec[time_vec > 0]
+diff_times <- diff(c(0, time_vec, obs_time))
+a = as.matrix(diff_times, nrow = 1, ncol = length(diff_times))
+
+immhp_model <- cmdstan_model("lib/mmhp_single.stan")
+
+
+print("I-mmhp")
+## Fit in model 3
+start_time <- Sys.time()
+sim_model_immhp_stan_fit <- immhp_model$sample(data = list(N_til = 1,
+                                                max_Nm = length(time_vec),
+                                                Nm = as.array(length(time_vec)),
+                                                time_matrix= t(a),
+                                                max_interevent =
+                                                as.array(max(diff_times))),
+                                           chains = 4, thin = 5,
+                                           iter_sampling = 2500,
+                                           refresh = 500,
+                                           adapt_delta = 0.9)
+immhp_time <- Sys.time() - start_time
+sim_model_immhp_stan_fit$summary()
+
+
+sim_model_stan_sim_immhp <- sim_model_immhp_stan_fit$draws()
+post_draws <- posterior::as_draws_df(sim_model_stan_sim_immhp)
+
+# }
+
+### save true parameters also
+i_ind <- clean_sim_data$I_fit[sim_id]
+j_ind <- clean_sim_data$J_fit[sim_id]
+
+true_mmhp <- list(lambda1 = object_matrix$lambda1_matrix[i_ind, j_ind],
+                  lambda0 = object_matrix$lambda0_matrix[i_ind, j_ind],
+                  alpha = object_matrix$alpha_matrix[i_ind, j_ind],
+                  beta = object_matrix$beta_matrix[i_ind, j_ind],
+                  q1 = object_matrix$q1_matrix[i_ind, j_ind],
+                  q2 = object_matrix$q2_matrix[i_ind, j_ind])
+
+mean_fit <- list(lambda1 = mean(post_draws$`lambda1[1]`),
+                 lambda0 = mean(post_draws$`lambda0[1]`),
+                 alpha = mean(post_draws$`alpha[1]`),
+                 beta = mean(post_draws$beta),
+                 q1 = mean(post_draws$`q1[1]`),
+                 q2 = mean(post_draws$`q2[1]`))
+
+## Save the output
+save(true_mmhp, mean_fit,
+     sim_model_immhp_stan_fit, sim_model_stan_sim3_immhp,
+     file = paste(data_path,"sim_model3_fit_immhp_",
+                  sim_id,
+                  ".RData",sep=''))
+
+### not sure if stuff below here will work
+
+
+#### Interpolate the Latent States ####
+
+event_state_est_lst <- list()
+interpolate_state_est_lst <- list()
+
+mmhp_par_est <- mean_fit
+
+# delta_vec <- c(mean(sim_model_stan_sim_immhp$delta_1),
+#                1- mean(sim_model_stan_sim_immhp$delta_1))
+
+
+
+viterbi_result <- myViterbi(events = time_vec,
+                            param = mmhp_par_est,
+                            termination = obs_time)
+latent_inter <- interpolateLatentTrajectory(mmhp_par_est,
+                                            time_vec,
+                                            viterbi_result$zt_v,
+                                            initial.state =
+                                              viterbi_result$initial_state,
+                                            termination.time = obs_time,
+                                            termination.state =
+                                              viterbi_result$termination_state)
+event_state_est_lst <- viterbi_result
+interpolate_state_est_lst <- latent_inter
+
+
+save(event_state_est_lst, interpolate_state_est_lst,
+     file = paste(data_path,
+                  "indep_mmhp_state_est_",
+                  sim_id,
+                  ".RData", sep=''))
+
