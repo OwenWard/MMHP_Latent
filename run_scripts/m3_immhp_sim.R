@@ -114,6 +114,10 @@ object_matrix <- list(lambda0_matrix=outer(object_par$gamma_var,
 
 load(paste(data_path, "sim_model3_immhp_", ".RData", sep = ''))
 
+clean_sim_data <- cleanSimulationData(raw_data = sim_model3_data, 
+                                      cut_off = cut_off,
+                                      N = length(object_par$f_vec_1))
+
 
 sim_model_immhp_stan_fit <- list()
 time_vec <- clean_sim_data$event_matrix[sim_id, ]
