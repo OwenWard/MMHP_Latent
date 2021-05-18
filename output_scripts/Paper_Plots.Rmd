@@ -71,8 +71,10 @@ fit_cohorts <- c(1:10)
 naive_rank_10 <- list()
 expert_rank_10 <- list()
 out <- captureOutput(for(curr_cohort in fit_cohorts){
-  naive_rank_10[[curr_cohort]] <- naiveRankHierarchy(full_data[[cohort_names[curr_cohort]]])
-  expert_rank_10[[curr_cohort]] <- expertRankHierarchy(full_data[[cohort_names[curr_cohort]]])
+  naive_rank_10[[curr_cohort]] <-
+    naiveRankHierarchy(full_data[[cohort_names[curr_cohort]]])
+  expert_rank_10[[curr_cohort]] <-
+    expertRankHierarchy(full_data[[cohort_names[curr_cohort]]])
 })
 
 
@@ -258,7 +260,8 @@ image(1, col_obj$x.vec,
 axis(4, at=c(0,0.3,0.6), labels=c(0,0.3,0.6), las= HORIZONTAL<-1,
      cex.axis=2.4)
 
-mtext(text=expert_rank_10[[current_cohort]], side=1, line=1.8, outer=TRUE, cex=1.8,
+mtext(text=expert_rank_10[[current_cohort]],
+      side = 1, line = 1.8, outer = TRUE, cex = 1.8,
       at=1/14*c(1:12)-1/22)
 mtext(text = expert_rank_10[[current_cohort]],
       side = 2, line = 0.5, outer = TRUE, cex = 1.8,
@@ -445,14 +448,21 @@ for(m in c(1:3)){
     }
   }
   ## bottom
-  mtext(text=expression(f[1],f[2],f[3],f[4],f[5]), side=1, line=2.4, outer=TRUE, 
-        at=c(1:length(object_par$f_vec_1))/length(object_par$f_vec_1)-0.1,
-        cex=2)
-  mtext(text="Latent rank variables", side=1, line=5.3, outer=TRUE, cex=2.25,
-        at=0.5)
+  mtext(text = expression(f[1],f[2],f[3],f[4],f[5]), 
+        side = 1, line = 2.4, outer = TRUE, 
+        at = c(1:length(object_par$f_vec_1))/length(object_par$f_vec_1)-0.1,
+        cex = 2)
+  mtext(text = "Latent rank variables", side = 1,
+        line = 5.3,
+        outer = TRUE,
+        cex = 2.25,
+        at = 0.5)
   ## top
-  mtext(text="(a)", side=3, line=0, outer=TRUE, cex=2.5,
-        at=0.5, font=2)
+  mtext(text = "(a)", side = 3,
+        line = 0, 
+        outer = TRUE,
+        cex = 2.5,
+        at = 0.5, font = 2)
   ## left
   mtext(text=rev(c("C-HP  ","C-DCHP","C-MMHP")), side=2, line=0.5, outer=TRUE, 
         at=c(0:2)/3+0.15,
@@ -553,9 +563,12 @@ time.segment <- seq(0, tail(temp.t,1), length.out = 5000)
 ## model 1
 #########
 model1_par_est <- list(lambda0 = mean(sim_model3_stan_sim1_total[[plot.s]]$lambda0),
-                       eta_1 = mean(sim_model3_stan_sim1_total[[plot.s]]$eta_1),
-                       eta_2 = mean(sim_model3_stan_sim1_total[[plot.s]]$eta_2),
-                       eta_3 = mean(sim_model3_stan_sim1_total[[plot.s]]$eta_3),
+                       eta_1 =
+                         mean(sim_model3_stan_sim1_total[[plot.s]]$eta_1),
+                       eta_2 =
+                         mean(sim_model3_stan_sim1_total[[plot.s]]$eta_2),
+                       eta_3 =
+                         mean(sim_model3_stan_sim1_total[[plot.s]]$eta_3),
                        beta = mean(sim_model3_stan_sim1_total[[plot.s]]$beta),
                        f = apply(sim_model3_stan_sim1_total[[plot.s]]$f, 2, mean))
 lambda.m1<-uniHawkesIntensityNumeric(object = list(lambda0 = 
