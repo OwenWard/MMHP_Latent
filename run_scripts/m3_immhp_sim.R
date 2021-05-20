@@ -241,8 +241,8 @@ data_list <- list(max_Nm=max(clean_sim_data$N_count),
 sim_cmmhp_stan_fit <- cmmhp_model$sample(data = data_list,
                                          chains = 4, thin = 5,
                                          iter_sampling = 2500,
-                                         refresh = 500,
-                                         adapt_delta = 0.9)
+                                         refresh = 100,
+                                         adapt_delta = 0.8)
 
 sim_model_stan_cmmhp <- sim_cmmhp_stan_fit$draws()
 post_draws <- posterior::as_draws_df(sim_model_stan_cmmhp)
