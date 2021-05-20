@@ -168,6 +168,39 @@ pp_residual(obj, events, end = obs_time)
 # can't plot the mmhp unless you infer the latent process
 ### can use viterbi and such for now
 
+obj$q1 <- q1
+obj$q2 <- q2
+
+ viterbi_result <- myViterbi(events = events, 
+                             param = obj,
+                             termination = obs_time)
+
+latent_inter <- interpolateLatentTrajectory(obj, 
+                                            events,
+                                            viterbi_result$zt_v,
+                                            initial.state =
+                                                 viterbi_result$initial_state,
+                                            termination.time = obs_time,
+                                            termination.state =
+                                              viterbi_result$termination_state)
+ 
+
+event_state <- ppdiag:::mmhp_event_state(params = obj, events = events)
+
+latent_state <- ppdiag:::interpolate_mmhp_latent(params = obj, events,
+                                                 zt = event_state$zt)
+
+mmhp_latent <- list()
+mmhp_latent$start <- 0
+mmhp_latent$end <- obs_time
+mmhp_latent$x <- c(0,latent_state$x.hat, obs_time)
+mmhp_latent$z <- c(viterbi_result$initial_state, latent_state$z.hat)
+mmhp_latent$events <- c(0, events)
+mmhp_latent$zt <- c(1, event_state$zt)
+ppdiag::drawUniMMHPIntensity(obj, mmhp_latent)
+
+# this plot is not correct for later Hawkes states...
+
 ```
 
 ```{r ranking_sim_data}
@@ -175,7 +208,7 @@ pp_residual(obj, events, end = obs_time)
 count_data_dc <- get_wl_matrix(df = cbind(clean_sim_data$start,
                                           clean_sim_data$end))
 isi_dc.out <- compete::isi98(m = count_data_dc, random = TRUE)
-isi_dc.out$best_order
+as.numeric(isi_dc.out$best_order) # from highest to lowest
 
 ### agg rank method
 agg_rank_data <- clean_sim_data$N_count
@@ -189,7 +222,7 @@ agg_rank_fit <- rstan::sampling(agg_rank_model,
 agg_sims <- rstan::extract(agg_rank_fit)
 
 agg_rank <- order(apply(agg_sims$x, 2, mean))
-agg_rank
+rev(agg_rank) # from highest to lowest
 
 ### then glicko
 glicko_data <- tibble(start = clean_sim_data$start,
@@ -205,7 +238,7 @@ gl_train <- my_glicko(glicko_data, history=TRUE, cval=2)
 gl_train
 
 gl_ranks <- order(gl_train$ratings$Rating)
-gl_ranks
+gl_ranks #highest to lowest
 ```
 
 
@@ -214,7 +247,10 @@ best picked up by the I&SI method.
 
 
 Similarly, we can confirm we get sensible fits by fitting the individual
-MMHP model to each pair and showing the residuals.
+MMHP model to each pair and showing the residuals. This
+is consistent with what we see for real data, where the
+residual matrices show overall small positive values, indicating
+underestimation when we fit individual models.
 
 ```{r residuals-immhp-sim}
 pr_matrix <- readRDS(here("output", "revisions", "pr_matrix_immhp.RDS"))
@@ -243,5 +279,27 @@ myMultiMatrixPlot(X = matrix_lst_plot,
                   col_axis = c(-30,-15,0,15,30), 
                   fake_matrix = TRUE,
                   matrix.mar = c(2.5,2.5,2.5,1) )
+
+```
+
+
+
+## Explaining the g function
+
+```{r plot_g}
+alpha.fun <- function(x,y,eta1,eta2)
+  {
+   return( eta1 * x * y *exp(-eta2 * abs(x - y) ) )
+  }
+
+f_vec <- c(0.1, 0.2, 0.4, 0.8, 0.9)
+
+eta1 <- 6.6
+eta2 <- 0.37
+
+
+crossing(send = f_vec, rec = f_vec) %>% 
+  filter(send != rec) %>% 
+  mutate(alpha = alpha.fun(send, rec, eta1, eta2))
 
 ```
