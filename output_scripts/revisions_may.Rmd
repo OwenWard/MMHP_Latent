@@ -1,0 +1,305 @@
+---
+title: "Comments on Latent Ranking"
+author: "Owen G. Ward"
+date: '`r Sys.Date()`'
+output: 
+  html_document:
+    toc: true
+    toc_depth: 2
+    toc_float: true
+    number_sections: FALSE
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, 
+                      # fig.path = "paper_figure/",
+                      # dev = 'png',
+                      # fig.height = 4.5,
+                      # fig.width = 7,
+                      warning = FALSE)
+
+current_cohort <- 5
+
+# don't write to this path
+data_path <- "../output/"
+
+func_dir <- "../lib/"
+
+library(here)
+library(rstan)
+library(ppdiag)
+Sys.setenv(LOCAL_CPPFLAGS = '-march=corei7 -mtune=corei7')
+options(mc.cores = parallel::detectCores())
+library(tidyverse)
+library(R.utils)
+library(RColorBrewer)
+library(fields)
+library(bayesplot)
+library(viridis)
+library(here)
+library(compete)
+library(colorspace)
+source(paste(func_dir,'naiveRankHierarchy.R',sep = ""))
+source(paste(func_dir,'expertRankHierarchy.R',sep = ""))
+source(paste(func_dir,'cleanData.R',sep = "")) 
+source(paste(func_dir,'prepareDataStan.R',sep = "")) 
+source(paste(func_dir,'inferLatentMmhp.R',sep = ""))
+source(paste(func_dir,'plotUtil.R',sep = "")) 
+source(paste(func_dir,'mmhp.R',sep = ""))
+source(paste(func_dir,'uniHawkes.R',sep = ""))
+source(paste(func_dir,'simulatePrediction.R',sep = ""))
+source(paste(func_dir,'myGlicko.R',sep = ""))
+source(paste(func_dir,'matrixPlotParameter.R',sep = ""))
+source(paste(func_dir,'residualStructureScore.R',sep = ""))
+source(paste(func_dir,'drawIntensity.R',sep =""))
+source("https://gist.githubusercontent.com/jalapic/6ca3ece44bdcdc522bb735f183aa0ca0/raw/1a07f469eff08117121b6cbebcd22fb7569e3ee8/compete_extra.R")
+```
+
+## Run some longer/larger simulations
+
+We can replace the simulation example with 5 nodes to one with
+20 nodes.
+
+```{r simulate_20_nodes}
+num_nodes <- 20
+cut_off <- 3
+obs_time <- 200
+
+model1_fn <- list(alpha.fun = function(x, y, eta1, eta2, eta3){
+  return(eta1 * x * y * exp(-eta2 * abs(x-y))/(1 + exp(-eta3 *(x-y))))})
+
+model3_fn <- list(alpha.fun = function(x, y, eta1, eta2){
+  return(eta1*x*y*exp(-eta2*abs(x-y)))},
+  q1.fun = function(x,y,eta3){return(exp(-eta3*x))},
+  q0.fun = function(x,y,eta3){return(exp(-eta3*y))})
+
+
+#### Save the simulation parameters ####
+
+object_fn <- list(alpha.fun = function(x,y,eta1,eta2){
+  return(eta1*x*y*exp(-eta2*abs(x-y)))},
+  q1.fun = function(x,y,eta3){return(exp(-eta3*x))},
+  q0.fun = function(x,y,eta3){return(exp(-eta3*y))})
+
+object_par <- list(sim_lambda_1 = 0.2,
+                   sim_eta_1 = 1.5, # this has to be < beta
+                   gamma_var = runif(n = num_nodes, min = 0.01, max = 0.05),
+                   zeta_var = runif(n = num_nodes, min = 0.01, max = 0.05),
+                   sim_eta_2 = 0.6,
+                   sim_eta_3 = 3,
+                   sim_beta = 2,
+                   f_vec_1 = seq(from = 0.05, to = 0.95,
+                                 length.out = num_nodes))
+
+object_matrix <- list(lambda0_matrix=outer(object_par$gamma_var,
+                                           object_par$zeta_var, "+"),
+                      lambda1_matrix=matrix(object_par$sim_lambda_1,
+                                            nrow=length(object_par$f_vec_1),
+                                            ncol=length(object_par$f_vec_1)),
+                      alpha_matrix=formMatrix(function(x,y)
+                        object_fn$alpha.fun(x,y,object_par$sim_eta_1,
+                                            object_par$sim_eta_2),
+                        object_par$f_vec_1),
+                      beta_matrix=matrix(object_par$sim_beta,
+                                         nrow=length(object_par$f_vec_1),
+                                         ncol=length(object_par$f_vec_1)),
+                      q1_matrix=formMatrix(function(x,y)
+                        object_fn$q1.fun(x, y,
+                                         object_par$sim_eta_3),
+                        object_par$f_vec_1),
+                      q2_matrix=formMatrix(function(x,y)
+                        object_fn$q0.fun(x, y,
+                                         object_par$sim_eta_3),
+                        object_par$f_vec_1))
+
+
+## Simulate
+sim_model3_data <- list()
+N_array <- array(0, c(1, num_nodes, num_nodes))
+# for(i in c(1:n_sim)){
+sim_model3_data <- simulateLatentMMHP(lambda0_matrix =
+                                        object_matrix$lambda0_matrix,
+                                      lambda1_matrix =
+                                        object_matrix$lambda1_matrix,
+                                      alpha_matrix = object_matrix$alpha_matrix,
+                                      beta_matrix = object_matrix$beta_matrix,
+                                      q1_matrix = object_matrix$q1_matrix,
+                                      q2_matrix = object_matrix$q2_matrix,
+                                      horizon = obs_time)
+clean_sim_data <- cleanSimulationData(raw_data = sim_model3_data,
+                                      cut_off = cut_off,
+                                      N = length(object_par$f_vec_1))
+N_array <- clean_sim_data$N_count
+
+```
+
+
+We wish to confirm that this simulation study actually results
+in sensible, such as whether the I&SI is consistent with
+the true latent rankings.
+
+
+We can also plot the MMHP fit for a single pair using `ppdiag`.
+
+```{r plot_pair}
+start <- 20
+end <- 10
+
+poss_start <- which(clean_sim_data$I_fit == start)
+poss_end <- which(clean_sim_data$J_fit == end)
+
+pair_id <- intersect(poss_start, poss_end)
+
+events <- clean_sim_data$event_matrix[pair_id, ]
+events <- events[events > 0]
+
+q1 <- object_matrix$q1_matrix[start, end]
+q2 <- object_matrix$q2_matrix[start, end]
+
+obj <- pp_mmhp(lambda0 = object_matrix$lambda0_matrix[start, end],
+        lambda1 = object_matrix$lambda1_matrix[start, end],
+        alpha = object_matrix$alpha_matrix[start, end],
+        beta = object_matrix$beta_matrix[start, end],
+        Q = matrix(c(-q1, q1, q2, -q2), nrow = 2, ncol = 2, byrow = TRUE))
+
+pp_residual(obj, events, end = obs_time)
+
+# can't plot the mmhp unless you infer the latent process
+### can use viterbi and such for now
+
+obj$q1 <- q1
+obj$q2 <- q2
+
+ viterbi_result <- myViterbi(events = events, 
+                             param = obj,
+                             termination = obs_time)
+
+latent_inter <- interpolateLatentTrajectory(obj, 
+                                            events,
+                                            viterbi_result$zt_v,
+                                            initial.state =
+                                                 viterbi_result$initial_state,
+                                            termination.time = obs_time,
+                                            termination.state =
+                                              viterbi_result$termination_state)
+ 
+
+event_state <- ppdiag:::mmhp_event_state(params = obj, events = events)
+
+latent_state <- ppdiag:::interpolate_mmhp_latent(params = obj, events,
+                                                 zt = event_state$zt)
+
+mmhp_latent <- list()
+mmhp_latent$start <- 0
+mmhp_latent$end <- obs_time
+mmhp_latent$x <- c(0,latent_state$x.hat, obs_time)
+mmhp_latent$z <- c(viterbi_result$initial_state, latent_state$z.hat)
+mmhp_latent$events <- c(0, events)
+mmhp_latent$zt <- c(1, event_state$zt)
+ppdiag::drawUniMMHPIntensity(obj, mmhp_latent)
+
+# this plot is not correct for later Hawkes states...
+
+```
+
+```{r ranking_sim_data}
+### i&si method
+count_data_dc <- get_wl_matrix(df = cbind(clean_sim_data$start,
+                                          clean_sim_data$end))
+isi_dc.out <- compete::isi98(m = count_data_dc, random = TRUE)
+as.numeric(isi_dc.out$best_order) # from highest to lowest
+
+### agg rank method
+agg_rank_data <- clean_sim_data$N_count
+agg_rank_model <- stan_model(here("lib","latent_rank_agg_sim.stan"))
+
+agg_rank_fit <- rstan::sampling(agg_rank_model,
+                                data = list(n = num_nodes,
+                                            n_matrix = agg_rank_data),
+                                iter = 1000,
+                                chains = 4)
+agg_sims <- rstan::extract(agg_rank_fit)
+
+agg_rank <- order(apply(agg_sims$x, 2, mean))
+rev(agg_rank) # from highest to lowest
+
+### then glicko
+glicko_data <- tibble(start = clean_sim_data$start,
+                      end = clean_sim_data$end)
+
+glicko_data <- glicko_data %>%
+  mutate(id = row_number(), score = 1) %>%
+  select(id, start, end, score)
+
+library(PlayerRatings)
+gl_train <- my_glicko(glicko_data, history=TRUE, cval=2)
+
+gl_train
+
+gl_ranks <- order(gl_train$ratings$Rating)
+gl_ranks #highest to lowest
+```
+
+
+So there is some structure in this data here that is perhaps 
+best picked up by the I&SI method.
+
+
+Similarly, we can confirm we get sensible fits by fitting the individual
+MMHP model to each pair and showing the residuals. This
+is consistent with what we see for real data, where the
+residual matrices show overall small positive values, indicating
+underestimation when we fit individual models.
+
+```{r residuals-immhp-sim}
+pr_matrix <- readRDS(here("output", "revisions", "pr_matrix_immhp.RDS"))
+rr_matrix <- readRDS(here("output", "revisions", "rr_matrix_immhp.RDS"))
+# image(pr_matrix)
+
+matrix_lst_plot <- list()
+matrix_lst_plot[[1]] <- rr_matrix
+matrix_lst_plot[[2]] <- pr_matrix
+
+
+myMultiMatrixPlot(X = matrix_lst_plot,
+                  no_matrix = 2,
+                  n_row = 1,
+                  xLabels = 1:20,
+                  yLabels = 20:1,
+                  min = -30,
+                  max = 30,
+                  axis_cex = 2,
+                  title_cex = 1.8,
+                  colorPalette = "RdBu",
+                  if.emp = FALSE,
+                  #legend.mar=c(0.5,.5,0.5,0.5),
+                  title_lst = list("Raw","Pearson"), 
+                  #title_lst = list("I-MMHP"),
+                  col_axis = c(-30,-15,0,15,30), 
+                  fake_matrix = TRUE,
+                  matrix.mar = c(2.5,2.5,2.5,1) )
+
+```
+
+
+
+## Explaining the g function
+
+```{r plot_g}
+alpha.fun <- function(x,y,eta1,eta2)
+  {
+   return( eta1 * x * y *exp(-eta2 * abs(x - y) ) )
+  }
+
+f_vec <- c(0.1, 0.2, 0.4, 0.8, 0.9)
+
+eta1 <- 6.6
+eta2 <- 0.37
+
+
+crossing(send = f_vec, rec = f_vec) %>% 
+  filter(send != rec) %>% 
+  mutate(alpha = alpha.fun(send, rec, eta1, eta2))
+
+```

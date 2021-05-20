@@ -26,7 +26,9 @@ transformed parameters{
   real alpha_max;
   real beta;
   for(i in 1:N_til){
-    alpha[i] = exp(-eta_2*fabs(f[I_fit[i]]-f[J_fit[i]]))*f[I_fit[i]]*f[J_fit[i]]*eta_1/(1+exp(-eta_3*(f[I_fit[i]]-f[J_fit[i]])));
+    alpha[i] = exp(-eta_2*fabs(f[I_fit[i]]-f[J_fit[i]]))*
+    f[I_fit[i]]*f[J_fit[i]]*
+    eta_1/(1+exp(-eta_3*(f[I_fit[i]]-f[J_fit[i]])));
   }
   alpha_max = max(alpha);
   beta = alpha_max*(1 + beta_delta);

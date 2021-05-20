@@ -51,60 +51,60 @@ object_fn <- list(alpha.fun = function(x,y,eta1,eta2){
   q1.fun = function(x,y,eta3){return(exp(-eta3*x))},
   q0.fun = function(x,y,eta3){return(exp(-eta3*y))})
 
-# object_par <- list(sim_lambda_1 = 0.2,
-#                    sim_eta_1 = 1.5, # this has to be < beta
-#                    gamma_var = runif(n = num_nodes, min = 0.01, max = 0.05),
-#                    zeta_var = runif(n = num_nodes, min = 0.01, max = 0.05),
-#                    sim_eta_2 = 0.6,
-#                    sim_eta_3 = 3,
-#                    sim_beta = 2,
-#                    f_vec_1 = seq(from = 0.05, to = 0.95,
-#                                  length.out = num_nodes))
-# 
-# object_matrix <- list(lambda0_matrix=outer(object_par$gamma_var,
-#                                            object_par$zeta_var, "+"),
-#                       lambda1_matrix=matrix(object_par$sim_lambda_1,
-#                                             nrow=length(object_par$f_vec_1),
-#                                             ncol=length(object_par$f_vec_1)),
-#                       alpha_matrix=formMatrix(function(x,y)
-#                         object_fn$alpha.fun(x,y,object_par$sim_eta_1,
-#                                             object_par$sim_eta_2),
-#                         object_par$f_vec_1),
-#                       beta_matrix=matrix(object_par$sim_beta,
-#                                          nrow=length(object_par$f_vec_1),
-#                                          ncol=length(object_par$f_vec_1)),
-#                       q1_matrix=formMatrix(function(x,y) 
-#                         object_fn$q1.fun(x, y,
-#                                          object_par$sim_eta_3),
-#                         object_par$f_vec_1),
-#                       q2_matrix=formMatrix(function(x,y) 
-#                         object_fn$q0.fun(x, y, 
-#                                          object_par$sim_eta_3),
-#                         object_par$f_vec_1))
-# 
-# 
-# ## Simulate
-# sim_model3_data <- list()
-# N_array <- array(0, c(1, num_nodes, num_nodes))
-# # for(i in c(1:n_sim)){
-# sim_model3_data <- simulateLatentMMHP(lambda0_matrix = object_matrix$lambda0_matrix,
-#                                       lambda1_matrix = object_matrix$lambda1_matrix,
-#                                       alpha_matrix = object_matrix$alpha_matrix,
-#                                       beta_matrix = object_matrix$beta_matrix,
-#                                       q1_matrix = object_matrix$q1_matrix,
-#                                       q2_matrix = object_matrix$q2_matrix,
-#                                       horizon = obs_time)
-# clean_sim_data <- cleanSimulationData(raw_data = sim_model3_data,
-#                                       cut_off = cut_off,
-#                                       N = length(object_par$f_vec_1))
-# N_array <- clean_sim_data$N_count
-# # }
-# # apply(N_array,c(2,3),mean)
-# 
-# dir.create(data_path, recursive = TRUE, showWarnings = FALSE)
-# save(object_fn, object_par,
-#      object_matrix, sim_model3_data,
-#      file = paste(data_path,"sim_model3_immhp_", ".RData", sep=''))
+object_par <- list(sim_lambda_1 = 0.2,
+                   sim_eta_1 = 1.5, # this has to be < beta
+                   gamma_var = runif(n = num_nodes, min = 0.01, max = 0.05),
+                   zeta_var = runif(n = num_nodes, min = 0.01, max = 0.05),
+                   sim_eta_2 = 0.6,
+                   sim_eta_3 = 3,
+                   sim_beta = 2,
+                   f_vec_1 = seq(from = 0.05, to = 0.95,
+                                 length.out = num_nodes))
+
+object_matrix <- list(lambda0_matrix=outer(object_par$gamma_var,
+                                           object_par$zeta_var, "+"),
+                      lambda1_matrix=matrix(object_par$sim_lambda_1,
+                                            nrow=length(object_par$f_vec_1),
+                                            ncol=length(object_par$f_vec_1)),
+                      alpha_matrix=formMatrix(function(x,y)
+                        object_fn$alpha.fun(x,y,object_par$sim_eta_1,
+                                            object_par$sim_eta_2),
+                        object_par$f_vec_1),
+                      beta_matrix=matrix(object_par$sim_beta,
+                                         nrow=length(object_par$f_vec_1),
+                                         ncol=length(object_par$f_vec_1)),
+                      q1_matrix=formMatrix(function(x,y)
+                        object_fn$q1.fun(x, y,
+                                         object_par$sim_eta_3),
+                        object_par$f_vec_1),
+                      q2_matrix=formMatrix(function(x,y)
+                        object_fn$q0.fun(x, y,
+                                         object_par$sim_eta_3),
+                        object_par$f_vec_1))
+
+
+## Simulate
+sim_model3_data <- list()
+N_array <- array(0, c(1, num_nodes, num_nodes))
+# for(i in c(1:n_sim)){
+sim_model3_data <- simulateLatentMMHP(lambda0_matrix = object_matrix$lambda0_matrix,
+                                      lambda1_matrix = object_matrix$lambda1_matrix,
+                                      alpha_matrix = object_matrix$alpha_matrix,
+                                      beta_matrix = object_matrix$beta_matrix,
+                                      q1_matrix = object_matrix$q1_matrix,
+                                      q2_matrix = object_matrix$q2_matrix,
+                                      horizon = obs_time)
+clean_sim_data <- cleanSimulationData(raw_data = sim_model3_data,
+                                      cut_off = cut_off,
+                                      N = length(object_par$f_vec_1))
+N_array <- clean_sim_data$N_count
+# }
+# apply(N_array,c(2,3),mean)
+
+dir.create(data_path, recursive = TRUE, showWarnings = FALSE)
+save(object_fn, object_par,
+     object_matrix, sim_model3_data,
+     file = paste(data_path,"sim_model3_immhp_", ".RData", sep=''))
 
 
 ##### comment out above for fitting ####
@@ -250,3 +250,4 @@ post_draws <- posterior::as_draws_df(sim_model_stan_cmmhp)
 save(sim_model_stan_cmmhp,
      post_draws,
      file = "sim_model3_fit_cmmhp_.RData")
+
