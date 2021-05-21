@@ -84,7 +84,7 @@ stan_input_lst <- prepareDataStanTrain(current_cohort, train_day = 14)
 stan_input_lst$alpha_id <- expert_rank_10[[current_cohort]][1]
 stan_input_lst$delta_1 <- rep(0.5,stan_input_lst$N_til)
 
-cmmhp_stan <- stan_model("lib/model3_current.stan")
+cmmhp_stan <- cmdstan_model("lib/model3_current.stan")
 
 fit_cohort_mmhp <- cmmhp_stan$sample(data = stan_input_lst,
                                      iter_sampling = 2000,
