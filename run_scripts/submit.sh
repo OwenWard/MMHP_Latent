@@ -11,7 +11,7 @@
 ##SBATCH -o cmmhp-%A.%a.out
 ##SBATCH --error=cmmhp-%A.%a.err 
 
-module load R
+module load R/4.0.1
 echo "Launching R"
 date
 
