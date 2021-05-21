@@ -97,7 +97,7 @@ sim_cmmhp <- fit_cohort_mmhp$draws()
 post_draws <- posterior::as_draws_df(sim_cmmhp)
 
 
-saveRDS(post_draws, file = paste(data_path, "cohort_",
+saveRDS(post_draws, file = paste(save_data_path, "cohort_",
                                  cohort_id, "start.RDS",
                                  sep = ""))
 
@@ -121,7 +121,7 @@ sim_cmmhp <- fit_cohort_mmhp$draws()
 post_draws <- posterior::as_draws_df(sim_cmmhp)
 
 
-saveRDS(post_draws, file = paste(data_path, "cohort_",
+saveRDS(post_draws, file = paste(save_data_path, "cohort_",
                                  cohort_id, "end.RDS",
                                  sep = ""))
 
