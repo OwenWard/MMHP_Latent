@@ -124,27 +124,28 @@ prepareDataStanTrain <- function(current_cohort, train_day = 15, first_day = 1){
     current_initiator <- as.numeric(unique_pairs_df[pair,"initiator"])
     current_recipient <- as.numeric(unique_pairs_df[pair,"recipient"])
     current_window_vec <- unique_pairs_df$observe[[pair]]
-    for(win in seq_along(first_day:max(return_df$observe.id))){
-      win_id <- c(first_day:max(return_df$observe.id))[win]
+    for(win in seq_along(unique(return_df$observe.id))){
+      win_id <- c(unique(return_df$observe.id))[win]
       row_indicator <- return_df$initiator==current_initiator&
         return_df$recipient==current_recipient&return_df$observe.id==win_id
       if(sum(row_indicator)==0){ # no events during observation window
         count_matrix[pair,win] <- 0
-        time_array[pair,win,1] <- unique_observe_win[unique_observe_win$observe.id==win_id,
-                                                     "observe.time"]
+        time_array[pair,win,1] <- unique_observe_win[
+          unique_observe_win$observe.id==win_id, "observe.time"]
         max_interevent[pair] <- max(max_interevent[pair],
                                     time_array[pair, win, 1])
       }else{
         time_vec <- return_df[row_indicator,"event.times"][[1]]
-        observe_period <- unique_observe_win[unique_observe_win$observe.id==win_id,
-                                             "observe.time"]
+        observe_period <- unique_observe_win[
+          unique_observe_win$observe.id==win_id, "observe.time"]
         count_matrix[pair,win] <- length(time_vec)
         time_array[pair,win,(1:(length(time_vec)+1))] <- diff(c(0,
                                                                 time_vec,
                                                                 observe_period))
         event_array[pair,win,(1:length(time_vec))] <- time_vec
         max_interevent[pair] <- max(max_interevent[pair],
-                                    time_array[pair,win,(1:(length(time_vec)+1))])
+                                    time_array[pair, win, 
+                                               (1:(length(time_vec)+1))])
       }
     }
   }
