@@ -76,7 +76,7 @@ for(i in seq_along(fit_list)) {
 }
 
 
-print(here(data_path, "/pr_matrix_immhp.RDS"))
+print(here(data_path, "pr_matrix_immhp.RDS"))
 ### then plot and save these matrices
-saveRDS(pr_matrix, file = here(data_path, "/pr_matrix_immhp.RDS"))
-saveRDS(rr_matrix, file = here(data_path, "/rr_matrix_immhp.RDS"))
+saveRDS(pr_matrix, file = paste(data_path, "/pr_matrix_immhp.RDS", sep = ""))
+saveRDS(rr_matrix, file = paste(data_path, "/rr_matrix_immhp.RDS", sep = ""))
