@@ -4,13 +4,13 @@ data{
   int<lower=1,upper=12> I_fit[N_til];
   int<lower=1,upper=12> J_fit[N_til];
   int<lower=1> max_Nm; //maximum of number of events for each pair each window => max(unlist(lapply(return_df$event.times,length))))
-int<lower=0,upper=max_Nm> Nm[N_til,no_observations]; //number of events for each pair => count_matrix
-vector[max_Nm+1] interevent_time_matrix[N_til,no_observations]; // include termination time difference in the last entry
-vector[max_Nm] event_matrix[N_til,no_observations]; // event times in each observation window
-//real<lower=0> delta_window[no_observations]; //length of non-observation period 
-real<lower=0> finishing_time[no_observations]; //for each pair, each observation window, what is the finishing time
-int<lower=0,upper=12> alpha_id;
-vector<lower=0,upper=1>[N_til] delta_1;
+  int<lower=0,upper=max_Nm> Nm[N_til,no_observations]; //number of events for each pair => count_matrix
+  vector[max_Nm+1] interevent_time_matrix[N_til,no_observations]; // include termination time difference in the last entry
+  vector[max_Nm] event_matrix[N_til,no_observations]; // event times in each observation window
+  //real<lower=0> delta_window[no_observations]; //length of non-observation period 
+  real<lower=0> finishing_time[no_observations]; //for each pair, each observation window, what is the finishing time
+  int<lower=0,upper=12> alpha_id;
+  vector<lower=0,upper=1>[N_til] delta_1;
 }
 parameters{
   //real<lower=0.01> lambda0; //baseline rate for each pair
