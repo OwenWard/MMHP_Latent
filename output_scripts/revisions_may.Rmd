@@ -365,6 +365,142 @@ crossing(send = f_vec, rec = f_vec) %>%
 
 ## Community Structure Plot
 
+```{r construct_plot}
+state_types <- c("total", "utility", "social")
+metric_types <- c("dc", "ttri", "i")
+state_separation_result <- data.frame(array(0,
+                                            c(10 * 
+                                                length(state_types) *
+                                                length(metric_types),
+                                              4)))
+colnames(state_separation_result) <- c("cohort", "state", "metric", "value")
+
+total_event_array_lst <- list()
+active_event_array_lst <- list()
+for (current_cohort in c(2:10)) {
+  print(current_cohort)
+  load(paste(data_path, 
+             cohort_names[current_cohort],
+    "/mmhp_est_zt_",
+    cohort_names[current_cohort],
+    ".RData",
+    sep = ""
+  ))
+  clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
+  return_df <- cleanObservationPeriod(current_cohort, clean_data)
+  unique_pairs_df <- return_df %>%
+    group_by(initiator, recipient) %>%
+    dplyr::summarize(
+      count = n(),
+      observe = list(observe.id),
+      observe.length = list(observe.time),
+      no.events = list(no.events)
+    )
+  unique_observe_win <- unique(return_df[, c("observe.id", "observe.time")])
+
+  expert_rank <- expert_rank_10[[current_cohort]]
+
+  # ------------- Load the saved stan result, plot the inferred parameters and save
+  total_event_array_lst[[current_cohort]] <- 
+    array(0, dim = c(mice_number, mice_number, max(return_df$observe.id)))
+  active_event_array_lst[[current_cohort]] <-
+    array(0, dim = c(mice_number, mice_number, max(return_df$observe.id)))
+
+  for (i in 1:mice_number) {
+    for (j in 1:mice_number) {
+      pair <- which(unique_pairs_df$initiator == i & 
+                      unique_pairs_df$recipient == j)
+      if (length(pair) > 0) {
+        current_window_vec <- unique_pairs_df$observe[[pair]]
+        for (cur_win in current_window_vec) {
+          row_indicator <- (return_df$initiator == i) & 
+            (return_df$recipient == j) &
+            (return_df$observe.id == cur_win)
+          total_event_array_lst[[current_cohort]][i, j, cur_win] <-
+            length(return_df[row_indicator, "event.times"][[1]])
+          active_event_array_lst[[current_cohort]][i, j, cur_win] <- 
+            sum(apply(2 - state_array_list[[pair]][[cur_win]], 1, mean) > 0.5)
+        }
+      }
+    }
+  }
+
+  start_win <- floor(max(return_df$observe.id) / 2)
+  end_win <- max(return_df$observe.id)
+  matrix1 <- apply(
+    total_event_array_lst[[current_cohort]][, , start_win:end_win],
+    c(1, 2),
+    sum
+    )[expert_rank, expert_rank]
+  matrix2 <- apply(
+    active_event_array_lst[[current_cohort]][, , start_win:end_win],
+    c(1, 2),
+    sum
+    )[expert_rank, expert_rank]
+  matrix3 <- apply(
+    total_event_array_lst[[current_cohort]][, , start_win:end_win] -
+      active_event_array_lst[[current_cohort]][, , start_win:end_win],
+    c(1, 2),
+    sum
+    )[expert_rank, expert_rank]
+
+  # ------ compute metrics ------
+  state_separation_result$cohort[
+    ((current_cohort - 1) * 
+      length(metric_types) *
+      length(state_types) + 1):(current_cohort * length(metric_types) *
+                                  length(state_types))] <- cohort_names[current_cohort]
+  state_separation_result$metric[
+    ((current_cohort - 1) *
+       length(metric_types) *
+       length(state_types) + 1):(current_cohort * length(metric_types) *
+                                   length(state_types))] <- 
+    rep(c("dc", "ttri", "i"), length(state_types))
+
+  state_separation_result$state[
+    ((current_cohort - 1) *
+       length(metric_types) *
+       length(state_types) + 1):(current_cohort * length(metric_types) *
+                                   length(state_types) -
+                                   length(metric_types) * 2)] <- "total"
+  state_separation_result$value[
+    ((current_cohort - 1) *
+       length(metric_types) *
+       length(state_types) + 1):(current_cohort * length(metric_types) *
+                                   length(state_types) - 
+                                   length(metric_types) * 2)] <- 
+    c(dci(matrix1), ttri(matrix1)[[2]], iAndSI(matrix1)[1])
+
+  state_separation_result$state[
+    ((current_cohort - 1) *
+       length(metric_types) *
+       length(state_types) + 
+       length(metric_types) + 1):(current_cohort * 
+                                    length(metric_types) *
+                                    length(state_types) -
+                                    length(metric_types))] <-
+    "utility"
+  state_separation_result$value[
+    ((current_cohort - 1) *
+       length(metric_types) * 
+       length(state_types) + 
+       length(metric_types) + 1):(current_cohort * length(metric_types)
+                                  * length(state_types)
+                                  - length(metric_types))] <-
+    c(dci(matrix2), ttri(matrix2)[[2]], iAndSI(matrix2)[1])
+
+  state_separation_result$state[(current_cohort * length(metric_types) * length(state_types) - length(metric_types) + 1):(current_cohort * length(metric_types) * length(state_types))] <- "social"
+  state_separation_result$value[(current_cohort * length(metric_types) * length(state_types) - length(metric_types) + 1):(current_cohort * length(metric_types) * length(state_types))] <- c(dci(matrix3), ttri(matrix3)[[2]], iAndSI(matrix3)[1])
+}
+
+save(state_types, metric_types, state_separation_result,
+  total_event_array_lst, active_event_array_lst,
+  file = "../output/state_separation_plot.RData"
+)
+
+```
+
+
 ```{r recreate_jing_figure}
 load("../output/state_separation_plot.RData")
 for (current_cohort in c(3)) {
