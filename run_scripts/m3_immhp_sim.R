@@ -249,5 +249,5 @@ post_draws <- posterior::as_draws_df(sim_model_stan_cmmhp)
 
 save(sim_model_stan_cmmhp,
      post_draws,
-     file = "sim_model3_fit_cmmhp_.RData")
+     file = paste0(data_path,"sim_model3_fit_cmmhp_.RData"))
 

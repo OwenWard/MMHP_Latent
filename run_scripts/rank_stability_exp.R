@@ -9,7 +9,7 @@ jobid <- as.numeric(jobid)
 cohort_id <- jobid
 #cohort_id <- 1
 ####
-save_data_path <- "output/revisions/"  #"output_june30/"
+save_data_path <- "output/revisions/rank_stab/"  #"output_june30/"
 
 ### specify the number of segments here
 no_segments <- 500
