@@ -4,13 +4,14 @@
 #### if running on cluster ####
 source("/rigel/stats/users/ogw2103/code/MMHP/MMHP_Latent/run_scripts/cluster_setup.R")
 
-data_path <- "output/revisions/"
+data_path <- "output/revisions/sim_m3/"
 
-library(rstan)
+library(cmdstanr)
 library(R.utils)
+library(dplyr)
 # library(compete)
 options(mc.cores = parallel::detectCores())
-rstan_options(auto_write = TRUE)
+# rstan_options(auto_write = TRUE)
 jobid <- Sys.getenv("SLURM_ARRAY_TASK_ID")
 jobid <- as.numeric(jobid)
 sim_id <- jobid
@@ -118,9 +119,9 @@ sim_model3_stan_fit1 <- list()
 sim_model3_stan_fit2 <- list()
 sim_model3_stan_fit3 <- list()
 
-model1 <- stan_model("lib/sim_model1.stan")
-model2 <- stan_model("lib/sim_model2.stan")
-model3 <- stan_model("lib/sim_model3_dc.stan")
+model1 <- cmdstan_model("lib/sim_model1.stan")
+model2 <- cmdstan_model("lib/sim_model2.stan")
+model3 <- cmdstan_model("lib/sim_model3_dc.stan")
 
 # for(i in c(1:n_sim)){
 i <- sim_id
@@ -131,61 +132,71 @@ clean_sim_data <- cleanSimulationData(raw_data=sim_model3_data,
 # these have different stan files because they're simulation models
 
 
-data_list <- list(max_Nm=max(clean_sim_data$N_count),
+data_list <- list(max_Nm = max(clean_sim_data$N_count),
                   N_til = length(clean_sim_data$I_fit),
-                  M=sum(clean_sim_data$N_count>=cut_off),
-                  N=length(object_par$f_vec_1),
+                  M = sum(clean_sim_data$N_count>=cut_off),
+                  N = length(object_par$f_vec_1),
                   I_fit = clean_sim_data$I_fit,
                   J_fit = clean_sim_data$J_fit,
                   T = tail(clean_sim_data$day_hour,1),
-                  Nm = as.vector(clean_sim_data$N_count[clean_sim_data$N_count>=cut_off]),
+                  Nm = as.vector(clean_sim_data$N_count[clean_sim_data$N_count>=
+                                                          cut_off]),
                   event_matrix = clean_sim_data$event_matrix,
                   interevent_time_matrix = clean_sim_data$time_matrix,
                   max_interevent = clean_sim_data$max_interevent)
 print(paste(i,"model1"))
 ## Fit in model 1
 # start_time <- Sys.time()
-# sim_model3_stan_fit1[[1]] <- sampling(model1, data=data_list, 
-#                                          iter=1000, chains=4)
+sim_model3_stan_fit1 <- model1$sample(data = data_list,
+                                      iter_sampling = 1000,
+                                      # iter_warmup = 25,
+                                      refresh = 200,
+                                      chains = 4)
+
+sim_model3_fit_1 <- sim_model3_stan_fit1$draws()
+sim_model3_fit1_draws <- posterior::as_draws_df(sim_model3_fit_1)
 # m1_time <- Sys.time() - start_time
 
 # print("model2")
 # ## Fit in model 2
 # start_time <- Sys.time()
-# sim_model3_stan_fit2[[1]] <- sampling(model2,
-#                                          data=data_list,
-#                                          iter=1000, chains=4)
+sim_model3_stan_fit2 <- model2$sample(data = data_list,
+                                      iter_sampling = 1000,
+                                      refresh = 500,
+                                      chains=4)
 # m2_time <- Sys.time() - start_time
+
+sim_model3_fit_2 <- sim_model3_stan_fit2$draws()
+sim_model3_fit2_draws <- posterior::as_draws_df(sim_model3_fit_2)
 
 print("model3")
 ## Fit in model 3
 start_time <- Sys.time()
-sim_model3_stan_fit3[[1]] <- sampling(model3,
-                                         data=data_list,
-                                         iter=1000, chains=4,
-                                      control = list(adapt_delta = 0.95,
-                                                     max_treedepth = 15))
+sim_model3_stan_fit3 <- model3$sample(data = data_list,
+                                      iter_sampling = 1000,
+                                      chains = 4,
+                                      refresh = 500)
 m3_time <- Sys.time() - start_time
-  
+
+sim_model3_fit_3 <- sim_model3_stan_fit3$draws()
+sim_model3_fit3_draws <- posterior::as_draws_df(sim_model3_fit_3)
+
 # }
 
 ## Extract the model fit
-sim_model3_stan_sim1 <- list()
-sim_model3_stan_sim2 <- list()
-sim_model3_stan_sim3 <- list()
+sim_model3_stan_sim1 <- sim_model3_fit1_draws
+sim_model3_stan_sim2 <- sim_model3_fit2_draws
+sim_model3_stan_sim3 <- sim_model3_fit3_draws
 
-# sim_model3_stan_sim1 <- rstan::extract(sim_model3_stan_fit1[[1]])
-# sim_model3_stan_sim2 <- rstan::extract(sim_model3_stan_fit2[[1]])
-sim_model3_stan_sim3 <- rstan::extract(sim_model3_stan_fit3[[1]])
 
 # m1_rank <- order(apply(sim_model3_stan_sim1$f, 2, mean))
 # m2_rank <- order(apply(sim_model3_stan_sim2$f, 2, mean))
-m3_rank <- order(apply(sim_model3_stan_sim3$f, 2, mean))
+# m3_rank <- order(apply(sim_model3_stan_sim3$f, 2, mean))
 
 ## Save the output
 save(object_fn, object_par, object_matrix, sim_model3_data,
-     # sim_model3_stan_fit1, sim_model3_stan_sim1,
-     # sim_model3_stan_fit2, sim_model3_stan_sim2,
+     sim_model3_stan_fit1, sim_model3_stan_sim1,
+     sim_model3_stan_fit2, sim_model3_stan_sim2,
      sim_model3_stan_fit3, sim_model3_stan_sim3,
      file = paste(data_path,"sim_model3_fit123_",
                   sim_id,
@@ -205,10 +216,18 @@ interpolate_state_est_lst <- matrix(list(),
                                     nrow = length(object_par$f_vec_1),
                                     ncol = length(object_par$f_vec_1))
 
+lambda0_pars <- sim_model3_stan_sim3 %>% 
+  select(starts_with("lambda0"))
+
+lambda1_pars <- sim_model3_stan_sim3 %>% 
+  select(starts_with("lambda1"))
+
+f_pars <- sim_model3_stan_sim3 %>% 
+  select(starts_with("f"))
 
 
-lambda_0_est <- apply(sim_model3_stan_sim3$lambda0, 2, mean)
-lambda_1_est <- apply(sim_model3_stan_sim3$lambda1, 2, mean)
+lambda_0_est <- apply(lambda0_pars, 2, mean)
+lambda_1_est <- apply(lambda1_pars, 2, mean)
 ## then put these into a matrix
 lam0_par_est <- matrix(0, nrow = length(object_par$f_vec_1),
                        ncol = length(object_par$f_vec_1))
@@ -228,22 +247,23 @@ mmhp_par_est <- list(lambda0 = lam0_par_est,
                      eta_2 = mean(sim_model3_stan_sim3$eta_2),
                      eta_3 = mean(sim_model3_stan_sim3$eta_3),
                      beta = mean(sim_model3_stan_sim3$beta),
-                     f = apply(sim_model3_stan_sim3$f, 2, mean))
-clean_sim_data <- cleanSimulationData(raw_data=sim_model3_data, 
-                                      cut_off = 1, N = length(object_par$f_vec_1))
+                     f = apply(f_pars, 2, mean))
+clean_sim_data <- cleanSimulationData(raw_data = sim_model3_data, 
+                                      cut_off = 1,
+                                      N = length(object_par$f_vec_1))
 for(cur_i in c(1:length(object_par$f_vec_1))){
   for(cur_j in c(1:length(object_par$f_vec_1))[-cur_i]){
-    test.mmhp <- sim_model3_data$mmhp_matrix[cur_i,cur_j][[1]]
-    object_hat <- list(lambda0=mmhp_par_est$lambda0[cur_i, cur_j],
-                       lambda1=mmhp_par_est$lambda1[cur_i, cur_j],
-                       alpha=model3_fn$alpha.fun(mmhp_par_est$f[cur_i],
+    test.mmhp <- sim_model3_data$mmhp_matrix[cur_i, cur_j][[1]]
+    object_hat <- list(lambda0 = mmhp_par_est$lambda0[cur_i, cur_j],
+                       lambda1 = mmhp_par_est$lambda1[cur_i, cur_j],
+                       alpha = model3_fn$alpha.fun(mmhp_par_est$f[cur_i],
                                                  mmhp_par_est$f[cur_j],
                                                  mmhp_par_est$eta_1,
                                                  mmhp_par_est$eta_2),
-                       beta=mmhp_par_est$beta,
-                       q1=model3_fn$q1.fun(mmhp_par_est$f[cur_i],
-                                           mmhp_par_est$f[cur_j],
-                                           mmhp_par_est$eta_3),
+                       beta = mmhp_par_est$beta,
+                       q1 = model3_fn$q1.fun(mmhp_par_est$f[cur_i],
+                                             mmhp_par_est$f[cur_j],
+                                             mmhp_par_est$eta_3),
                        q2=model3_fn$q0.fun(mmhp_par_est$f[cur_i],
                                            mmhp_par_est$f[cur_j],
                                            mmhp_par_est$eta_3))
@@ -253,9 +273,11 @@ for(cur_i in c(1:length(object_par$f_vec_1))){
     latent_inter <- interpolateLatentTrajectory(object_hat, 
                                                 test.mmhp$tau[-1], 
                                                 viterbi_result$zt_v,
-                                                initial.state = viterbi_result$initial_state,
+                                                initial.state = 
+                                                  viterbi_result$initial_state,
                                                 termination.time = obs_time,
-                                                termination.state = viterbi_result$termination_state)
+                                                termination.state = 
+                                                  viterbi_result$termination_state)
     event_state_est_lst[cur_i,cur_j][[1]] <- viterbi_result
     interpolate_state_est_lst[cur_i,cur_j][[1]] <- latent_inter
   }
@@ -266,9 +288,9 @@ save(event_state_est_lst, interpolate_state_est_lst,
      file = paste(data_path, "fit123_state_est_", sim_id, ".RData", sep=''))
 
 
-cat("Model 1 Time:", m1_time, "\n")
-cat("Model 2 Time:", m2_time, "\n")
-cat("Model 3 Time:", m3_time, "\n")
+# cat("Model 1 Time:", m1_time, "\n")
+# cat("Model 2 Time:", m2_time, "\n")
+# cat("Model 3 Time:", m3_time, "\n")
 
 
 #### Get Other Rankings

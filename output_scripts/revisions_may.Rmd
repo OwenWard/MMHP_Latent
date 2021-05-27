@@ -793,3 +793,78 @@ for (current_cohort in c(2)) {
   dev.off()
 }
 ```
+
+
+# Repeat Rank Simulations
+
+```{r rank-with-20-nodes}
+col_df <- tibble(method = c("I&SI",
+                            "AggRank",
+                            "DSNL",
+                            "Glicko",
+                            "I-MMHP",
+                            "C-HP",
+                            "C-DCHP",
+                            "True",
+                            "C-MMHP"),
+            cols = viridis(9))
+
+
+sim_files <- list.files(here("output", "revisions", "rank_sims"), 
+                        pattern = "rank_sim")
+
+all_sims <- list()
+for(i in seq_along(sim_files)) {
+ single_fit <- readRDS(here("output",
+                            "revisions",
+                            "rank_sims",
+                            sim_files[i]))
+ all_sims[[i]] <- single_fit
+}
+
+spear <- function(sim_data) {
+  truth <- sim_data$truth
+  sim_data %>%
+    select(m1:glicko) %>%
+    purrr::map( ~cor.test(truth, .x,
+                   method = "spearman")$estimate  ) %>%
+    enframe() %>%
+    unnest(cols = c(value))
+}
+
+
+sim_data <- map_dfr(all_sims, spear) 
+
+name <- sim_data$name
+
+sim_data$name <- case_when(
+          name == "isi" ~ "I&SI",
+          name == "m1" ~ "C-HP",
+          name == "m2" ~ "C-DCHP",
+          name == "m3" ~ "C-MMHP",
+          name == "agg" ~ "AggRank",
+          name == "glicko" ~ "Glicko")
+
+sim_data$name <- factor(sim_data$name, levels = c("I&SI",
+                                                  "AggRank",
+                                                  "Glicko",
+                                                  "C-HP",
+                                                  "C-DCHP",
+                                                  "C-MMHP"))
+
+plot_cols <- col_df %>% filter(method %in% levels(sim_data$name)) %>%
+  pull(cols)
+  
+sim_data %>%
+  rename(Method = name, corr = value) %>%
+  ggplot(aes(Method,corr)) + 
+  geom_boxplot(aes(fill = Method), alpha = 0.7) +
+  scale_fill_manual(values = plot_cols) +
+  labs(y = "Rank Correlation") + theme_bw() +
+  theme(plot.title = element_text(size = 22, hjust = 0.5, face="bold"),
+        text = element_text(size = 20),
+        axis.text.x=element_blank(),
+        axis.ticks.x = element_blank(),
+        legend.position="right") + ggtitle("(b)")
+
+```
