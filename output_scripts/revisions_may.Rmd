@@ -41,7 +41,9 @@ library(fields)
 library(bayesplot)
 library(viridis)
 library(here)
+library(igraph)
 library(compete)
+library(circlize)
 library(colorspace)
 source(paste(func_dir, "naiveRankHierarchy.R", sep = ""))
 source(paste(func_dir, "expertRankHierarchy.R", sep = ""))
@@ -56,6 +58,7 @@ source(paste(func_dir, "myGlicko.R", sep = ""))
 source(paste(func_dir, "matrixPlotParameter.R", sep = ""))
 source(paste(func_dir, "residualStructureScore.R", sep = ""))
 source(paste(func_dir, "drawIntensity.R", sep = ""))
+source(paste(func_dir, "circularPlot.R", sep = ""))
 source("https://gist.githubusercontent.com/jalapic/6ca3ece44bdcdc522bb735f183aa0ca0/raw/1a07f469eff08117121b6cbebcd22fb7569e3ee8/compete_extra.R")
 
 cohort_names <- paste("cohort",c(9,10,12,15,16,17,18,37,38,45),sep='')
@@ -529,7 +532,7 @@ colnames(state_separation_result) <- c("cohort", "state", "metric", "value")
 
 total_event_array_lst <- list()
 active_event_array_lst <- list()
-for (current_cohort in c(2:10)) {
+for (current_cohort in c(1:10)) {
   print(current_cohort)
   load(paste(data_path, 
              cohort_names[current_cohort],
@@ -566,7 +569,7 @@ for (current_cohort in c(2:10)) {
     for (j in 1:mice_number) {
       pair <- which(unique_pairs_df$initiator == i & 
                       unique_pairs_df$recipient == j)
-      if (length(pair) > 0) {
+      if (length(pair) > 0 & i!=j) {
         current_window_vec <- unique_pairs_df$observe[[pair]]
         for (cur_win in current_window_vec) {
           row_indicator <- (return_df$initiator == i) & 
@@ -659,6 +662,8 @@ for (current_cohort in c(2:10)) {
                                      current_cohort * length(metric_types) *
                                        length(state_types))] <- 
     c(dci(matrix3), ttri(matrix3)[[2]], iAndSI(matrix3)[1])
+  rm(interpolation_array_list)
+  rm(state_array_list)
 }
 
 save(state_types, metric_types, state_separation_result,
@@ -707,9 +712,9 @@ for (current_cohort in c(2)) {
   lec3 <- cluster_leading_eigen(g_community3)
 
   ### Make plot for t=1
-  png(paste(plot_path, "real_clustering_1.png", sep = ""), 
-      height = 600,
-      width = 600)
+  # png(paste(plot_path, "real_clustering_1.png", sep = ""), 
+  #     height = 600,
+  #     width = 600)
   myCircularPlot(
     cur.matrix = matrix1,
     cur.order = c(1, 4, 10, 5, 11, 6, 7, 2, 8, 12, 9, 3),
@@ -747,13 +752,15 @@ for (current_cohort in c(2)) {
     ),
     cur.gap = c(rep(5, 2), 30, rep(5, 5), 30, rep(5, 2), 30)
   )
-  dev.off()
+  # dev.off()
 
   ### Make plot for t=2
-  png(paste(plot_path, "real_clustering_2.png", sep = ""),
-   height = 600,
-   width = 600
- )
+ #  png(paste(plot_path, "real_clustering_2.png", sep = ""),
+ #   height = 600,
+ #   width = 600
+ # )
+ # problems with these 2, possibly if no events from 11?
+ circos.par$cell.padding <- c(0,0,0,0)
  myCircularPlot(
    cur.matrix = matrix2,
    cur.order = c(1, 7, 8, 2, 3, 4, 5, 9, 10, 6, 11, 12),
@@ -767,12 +774,12 @@ for (current_cohort in c(2)) {
    ),
    cur.gap = c(rep(5, 5), 30, rep(5, 5), 30)
  )
- dev.off()
+ # dev.off()
 
   ### Make plot for t=3
-  png(paste(plot_path, "real_clustering_3.png", sep = ""),
-      height = 600,
-      width = 600)
+  # png(paste(plot_path, "real_clustering_3.png", sep = ""),
+  #     height = 600,
+  #     width = 600)
   myCircularPlot(
     cur.matrix = matrix3[-3, -3],
     cur.order = c(1, 10, 5, 2, 3, 6, 7, 8, 4, 11, 9),
@@ -790,7 +797,7 @@ for (current_cohort in c(2)) {
     cur.gap = c(rep(5, 3), 30, rep(5, 4), 30, rep(5, 1), 30),
     cur.ID = c(1:12)[-3]
   )
-  dev.off()
+  # dev.off()
 }
 ```
 
