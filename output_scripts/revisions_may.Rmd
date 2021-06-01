@@ -80,17 +80,16 @@ out <- captureOutput(for(curr_cohort in fit_cohorts){
 
 theme_set(theme_minimal())
 
-```
-
-## Run some longer/larger simulations
-
-We can replace the simulation example with 5 nodes to one with
-20 nodes.
-
-```{r simulate_20_nodes}
-num_nodes <- 20
-cut_off <- 3
-obs_time <- 200
+col_df <- tibble(method = c("I&SI",
+                            "AggRank",
+                            "DSNL",
+                            "Glicko",
+                            "I-MMHP",
+                            "C-HP",
+                            "C-DCHP",
+                            "True",
+                            "C-MMHP"),
+            cols = viridis(9))
 
 model1_fn <- list(alpha.fun = function(x, y, eta1, eta2, eta3) {
   return(eta1 * x * y * exp(-eta2 * abs(x - y)) / (1 + exp(-eta3 * (x - y))))
@@ -107,6 +106,19 @@ model3_fn <- list(
     return(exp(-eta3 * y))
   }
 )
+
+```
+
+## Run some longer/larger simulations
+
+We can replace the simulation example with 5 nodes to one with
+20 nodes.
+
+```{r simulate_20_nodes}
+num_nodes <- 20
+cut_off <- 3
+obs_time <- 200
+
 
 
 #### Save the simulation parameters ####
@@ -279,7 +291,7 @@ ppdiag::drawUniMMHPIntensity(obj, mmhp_latent)
 ## don't think the bug is with ppdiag
 ```
 
-```{r ranking_sim_data}
+```{r ranking_sim_data, include=FALSE, eval=FALSE}
 ### i&si method
 count_data_dc <- get_wl_matrix(df = cbind(
   clean_sim_data$start,
@@ -381,7 +393,7 @@ eta1 <- 6.6
 eta2 <- 0.37
 
 
-crossing(send = f_vec, rec = f_vec) %>%
+tidyr::crossing(send = f_vec, rec = f_vec) %>%
   filter(send != rec) %>%
   mutate(alpha = alpha.fun(send, rec, eta1, eta2))
 ```
@@ -396,7 +408,7 @@ load(here("output", "revisions", "sim_model3_fit_cmmhp_.RData"))
 post_rank <- post_draws %>% 
   select(starts_with("f")) %>% 
   ## rename the f cols first
-  rename_with(~gsub("[", "_", .x, fixed = TRUE)) %>% 
+  rename_with(~gsub("f[", "", .x, fixed = TRUE)) %>% 
   rename_with(~gsub("]", "", .x, fixed = TRUE)) %>% 
   pivot_longer(everything(),
                names_to = "node",
@@ -406,12 +418,13 @@ post_rank <- post_draws %>%
 
 ## order nodes
 # post_rank$node <- as.factor(post_rank$node)
-true_rank <- tibble(names = paste0("f_", 1:20),
-                    f_vec_1 = seq(from = 0.05,
+true_rank <- tibble(names = paste0("", 1:20),
+                    f_vec = seq(from = 0.05,
                                   to = 0.95,
-                                  length.out = 20))
+                                  length.out = 20),
+                    value = "True Value")
 
-post_rank$node <- factor(post_rank$node, levels = paste0("f_", 1:20))
+post_rank$node <- factor(post_rank$node, levels = paste0("", 1:20))
 
 post_mean <- post_rank %>%
   group_by(node) %>% 
@@ -421,15 +434,16 @@ post_rank %>%
   ggplot(aes(node, rank)) + 
   geom_boxplot() +
   geom_point(data = true_rank,
-             mapping = aes(names, f_vec_1, shape = 16),
-             colour = "red") +
-  geom_point(data = post_mean,
-             mapping = aes(node, ave_rank, shape = 16),
-             colour = "blue") +
-  scale_shape_identity() +
+             mapping = aes(names, f_vec, colour = value)) +
+  # geom_point(data = post_mean,
+  #            mapping = aes(node, ave_rank, shape = 16),
+  #            colour = "blue") +
+  # scale_shape_identity() +
   labs(title = "Inferred Latent Ranking with Truth",
        x = "Node", y = "Latent Ranking",
-       colour = "Summary")
+       colour = "Summary") +
+  theme(legend.title = element_blank(),
+        legend.position = "bottom")
 ## blue is posterior mean, red is true value
 ## can add legend to fix this
 ```
@@ -501,7 +515,7 @@ for(cohort_id in 1:10){
 
 ## Community Structure Plot
 
-```{r construct_plot}
+```{r construct_plot, include=FALSE, eval=FALSE}
 iAndSI <- function(M) {
   n <- ncol(M)
   result <- rep(0, 2)
@@ -674,9 +688,10 @@ save(state_types, metric_types, state_separation_result,
 ```
 
 
-```{r recreate_jing_figure}
+```{r recreate_jing_figure, message=FALSE}
 load("../output/state_separation_plot.RData")
-for (current_cohort in c(2)) {
+# for (current_cohort in c(1)) {
+  current_cohort <- 9
   total_event_array <- total_event_array_lst[[current_cohort]]
   active_event_array <- active_event_array_lst[[current_cohort]]
   clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
@@ -717,40 +732,22 @@ for (current_cohort in c(2)) {
   #     width = 600)
   myCircularPlot(
     cur.matrix = matrix1,
-    cur.order = c(1, 4, 10, 5, 11, 6, 7, 2, 8, 12, 9, 3),
+    ## is the ordering here for the nodes? need to make sure I get this right
+    ## working off this being the ordering from the clustering above
+    # cur.order = c(1, 4, 10, 5, 11, 6, 7, 2, 8, 12, 9, 3),
+    cur.order = order(lec1$membership),
     cur.color = c(
       colorRampPalette(brewer.pal(
         name = "YlOrBr",
-        n =
-          8
-      ))(14)[c(
-        13,
-        9,
-        5
-      )],
+        n = 8))(14)[c(13, 11, 9, 7)],
       colorRampPalette(brewer.pal(
         name = "PuRd",
-        n =
-          8
-      ))(15)[c(
-        4,
-        6,
-        8,
-        10,
-        12,
-        14
-      )],
+        n = 8))(13)[c(4, 6, 8, 10, 12)],
       colorRampPalette(brewer.pal(
         name = "Blues",
-        n =
-          8
-      ))(10)[c(
-        5,
-        7,
-        9
-      )]
+        n = 8))(15)[c(4, 8, 12)]
     ),
-    cur.gap = c(rep(5, 2), 30, rep(5, 5), 30, rep(5, 2), 30)
+    cur.gap = c(rep(5, 3), 30, rep(5, 4), 30, rep(5, 2), 30)
   )
   # dev.off()
 
@@ -762,17 +759,18 @@ for (current_cohort in c(2)) {
  # problems with these 2, possibly if no events from 11?
  circos.par$cell.padding <- c(0,0,0,0)
  myCircularPlot(
-   cur.matrix = matrix2,
-   cur.order = c(1, 7, 8, 2, 3, 4, 5, 9, 10, 6, 11, 12),
+   cur.matrix = matrix2[-11,-11],
+   cur.order = order(lec2$membership)[-6],
    cur.color = c(
      colorRampPalette(brewer.pal(
        name = "YlOrBr",
-       n = 8))(14)[c(13, 11, 9, 7, 5, 3)],
+       n = 8))(16)[c(15, 13, 11, 9, 7, 5)],
      colorRampPalette(brewer.pal(
        name = "Blues",
-       n = 8))(15)[c(4, 6, 8, 10, 12, 14)]
+       n = 8))(15)[c(6, 8, 10, 12, 14)]
    ),
-   cur.gap = c(rep(5, 5), 30, rep(5, 5), 30)
+   cur.gap = c(rep(5, 5), 30, rep(5, 4), 30),
+   cur.ID = c(1:12)[-11]
  )
  # dev.off()
 
@@ -781,42 +779,30 @@ for (current_cohort in c(2)) {
   #     height = 600,
   #     width = 600)
   myCircularPlot(
-    cur.matrix = matrix3[-3, -3],
-    cur.order = c(1, 10, 5, 2, 3, 6, 7, 8, 4, 11, 9),
+    cur.matrix = matrix3[-11, -11],
+    cur.order = order(lec3$membership)[-4],
     cur.color = c(
       colorRampPalette(
         brewer.pal(name = "YlOrBr",
                    n = 8))(14)[c(13, 9, 5, 3)],
       colorRampPalette(brewer.pal(
         name = "Blues",
-        n = 8))(16)[c(7, 9, 11, 13, 15)],
+        n = 8))(16)[c(9, 11, 13, 15)],
       colorRampPalette(brewer.pal(
         name = "PuRd",
-        n = 8))(15)[c(8, 12)]
+        n = 8))(15)[c(4, 8, 12)]
     ),
-    cur.gap = c(rep(5, 3), 30, rep(5, 4), 30, rep(5, 1), 30),
-    cur.ID = c(1:12)[-3]
+    cur.gap = c(rep(5, 3), 30, rep(5, 3), 30, rep(5, 2), 30),
+    cur.ID = c(1:12)[-11]
   )
   # dev.off()
-}
+# }
 ```
 
 
 # Repeat Rank Simulations
 
 ```{r rank-with-20-nodes}
-col_df <- tibble(method = c("I&SI",
-                            "AggRank",
-                            "DSNL",
-                            "Glicko",
-                            "I-MMHP",
-                            "C-HP",
-                            "C-DCHP",
-                            "True",
-                            "C-MMHP"),
-            cols = viridis(9))
-
-
 sim_files <- list.files(here("output", "revisions", "rank_sims"), 
                         pattern = "rank_sim")
 
@@ -873,5 +859,447 @@ sim_data %>%
         axis.text.x=element_blank(),
         axis.ticks.x = element_blank(),
         legend.position="right") + ggtitle("(b)")
+
+```
+
+
+# Improve Fig 4b
+
+Trying to write a better version of Figure 4b using these new larger
+simulated networks.
+
+```{r process-new-4b}
+plot.s <- 1 # 7 is pretty good
+plot.i <- 20
+plot.j <- 15
+
+cur_i <- plot.i
+cur_j <- plot.j
+
+
+
+load(paste0(here("output", "revisions", "sim_m3"),
+  "/", "sim_model3_fit123_",
+  plot.s,
+  ".RData"
+))
+
+
+test.mmhp <- sim_model3_data$mmhp_matrix[plot.i, plot.j][[1]]
+temp.t <- test.mmhp$tau
+current.n <- length(temp.t) - 1
+time.segment <- seq(0, tail(temp.t, 1), length.out = 5000)
+
+### Preprocess the model inference result
+## model 1
+#########
+
+## get f from cmdstan 
+
+f_draws <- sim_model3_stan_sim1 %>% 
+  select(starts_with("f"))
+
+model1_par_est <- list(
+  lambda0 = mean(sim_model3_stan_sim1$lambda0),
+  eta_1 =
+    mean(sim_model3_stan_sim1$eta_1),
+  eta_2 =
+    mean(sim_model3_stan_sim1$eta_2),
+  eta_3 =
+    mean(sim_model3_stan_sim1$eta_3),
+  beta = mean(sim_model3_stan_sim1$beta),
+  f = apply(f_draws, 2, mean)
+)
+lambda.m1 <- uniHawkesIntensityNumeric(
+  object = list(
+    lambda0 =
+      model1_par_est$lambda0,
+    alpha =
+      model1_fn$alpha.fun(
+        model1_par_est$f[plot.i],
+        model1_par_est$f[plot.j],
+        model1_par_est$eta_1,
+        model1_par_est$eta_2,
+        model1_par_est$eta_3
+      ),
+    beta = model1_par_est$beta
+  ),
+  events = temp.t,
+  time.vec = time.segment
+)
+
+
+## model2
+#############
+gamma_draws <- sim_model3_stan_sim2 %>% 
+  select(starts_with("gamma"))
+
+zeta_draws <- sim_model3_stan_sim2 %>% 
+  select(starts_with("zeta"))
+
+f_draws <- sim_model3_stan_sim2 %>% 
+  select(starts_with("f"))
+
+model2_par_est <- list(
+  gamma = apply(gamma_draws, 2, mean),
+  zeta = apply(zeta_draws, 2, mean),
+  eta_1 = mean(sim_model3_stan_sim2$eta_1),
+  eta_2 = mean(sim_model3_stan_sim2$eta_2),
+  eta_3 = mean(sim_model3_stan_sim2$eta_3),
+  beta = mean(sim_model3_stan_sim2$beta),
+  f = apply(f_draws, 2, mean)
+)
+
+lambda.m2 <- uniHawkesIntensityNumeric(
+  object = list(
+    lambda0 = model2_par_est$gamma[plot.i] +
+      model2_par_est$zeta[plot.j],
+    alpha = model1_fn$alpha.fun(
+      model2_par_est$f[plot.i],
+      model2_par_est$f[plot.j],
+      model2_par_est$eta_1,
+      model2_par_est$eta_2,
+      model2_par_est$eta_3
+    ),
+    beta = model2_par_est$beta
+  ),
+  events = temp.t,
+  time.vec = time.segment
+)
+
+## Model3
+###
+
+lam0_draws <- sim_model3_stan_sim3 %>% 
+  select(starts_with("gamma"))
+
+lam1_draws <- sim_model3_stan_sim3 %>% 
+  select(starts_with("zeta"))
+
+gamma_draws <- sim_model3_stan_sim3 %>% 
+  select(starts_with("gamma"))
+
+zeta_draws <- sim_model3_stan_sim3 %>% 
+  select(starts_with("zeta"))
+
+f_draws <- sim_model3_stan_sim2 %>% 
+  select(starts_with("f"))
+
+
+lam0_vec <- apply(lam0_draws, 2, mean)
+lam1_vec <- apply(lam1_draws, 2, mean)
+lam0_par_est <- matrix(0,
+  nrow = length(object_par$f_vec_1),
+  ncol = length(object_par$f_vec_1)
+)
+lam1_par_est <- matrix(0,
+  nrow = length(object_par$f_vec_1),
+  ncol = length(object_par$f_vec_1)
+)
+
+clean_sim_data <- cleanSimulationData(
+  raw_data = sim_model3_data,
+  cut_off = cut_off,
+  N = length(object_par$f_vec_1)
+)
+
+for (i in seq_along(lam0_vec)) {
+  row_id <- clean_sim_data$I_fit[i]
+  col_id <- clean_sim_data$J_fit[i]
+  lam0_par_est[row_id, col_id] <- lam0_vec[i]
+  lam1_par_est[row_id, col_id] <- lam1_vec[i]
+}
+
+
+###
+
+#############
+mmhp_par_est <- list(
+  lambda0 = lam0_par_est,
+  lambda1 = lam1_par_est,
+  eta_1 = mean(sim_model3_stan_sim3$eta_1),
+  eta_2 = mean(sim_model3_stan_sim3$eta_2),
+  eta_3 = mean(sim_model3_stan_sim3$eta_3),
+  beta = mean(sim_model3_stan_sim3$beta),
+  f = apply(f_draws, 2, mean)
+)
+
+object_hat <- list(
+  lambda0 = mmhp_par_est$lambda0[cur_i, cur_j],
+  lambda1 = mmhp_par_est$lambda1[cur_i, cur_j],
+  alpha = model3_fn$alpha.fun(
+    mmhp_par_est$f[cur_i],
+    mmhp_par_est$f[cur_j],
+    mmhp_par_est$eta_1,
+    mmhp_par_est$eta_2
+  ),
+  beta = mmhp_par_est$beta,
+  q1 = model3_fn$q1.fun(
+    mmhp_par_est$f[cur_i],
+    mmhp_par_est$f[cur_j],
+    mmhp_par_est$eta_3
+  ),
+  q2 = model3_fn$q0.fun(
+    mmhp_par_est$f[cur_i],
+    mmhp_par_est$f[cur_j],
+    mmhp_par_est$eta_3
+  )
+)
+
+## then need to load in the state estimate here
+load(paste0(here("output", "revisions", "sim_m3"),
+  "/", "fit123_state_est_",
+  plot.s,
+  ".RData"
+))
+
+state.est.latent.mmhp <- interpolate_state_est_lst[plot.i, plot.j][[1]]
+state.est.latent.mmhp.new <- fixInterpolateState(state.est.latent.mmhp,
+  termination = 200
+)
+
+step.fun.est <- stepfun(
+  state.est.latent.mmhp$x.hat,
+  2 - state.est.latent.mmhp$z.hat
+)
+
+lambda.m3 <- mmhpIntensityNumeric(
+  params = object_hat,
+  t = temp.t[-1],
+  time.vec = time.segment,
+  latent.vec = step.fun.est(time.segment)
+)
+
+object_true <- lapply(object_matrix, function(x) x[plot.i, plot.j])
+names(object_true) <- c("lambda0", "lambda1", "alpha", "beta", "q1", "q2")
+
+lambda.true <- mmhpTrueIntensityNumeric(
+  params = object_true,
+  t = temp.t,
+  latent = list(
+    x = fixStateTransition(test.mmhp)$x,
+    z = fixStateTransition(test.mmhp)$z
+  ),
+  time.vec = time.segment
+)
+
+```
+
+
+```{r fig4b-redone}
+y.ub <- c(35,35,35)#c(130,72,31)
+x_events <- 190#135#150
+layout(matrix(c(1:6), 6, 1), heights=rep(c(7.5,1),3))
+my.xlim <- 200#160#200#130
+my.long.x <- 205#205#134.5
+legend.x <- c(60,60,60)#c(135,135,135)
+legend.y <- #c(34,32,32)
+legend.y <- c(23,23,23)#c(15,12,15)#c(62,37,18)#c(22,22,22)
+legend.cex <- 1.5 #3
+line.alpha <- c(0.9,0.6)
+line.wdth <- c(2,2.5)
+negative.col <- add.alpha('lightskyblue')
+positive.col <- add.alpha('tomato')
+#negative.col <- viridis::viridis(5,alpha = 0.6)[1]
+#positive.col <- viridis::viridis(5,alpha = 0.6)[4]
+par(mar = c(0,0.3,0,0.1), oma = c(3,3.5,4,0),
+    tcl=0.2,mgp=c(0.5,0,0), xpd=TRUE)
+
+
+model_colors <- col_df %>% filter(method %in% c("C-HP",
+                                                "C-DCHP",
+                                                "C-MMHP"))
+
+model_colors <- model_colors %>% pull(cols)
+
+# model1
+############
+true.object <- object_true
+
+drawUniMMHPIntensityPaper(true.object,
+                          simulation = fixStateTransition(test.mmhp),
+                          yupper=y.ub[1], 
+                          color=add.alpha("black", alpha=line.alpha[1]),
+                          line.width=line.wdth[1],
+                          y.ratio=-0.05, min.y=-2,
+                          min.x=0, max.x=my.xlim,
+                          title_name=paste(plot.i,"->",plot.j),
+                          title.cex = 2,
+                          box.type="n")
+drawHawkesIntensityPaper(lambda0=model1_par_est$lambda0,
+                         alpha=model1_fn$alpha.fun(model1_par_est$f[plot.i],
+                                                   model1_par_est$f[plot.j],
+                                                   model1_par_est$eta_1,
+                                                   model1_par_est$eta_2,
+                                                   model1_par_est$eta_3),
+                         beta=model1_par_est$beta,
+                         events=test.mmhp$tau,
+                         color=add.alpha(model_colors[1],
+                                         alpha=line.alpha[2]),
+                         line.width=line.wdth[2])
+
+## draw box
+axis(1,at=c(-2,my.long.x),col="gray35",
+     line=0.5,tick=T,labels=rep("",2),lwd=0.5,lwd.ticks=0,lty=3)
+
+
+## add legend
+# changed 34 to 23, 25 to 18, -20 to -10
+# legend(10,legend.y[1],c("State 1/0 events","State change point"),
+#        col = c(NA,"red"),
+#        y.intersp=0.85,x.intersp=-0.1, bty = "n",
+#        pch = c(NA,4), pt.cex = c(NA,2), cex=legend.cex,
+#        lty = c(NA,NA), lwd=c(NA,4))
+# points(29,84,pch=1,cex=2,col="blue")
+# points(26,84,pch=16,cex=2,col="blue")
+legend(legend.x[1],legend.y[1],c("True"),
+       col = c("black"),
+       y.intersp=0.88,x.intersp=0.15,bty = "n",
+       lty = c(1), lwd = c(5), cex=legend.cex,seg.len=1)
+legend(legend.x[1]+22,legend.y[1],c("C-HP"),
+       col = c(model_colors[1]),
+       y.intersp=0.88,x.intersp=0.15,bty = "n",
+       lty = c(1), lwd = c(5), cex=legend.cex,seg.len=1)
+
+## delta lambda
+par(mar = c(0,0.3,0,0.1))
+plot(0,0,xlim=c(0,my.xlim), ylim=c(-4,4), type="n",
+     bty="n", xlab="",ylab="",xaxt="n",yaxt="n",axes=FALSE)
+delta.lambda <- lambda.m1$lambda.t-lambda.true$lambda.t
+delta.positive <- delta.lambda
+delta.positive[delta.positive<0] <- 0
+delta.negative <- delta.lambda
+delta.negative[delta.negative>0] <- 0
+### hiding these for now ###
+polygon(c(0,lambda.true$time.vec,x_events),#200
+        c(0,delta.negative,0),col=negative.col,border=NA)
+polygon(c(0,lambda.true$time.vec,x_events),#200
+        c(0,delta.positive,0),col=positive.col,border=NA)
+
+axis(1,at=c(-2,my.long.x),col="gray35",
+     line=0,tick=T,labels=rep("",2),lwd=0.7,lwd.ticks=0)
+
+
+# model2
+############
+drawUniMMHPIntensityPaper(true.object,simulation=fixStateTransition(test.mmhp),
+                          yupper=y.ub[2], 
+                          color=add.alpha("black", alpha=line.alpha[1]),
+                          line.width=line.wdth[1],
+                          y.ratio=-0.05, min.y=-2, min.x=0, max.x=my.xlim, 
+                          box.type="n")
+drawHawkesIntensityPaper(lambda0=model2_par_est$gamma[plot.i]+
+                           model2_par_est$zeta[plot.j],
+                         alpha=model1_fn$alpha.fun(model2_par_est$f[plot.i],
+                                                   model2_par_est$f[plot.j],
+                                                   model2_par_est$eta_1,
+                                                   model2_par_est$eta_2,
+                                                   model2_par_est$eta_3),
+                         beta=model2_par_est$beta,
+                         events=test.mmhp$tau,
+                         color=add.alpha(model_colors[2],
+                                         alpha=line.alpha[2]),
+                         line.width=line.wdth[2])
+legend(legend.x[2],legend.y[2],"C-DCHP",
+       col = model_colors[2],
+       y.intersp=0.88,x.intersp=0.1,bty = "n",
+       lty = 1, lwd = 5, cex= legend.cex,seg.len=1)
+
+axis(1,at=c(-2,my.long.x),col="gray35",
+     line=0.5,tick=T,labels=rep("",2),lwd=0.5,lwd.ticks=0,lty=3)
+
+legend(legend.x[2]-50,
+       legend.y[2]+2,c("State 0/1 events","State change point"),
+       col = c(NA,"red"),
+       y.intersp=0.85,x.intersp=-0.5, bty = "n",
+       pch = c(NA,4), pt.cex = c(NA,2), cex=legend.cex,
+       lty = c(NA,NA), lwd=c(NA,2))
+points(legend.x[2]-46,legend.y[2] - 4.5, pch = 1, cex = 2, col = "blue")
+points(legend.x[2]-44,legend.y[2] - 4.5, pch = 16, cex = 2, col = "blue")
+
+## delta lambda
+par(mar = c(0,0.3,0,0.1))
+delta.lambda <- lambda.m2$lambda.t-lambda.true$lambda.t
+
+plot(lambda.true$time.vec,delta.lambda,xlim=c(0,my.xlim), 
+     ylim=c(-4,4), type="n",
+     bty="n", xlab="",ylab="",xaxt="n",yaxt="n",axes=FALSE)
+delta.lambda <- lambda.m2$lambda.t-lambda.true$lambda.t
+delta.positive <- delta.lambda
+delta.positive[delta.positive<0] <- 0
+delta.negative <- delta.lambda
+delta.negative[delta.negative>0] <- 0
+polygon(c(0,lambda.true$time.vec,x_events), #200
+        c(0,delta.negative,0),col=negative.col,border=NA)
+polygon(c(0,lambda.true$time.vec,x_events), #200
+        c(0,delta.positive,0),col=positive.col,border=NA)
+# segments(0,0,my.xlim,0,col="gray45")
+## draw box
+axis(1,at=c(-2,my.long.x),col="gray35",
+     line=0,tick=T,labels=rep("",2),lwd=0.7,lwd.ticks=0)
+
+
+# model3
+########
+par(mar = c(0,0.3,1,0.1))
+drawUniMMHPIntensityPaper(true.object,
+                          simulation=fixStateTransition(test.mmhp),
+                          yupper=y.ub[3],
+                          color=add.alpha("black", alpha=line.alpha[1]),
+                          line.width=line.wdth[1],
+                          y.ratio=-0.05, min.y=-2, min.x=0, max.x=my.xlim, 
+                          box.type="n")
+drawUniMMHPIntensityPaper(object_hat,
+                          simulation = list(
+                            x=state.est.latent.mmhp.new$x.hat,                                          
+                            z=state.est.latent.mmhp.new$z.hat,
+                            tau=test.mmhp$tau,zt=test.mmhp$zt,
+                            lambda.max=test.mmhp$lambda.max),
+                          yupper=y.ub,add=TRUE,
+                          color=add.alpha(model_colors[3],
+                                          alpha=line.alpha[2]),
+                          line.width=line.wdth[2])
+legend(legend.x[3],legend.y[3],"C-MMHP",
+       col = model_colors[3],
+       y.intersp=0.6,x.intersp=0.1,bty = "n",
+       lty =1, lwd = 5,cex=legend.cex,seg.len=1)
+## draw box
+axis(1,at=c(-2,my.long.x),col="gray35",
+     line=0.5,tick=T,labels=rep("",2),lwd=0.5,lwd.ticks=0,lty=3)
+
+legend(legend.x[3]-50,legend.y[3]+2, c("Overestimation","Underestimation"),
+       col = c(positive.col,negative.col),
+       y.intersp=0.75,x.intersp=0.5,bty = "n",
+       lty = c(1,1), lwd = c(10,10), cex=legend.cex,seg.len=0.8)
+
+## delta lambda
+par(mar = c(0,0.3,0,0.1))
+plot(0,0,xlim=c(0,my.xlim), ylim=c(-4,4), type="n",
+     bty="n", xlab="",ylab="",xaxt="n",yaxt="n",axes=FALSE)
+delta.lambda <- lambda.m3-lambda.true$lambda.t
+delta.positive <- delta.lambda
+delta.positive[delta.positive<0] <- 0
+delta.negative <- delta.lambda
+delta.negative[delta.negative>0] <- 0
+### hiding these for now
+polygon(c(0,lambda.true$time.vec,x_events), # 200 
+        c(0,delta.negative,0),col=negative.col,border=NA)
+polygon(c(0,lambda.true$time.vec,x_events), # 200 
+        c(0,delta.positive,0),col=positive.col,border=NA)
+# segments(0,0,my.xlim,0,col="gray45")
+## draw box
+axis(1,at=c(-2,my.long.x),col="gray35",
+     line=0,tick=T,labels=rep("",2),lwd=0.7,lwd.ticks=0)
+
+
+## top
+mtext(text="(b)",side=3,line=0.8,outer=TRUE,cex=2.5,font=2)
+## bottom
+mtext(text="Time",side=1,line=2,outer=TRUE,cex=2.25)
+## left
+mtext(text="Intensity",side=2,line=0.6,outer=TRUE,cex=2.25)
+
+### just need to adjust the scales really!
+
 
 ```
