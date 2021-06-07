@@ -2342,11 +2342,9 @@ struct_plot %>%
 
 
 
-<!-- The remaining plot code seems to mostly be in `PaperPlots.R`. -->
-
 # Figure 8
 
-## Figure 8a: Frobenius norm of interaction predictions, single cohort
+## Figure 8a: MAE of interaction predictions, single cohort
 
 ```{r fig-8a-frob-norm-cohort5, fig.width=8,fig.height=4,eval=FALSE}
 load("../output/plot_N_predict.RData")
@@ -2389,49 +2387,15 @@ p3 + labs(fill = "Method")
 ```
 
 
-```{r fig-pred-cohort-slides, include=slides_plots,eval=slides_plots, fig.height=3}
-load("../output/plot_N_predict.RData")
-# current_cohort <- 5# cohort 1 looks worse than rest
-# 3 looks nice
-
-
-temp_plot_df <- predict_day_mae_df_lst[[current_cohort]]
-temp_plot_df$method <- factor(temp_plot_df$method,
-                              levels = c("mmhp","dsnl","m1","m2","m3"),
-                              labels = c("I-MMHP","DSNL","C-HP","C-DCHP","C-MMHP"))
-temp_plot_df$day <- factor(temp_plot_df$day)
-#png(paste(plot_path,"real_predict_N_one_cohort.png",sep=""),
-# width=600,height=300)
-p3_slides <- temp_plot_df %>%
-  filter(method != "I-MMHP") %>%
-  rowwise() %>%
-  #mutate(norm = min(norm,100)) %>%
-  ggplot( aes(x = method, y = mae, fill = method)) +
-  geom_boxplot(alpha=0.7) +
-  scale_fill_manual(values = plot_cols_pred) +
-  #ggtitle("(a)") +
-  theme_bw() +
-  theme(plot.title = element_text(size = 22, hjust = 0.5, face="bold"),
-        text = element_text(size = 20),
-        axis.text.x=element_blank(),
-        axis.ticks.x = element_blank(),
-        legend.position="right") +
-  facet_grid(cols=vars(day)) +
-  xlab("Prediction horizon (day)") + 
-  ylab("Frobenius norm of error") +
-  ylim(0, 10) +
-  NULL
-p3_slides
-```
-
-
 ## Figure 8b: Same plot aggregated for all cohorts
 
 ```{r fig-8b-frob-norm-all-cohorts,fig.width=8,fig.height=4.5, eval=FALSE}
+### updated to mae
+
 load("../output/plot_N_predict.RData")
-temp_plot_df <- all_cohort_norm_df %>% 
+temp_plot_df <- all_cohort_mae_df %>% 
   group_by(day, method) %>% 
-  summarise(avg=mean(norm), n= n(), sd=sd(norm))
+  summarise(avg = mean(norm), n = n(), sd = sd(norm))
 
 temp_plot_df$method <- factor(temp_plot_df$method,
                               levels = c("mmhp","dsnl","m1","m2","m3"),
@@ -2798,7 +2762,8 @@ sim_dsnl_inactive <- rstan::extract(fit_dsnl_inactive)
 save(sim_dsnl_active, fit_dsnl_active, utility_state_day,
      sim_dsnl_inactive, fit_dsnl_inactive, social_state_day,
      file = paste(data_path,cohort_names[current_cohort],
-                  "/dsnl_state_separation_stan_result_",cohort_names[current_cohort],
+                  "/dsnl_state_separation_stan_result_",
+                  cohort_names[current_cohort],
                   ".RData",sep=''))
 rm(interpolation_array_list)
 rm(state_array_list)
@@ -2885,7 +2850,7 @@ data.tbl$task.type <- factor(data.tbl$task.type);
 
 
 ```{r fig-10b-rank-correlation}
-par(mar=c(3,5,3,1))
+par(mar=c(3, 5, 3, 1))
 cx <- 1.75  # cex for axis label text; 
 # default is 1. bigger numbers make the text bigger, smaller, smaller.  
 x.ttl <- ""; # blank x-axis label  
