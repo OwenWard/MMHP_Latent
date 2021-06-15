@@ -175,7 +175,7 @@ start_time <- Sys.time()
 sim_model3_stan_fit3 <- model3$sample(data = data_list,
                                       iter_sampling = 1000,
                                       chains = 4,
-                                      refresh = 500)
+                                      refresh = 100)
 m3_time <- Sys.time() - start_time
 
 sim_model3_fit_3 <- sim_model3_stan_fit3$draws()
