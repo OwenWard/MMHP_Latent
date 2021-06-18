@@ -30,9 +30,9 @@ source('lib/drawIntensity.R')
 #source('lib/cleanData.R')
 # Define global variable
 n_sim <- 1
-num_nodes <- 20
+num_nodes <- 10
 cut_off <- 3
-obs_time <- 50
+obs_time <- 100
 
 model1_fn <- list(alpha.fun = function(x, y, eta1, eta2, eta3){
   return(eta1 * x * y * exp(-eta2 * abs(x-y))/(1 + exp(-eta3 *(x-y))))})
@@ -52,7 +52,8 @@ object_fn <- list(alpha.fun = function(x,y,eta1,eta2){
 
 object_par <- list(sim_lambda_1 = 0.4,
                    sim_eta_1 = 1.5,
-                   gamma_var = seq(from = 0.01, to = 0.2, length.out = num_nodes),
+                   gamma_var = seq(from = 0.01, to = 0.2,
+                                   length.out = num_nodes),
                    zeta_var = rep(0.05, num_nodes),
                    sim_eta_2 = 0.6,
                    sim_eta_3 = 3,
@@ -60,26 +61,47 @@ object_par <- list(sim_lambda_1 = 0.4,
                    f_vec_1 = seq(from = 0.05, to = 0.95,
                                  length.out = num_nodes))
 
-object_matrix <- list(lambda0_matrix=outer(object_par$gamma_var,
-                                           object_par$zeta_var, "+"),
-                      lambda1_matrix=matrix(object_par$sim_lambda_1,
-                                            nrow=length(object_par$f_vec_1),
-                                            ncol=length(object_par$f_vec_1)),
-                      alpha_matrix=formMatrix(function(x,y)
-                        object_fn$alpha.fun(x,y,object_par$sim_eta_1,
-                                            object_par$sim_eta_2),
-                        object_par$f_vec_1),
-                      beta_matrix=matrix(object_par$sim_beta,
-                                         nrow=length(object_par$f_vec_1),
-                                         ncol=length(object_par$f_vec_1)),
-                      q1_matrix=formMatrix(function(x,y)
-                        object_fn$q1.fun(x, y,
-                                         object_par$sim_eta_3),
-                                         object_par$f_vec_1),
-                      q2_matrix=formMatrix(function(x,y)
-                        object_fn$q0.fun(x, y,
-                                         object_par$sim_eta_3),
-                                         object_par$f_vec_1))
+object_matrix <- list(
+  lambda0_matrix = outer(
+    object_par$gamma_var,
+    object_par$zeta_var, "+"
+  ),
+  lambda1_matrix = matrix(object_par$sim_lambda_1,
+    nrow = length(object_par$f_vec_1),
+    ncol = length(object_par$f_vec_1)
+  ),
+  alpha_matrix = formMatrix(
+    function(x, y) {
+      object_fn$alpha.fun(
+        x, y, object_par$sim_eta_1,
+        object_par$sim_eta_2
+      )
+    },
+    object_par$f_vec_1
+  ),
+  beta_matrix = matrix(object_par$sim_beta,
+    nrow = length(object_par$f_vec_1),
+    ncol = length(object_par$f_vec_1)
+  ),
+  q1_matrix = formMatrix(
+    function(x, y) {
+      object_fn$q1.fun(
+        x, y,
+        object_par$sim_eta_3
+      )
+    },
+    object_par$f_vec_1
+  ),
+  q2_matrix = formMatrix(
+    function(x, y) {
+      object_fn$q0.fun(
+        x, y,
+        object_par$sim_eta_3
+      )
+    },
+    object_par$f_vec_1
+  )
+)
 
 # matrixPlotParameter(object_matrix$alpha_matrix)
 # object_matrix$q1_matrix
@@ -125,7 +147,7 @@ model3 <- cmdstan_model("lib/sim_model3_dc.stan")
 
 # for(i in c(1:n_sim)){
 i <- sim_id
-clean_sim_data <- cleanSimulationData(raw_data=sim_model3_data, 
+clean_sim_data <- cleanSimulationData(raw_data = sim_model3_data, 
                                       cut_off = cut_off,
                                       N = length(object_par$f_vec_1))
 #stan_data <- prepareDataStan(clean_sim_data)
@@ -163,7 +185,7 @@ sim_model3_fit1_draws <- posterior::as_draws_df(sim_model3_fit_1)
 sim_model3_stan_fit2 <- model2$sample(data = data_list,
                                       iter_sampling = 1000,
                                       refresh = 500,
-                                      chains=4)
+                                      chains = 4)
 # m2_time <- Sys.time() - start_time
 
 sim_model3_fit_2 <- sim_model3_stan_fit2$draws()
@@ -210,8 +232,9 @@ event_state_est_lst <- list()
 interpolate_state_est_lst <- list()
 # for(cur_sim in c(1:n_sim)){
 #   print(cur_sim)
-event_state_est_lst <- matrix(list(), nrow = length(object_par$f_vec_1),
-                                      ncol = length(object_par$f_vec_1))
+event_state_est_lst <- matrix(list(), 
+                              nrow = length(object_par$f_vec_1),
+                              ncol = length(object_par$f_vec_1))
 interpolate_state_est_lst <- matrix(list(),
                                     nrow = length(object_par$f_vec_1),
                                     ncol = length(object_par$f_vec_1))
@@ -331,14 +354,14 @@ save(event_state_est_lst, interpolate_state_est_lst,
 # 
 # ## then save these
 # 
-# output_rank <- tibble(truth = 1:5, 
+# output_rank <- tibble(truth = 1:num_nodes, 
 #                       m1 = m1_rank,
 #                       m2 = m2_rank,
 #                       m3_dc = m3_dc_rank,
 #                       isi = isi_rank_dc,
 #                       agg = agg_rank,
 #                       glicko = gl_ranks,
-#                       sim = rep(sim_id,5))
+#                       sim = rep(sim_id,num_nodes))
 # 
 # saveRDS(output_rank, 
 #         file = paste(data_path,"rank_sim",sim_id,".RDS",sep=''))
