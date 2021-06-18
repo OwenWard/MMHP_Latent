@@ -816,10 +816,10 @@ unique_pairs_df <- return_df %>%
 unique_observe_days <- unique(return_df[, 
                                        c("observe.id", "observe.time", "day")])
 
-unique_observe_days %>% 
+start_winds <- unique_observe_days %>% 
   filter(observe.id %in% start_win)
 
-unique_observe_days %>% 
+end_winds <-unique_observe_days %>% 
   filter(observe.id %in% end_win)
 
 
@@ -827,6 +827,23 @@ unique_observe_days %>%
 
 
 ### Get within/between cluster fights for this
+
+```{r extract-from-previons}
+wind1_memb <- tibble(id = 1:12, memb = lec1$membership)
+
+return_df %>% 
+  filter(observe.id >= start_winds$observe.id[1]) %>% 
+  filter(observe.id <= end_winds$observe.id[1]) %>% 
+  ### join with wind1_memb, tally
+  left_join(wind1_memb, by = c("initiator" = "id"))
+
+
+
+# length(lec2$membership)
+# 
+# length(lec3$membership)
+
+```
 
 
 # Repeat Rank Simulations
@@ -1126,7 +1143,7 @@ legend.x <- c(100, 100, 100) # c(135,135,135)
 legend.y <- # c(34,32,32)
 legend.y <- c(6, 6, 6) # c(15,12,15)#c(62,37,18)#c(22,22,22)
 legend.cex <- 1.5 # 3
-line.alpha <- c(0.4, 0.6)
+line.alpha <- c(1, 0.5)
 line.wdth <- c(1.5, 2)
 negative.col <- add.alpha("lightskyblue")
 positive.col <- add.alpha("tomato")
@@ -1210,14 +1227,14 @@ axis(1,
 # points(26,84,pch=16,cex=2,col="blue")
 
 #### more legend
-legend(legend.x[1], legend.y[1] + 1, c("True"),
+legend(legend.x[1] - 2, legend.y[1] + 1, c("True"),
        col = c("black"),
-       y.intersp = 0.88, x.intersp = 0.15, bty = "n",
+       y.intersp = 0.88, x.intersp = 0.65, bty = "n",
        lty = c(1), lwd = c(5), cex = legend.cex, seg.len = 1
 )
 legend(legend.x[1] + 22, legend.y[1] + 1, c("C-HP"),
        col = c(model_colors[1]),
-       y.intersp = 0.88, x.intersp = 0.15, bty = "n",
+       y.intersp = 0.88, x.intersp = 0.65, bty = "n",
        lty = c(1), lwd = c(5), cex = legend.cex, seg.len = 1
 )
 
@@ -1293,15 +1310,15 @@ drawHawkesIntensityPaper(
 )
 
 ### used legend
-legend(legend.x[2], legend.y[2] + 1, c("True"),
+legend(legend.x[2] - 2, legend.y[2] + 1, c("True"),
        col = c("black"),
-       y.intersp = 0.88, x.intersp = 0.15, bty = "n",
+       y.intersp = 0.88, x.intersp = 0.65, bty = "n",
        lty = c(1), lwd = c(5), cex = legend.cex, seg.len = 1
 )
 legend(legend.x[2] + 22, legend.y[2] + 1, "C-DCHP",
        col = model_colors[2],
        y.intersp = 0.88,
-       x.intersp = 0.1,
+       x.intersp = 0.65,
        bty = "n",
        lty = 1,
        lwd = 5,
@@ -1322,7 +1339,7 @@ axis(1,
 
 
 ## location of legend
-legend(legend.x[2] - 80,
+legend(legend.x[2] - 95,
        legend.y[2] + 2, c("State 0/1 events", "State change point"),
        col = c(NA, "red"),
        y.intersp = 0.85,
@@ -1331,9 +1348,9 @@ legend(legend.x[2] - 80,
        pch = c(NA, 4), pt.cex = c(NA, 2), cex = legend.cex,
        lty = c(NA, NA), lwd = c(NA, 2)
 )
-points(legend.x[2] - 73, legend.y[2] - 0.5, 
+points(legend.x[2] - 89, legend.y[2], 
        pch = 1, cex = 2, col = "blue")
-points(legend.x[2] - 69, legend.y[2] - 0.5,
+points(legend.x[2] - 85, legend.y[2],
        pch = 16, cex = 2, col = "blue")
 
 ## delta lambda
@@ -1379,7 +1396,8 @@ drawUniMMHPIntensityPaper(true.object,
                           yupper = y.ub[3],
                           color = add.alpha("black", alpha = line.alpha[1]),
                           line.width = line.wdth[1],
-                          y.ratio = -0.05, min.y = -0.5, min.x = 0, max.x = my.xlim,
+                          y.ratio = -0.05, min.y = -0.5,
+                          min.x = 0, max.x = my.xlim,
                           box.type = "n", line_type = mmhp_lty
 )
 drawUniMMHPIntensityPaper(object_hat,
@@ -1395,17 +1413,17 @@ drawUniMMHPIntensityPaper(object_hat,
                           ),
                           line.width = line.wdth[2]
 )
-legend(legend.x[3], legend.y[3] + 1, c("True"),
+legend(legend.x[3] - 2, legend.y[3] + 1, c("True"),
        col = c("black"),
-       y.intersp = 0.88, x.intersp = 0.15, bty = "n",
+       y.intersp = 0.88, x.intersp = 0.65, bty = "n",
        lty = c(1), lwd = c(5), cex = legend.cex, seg.len = 1
 )
 
 
 legend(legend.x[3] + 22, legend.y[3] + 1, "C-MMHP",
        col = model_colors[3],
-       y.intersp = 0.6,
-       x.intersp = 0.1,
+       y.intersp = 0.88,
+       x.intersp = .65,
        bty = "n",
        lty = 1,
        lwd = 5,
@@ -1423,7 +1441,7 @@ axis(1,
      lwd.ticks = 0, lty = 3
 )
 
-legend(legend.x[3] - 80, legend.y[3] + 2,
+legend(legend.x[3] - 95, legend.y[3] + 2,
        c("Overestimation", "Underestimation"),
        col = c(positive.col, negative.col),
        y.intersp = 0.75, x.intersp = 0.5, bty = "n",
@@ -2040,10 +2058,9 @@ for (s in c(1:n_sim)) {
           params = object_true,
           t = temp.t,
           latent = list(
-            x =
-              fixStateTransition(test.mmhp)$x,
-            z =
-              fixStateTransition(test.mmhp)$z
+            ## these are the truth
+            x = fixStateTransition(test.mmhp)$x,
+            z = fixStateTransition(test.mmhp)$z
           ),
           time.vec = time.segment
         )
@@ -2052,17 +2069,19 @@ for (s in c(1:n_sim)) {
         t = temp.t,
         latent_z = test.mmhp$zt
       )
-      Lambda_true_array[s, i, j] <- sum(true.intensity$lambda.t) * (time.segment[2] - time.segment[1])
+      Lambda_true_array[s, i, j] <- sum(true.intensity$lambda.t) *
+        (time.segment[2] - time.segment[1])
       PR_true_array[s, i, j] <- sum(1 / sqrt(true.intensity.events)) -
         sum(sqrt(true.intensity$lambda.t)) * (time.segment[2] - time.segment[1])
     }
   }
+  rm(sim_model3_data)
 }
 
 ```
 
 
-```{r curr_fig5a}
+```{r old_fig5a}
 cols_plot <- col_df %>% filter(method %in% c("C-HP","C-DCHP","C-MMHP",
                                  "True")) %>%
   arrange(factor(method, levels = c("C-HP","C-DCHP","C-MMHP","True"))) %>%
@@ -2088,7 +2107,7 @@ for(i in c(5:1)){
              cex=1.7)
       }
     }else{
-      # PR <- c((N_array-Lambda_model1_array)[,i,j],(N_array-Lambda_model2_array)[,i,j],
+    # PR <- c((N_array-Lambda_model1_array)[,i,j],(N_array-Lambda_model2_array)[,i,j],
       #         (N_array-Lambda_model3_array)[,i,j],(N_array-Lambda_true_array)[,i,j])
       PR <- c(KS_model1_array[,i,j], KS_model2_array[,i,j],
               KS_model3_array[,i,j], KS_true_array[,i,j])
@@ -2098,8 +2117,7 @@ for(i in c(5:1)){
       Type <- c(rep(1,n_sim), rep(2,n_sim), rep(3,n_sim), rep(4,n_sim))
       boxplot(PR ~ Type,  
               col = cols_plot,
-              #col = c("steelblue", "goldenrod2", "firebrick2", "chartreuse3"),   
-              xlab="",ylab="",xaxt="n",yaxt="n")
+              xlab="", ylab="",xaxt="n",yaxt="n")
       #names = c("C-HP", "C-HP-DC", "C-MMHP", "True")
     }
   }
@@ -2115,9 +2133,9 @@ for(i in c(5:1)){
 
 
 ```{r new-5a}
-cols_plot <- col_df %>% filter(method %in% c("C-HP","C-DCHP","C-MMHP",
-                                 "True")) %>%
-  arrange(factor(method, levels = c("C-HP","C-DCHP","C-MMHP","True"))) %>%
+cols_plot <- col_df %>% 
+  filter(method %in% c("C-HP","C-DCHP","C-MMHP", "True")) %>%
+  arrange(factor(method, levels = c("C-HP", "C-DCHP", "C-MMHP", "True"))) %>%
   pull(cols)
 
 
@@ -2131,7 +2149,7 @@ m3_ks <- tibble(Method = "C-MMHP",
        ks = as.vector(KS_model3_array))
 
 true_ks <- tibble(Method = "True",
-                  ks = as.vector(KS_true_array))
+       ks = as.vector(KS_true_array))
 
 all_ks <- m1_ks %>% 
   bind_rows(m2_ks) %>% 
