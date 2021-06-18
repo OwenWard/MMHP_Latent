@@ -2389,47 +2389,12 @@ p3 + labs(fill = "Method")
 
 ## Figure 8b: Same plot aggregated for all cohorts
 
-```{r fig-8b-frob-norm-all-cohorts,fig.width=8,fig.height=4.5, eval=FALSE}
-### updated to mae
-
-load("../output/plot_N_predict.RData")
-temp_plot_df <- all_cohort_mae_df %>% 
-  group_by(day, method) %>% 
-  summarise(avg = mean(norm), n = n(), sd = sd(norm))
-
-temp_plot_df$method <- factor(temp_plot_df$method,
-                              levels = c("mmhp","dsnl","m1","m2","m3"),
-                              labels = c("I-MMHP","DSNL",
-                                         "C-HP","C-DCHP",
-                                         "C-MMHP"))
-temp_plot_df$day <- factor(temp_plot_df$day)
-
-#png(paste(plot_path,"real_predict_N_all_cohort.png",
-# sep=""),width=600,height=300)
-p4 <- ggplot(temp_plot_df, aes(x=day, y=avg, group=method, color=method)) + 
-  geom_line(#aes(linetype = method),
-            size=1.2, alpha=0.8, position=position_dodge(0.2)) +
-  geom_errorbar(aes(ymin=avg-sd, ymax=avg+sd), width=0.8, size=0.8, alpha=0.8,
-                 position=position_dodge(0.2)) +
-  scale_color_manual(values = plot_cols_pred) + 
-  ggtitle("(b)") +
-  theme_bw() +
-  theme(plot.title = element_text(size = 22, hjust = 0.5, face="bold"),
-        text = element_text(size = 20),
-        axis.text.x=element_text(size = 18)) +
-  xlab("Prediction horizon (day)") + 
-  ylab("Frobenius norm of error") + 
-  coord_cartesian(ylim=c(2.5,57.5)) + 
-  guides(color=guide_legend(title="Model")) +
-  guides(linetype = FALSE)
-p4
-```
-
 
 ```{r fig-7a-pred-all-cohorts-box}
-load("../output/plot_N_predict.RData")
+### updated to revision
+load("../output/plot_N_predict_revision.RData")
 
-all_cohort_box <- all_cohort_norm_df
+all_cohort_box <- all_cohort_mae_df
 
 all_cohort_box$method <- factor(all_cohort_box$method,
                               levels = c("mmhp","dsnl","m1","m2","m3"),
