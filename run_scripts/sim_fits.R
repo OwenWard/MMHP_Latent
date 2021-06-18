@@ -15,7 +15,6 @@ options(mc.cores = parallel::detectCores())
 jobid <- Sys.getenv("SLURM_ARRAY_TASK_ID")
 jobid <- as.numeric(jobid)
 sim_id <- jobid
-sim_id <- 41 ### only run this sim this time
 
 #Sys.setenv(LOCAL_CPPFLAGS = '-march=corei7 -mtune=corei7')
 
