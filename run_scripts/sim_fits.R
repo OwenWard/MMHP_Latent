@@ -50,15 +50,15 @@ object_fn <- list(alpha.fun = function(x,y,eta1,eta2){
                   q1.fun = function(x,y,eta3){return(exp(-eta3*x))},
                   q0.fun = function(x,y,eta3){return(exp(-eta3*y))})
 
-object_par <- list(sim_lambda_1 = 0.5,
-                   gamma_var = seq(from = 0.01,
-                                   to = 0.2,
+object_par <- list(sim_lambda_1 = 0.75,
+                   gamma_var = seq(from = 0.05,
+                                   to = 0.3,
                                    length.out = num_nodes),
-                   zeta_var = rep(0.05, num_nodes),
+                   zeta_var = rep(0.0, num_nodes),
                    sim_eta_1 = 3.5,
-                   sim_eta_2 = 0.6,
+                   sim_eta_2 = 2.6,
                    sim_eta_3 = 3.0,
-                   sim_beta = 2,
+                   sim_beta = 2.25,
                    f_vec_1 = seq(from = 0.05, to = 0.95,
                                  length.out = num_nodes))
 
@@ -185,7 +185,7 @@ sim_model3_fit1_draws <- posterior::as_draws_df(sim_model3_fit_1)
 # start_time <- Sys.time()
 sim_model3_stan_fit2 <- model2$sample(data = data_list,
                                       iter_sampling = 1000,
-                                      refresh = 500,
+                                      refresh = 100,
                                       chains = 4)
 # m2_time <- Sys.time() - start_time
 
