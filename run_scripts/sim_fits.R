@@ -9,7 +9,7 @@ data_path <- "output/revisions/sim_m3/june_22/"
 library(cmdstanr)
 library(R.utils)
 library(dplyr)
-# library(compete)
+library(compete)
 options(mc.cores = parallel::detectCores())
 # rstan_options(auto_write = TRUE)
 jobid <- Sys.getenv("SLURM_ARRAY_TASK_ID")
@@ -194,13 +194,20 @@ sim_model3_fit2_draws <- posterior::as_draws_df(sim_model3_fit_2)
 
 print("model3")
 ## Fit in model 3
-start_time <- Sys.time()
+
+count_data <- get_wl_matrix(df = cbind(
+  clean_sim_data$start,
+  clean_sim_data$end
+))
+isi.out <- compete::isi98(m = count_data, random = TRUE)
+top_rank <- as.numeric(isi.out$best_order[1])
+data_list$alpha_id <- top_rank
+
 sim_model3_stan_fit3 <- model3$sample(data = data_list,
-                                      iter_warmup = 500,
+                                      iter_warmup = 1000,
                                       iter_sampling = 1000,
                                       chains = 4,
-                                      refresh = 50)
-m3_time <- Sys.time() - start_time
+                                      refresh = 100)
 
 sim_model3_fit_3 <- sim_model3_stan_fit3$draws()
 sim_model3_fit3_draws <- posterior::as_draws_df(sim_model3_fit_3)
