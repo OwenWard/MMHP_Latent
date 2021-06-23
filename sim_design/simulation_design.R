@@ -167,10 +167,15 @@ sim_fit1_draws <- posterior::as_draws_df(sim_fit1)
 
 ## save the stan object
 dir.create(sim_data_path, recursive = TRUE, showWarnings = FALSE)
-sim_stan_fit1$save_object(file = paste0(sim_data_path,
-                                        "stan_fit_1_sim_",
-                                        sim_id,
-                                        ".RDS"))
+sim_fit1_summ <- sim_stan_fit1$summary()
+# sim_stan_fit1$save_object(file = paste0(sim_data_path,
+#                                         "stan_fit_1_sim_",
+#                                         sim_id,
+#                                         ".RDS"))
+saveRDS(sim_fit1_summ, file = paste0(sim_data_path,
+                                     "stan_fit_1_summ_",
+                                     sim_id,
+                                     ".RDS"))
 
 ### look at some mcmc diagnostics
 # sim_stan_fit1$summary() %>%
@@ -214,19 +219,25 @@ sim_fit2_draws <- posterior::as_draws_df(sim_fit2)
 #                               "zeta[5]"))
 # mcmc_trace(sim_fit2, pars = c("lp__", "beta_delta", "beta"))
 
-sim_stan_fit2$save_object(file = paste0(sim_data_path,
-                                        "stan_fit_2_sim_",
-                                        sim_id,
-                                        ".RDS"))
+# sim_stan_fit2$save_object(file = paste0(sim_data_path,
+#                                         "stan_fit_2_sim_",
+#                                         sim_id,
+#                                         ".RDS"))
+
+sim_fit2_summ <- sim_stan_fit2$summary()
+saveRDS(sim_fit2_summ, file = paste0(sim_data_path,
+                                     "stan_fit_2_summ_",
+                                     sim_id,
+                                     ".RDS"))
 
 print("model3")
 ## Fit in model 3
 start_time <- Sys.time()
 sim_stan_fit3 <- model3$sample(data = data_list,
-                                      iter_warmup = 1000,
-                                      iter_sampling = 1000,
-                                      chains = 4,
-                                      refresh = 100)
+                               iter_warmup = 1000,
+                               iter_sampling = 1000,
+                               chains = 4,
+                               refresh = 100)
 
 # m3_time <- Sys.time() - start_time
 # 
@@ -255,10 +266,16 @@ sim_fit3_draws <- posterior::as_draws_df(sim_fit3)
 
 # save the stan fit
 
-sim_stan_fit3$save_object(file = paste0(sim_data_path,
-                                        "stan_fit_3_sim_",
-                                        sim_id,
-                                        ".RDS"))
+# sim_stan_fit3$save_object(file = paste0(sim_data_path,
+#                                         "stan_fit_3_sim_",
+#                                         sim_id,
+#                                         ".RDS"))
+
+sim_fit3_summ <- sim_stan_fit3$summary()
+saveRDS(sim_fit3_summ, file = paste0(sim_data_path,
+                                     "stan_fit_3_summ_",
+                                     sim_id,
+                                     ".RDS"))
 
 
 ## Extract the model fit
@@ -275,9 +292,9 @@ sim_model3_stan_sim3 <- sim_fit3_draws
 ## Save the output
 
 save(object_fn, object_par, object_matrix, sim_model3_data,
-     sim_model3_stan_sim1,
-     sim_model3_stan_sim2,
-     sim_model3_stan_sim3,
+     sim_fit1_draws,
+     sim_fit2_draws,
+     sim_fit3_draws,
      file = paste(sim_data_path,"sim_model3_sim123_",
                   sim_id,
                   ".RData",sep=''))
@@ -285,11 +302,26 @@ save(object_fn, object_par, object_matrix, sim_model3_data,
 
 
 ####
-# sim_id <- 4
-# sim_stan_fit3 <- readRDS(paste0(sim_data_path,
-#                                 "stan_fit_3_sim_",
+# sim_id <- 1
+# sim_stan_check <- readRDS(paste0(sim_data_path,
+#                                 "stan_fit_1_sim_",
 #                                 sim_id,
 #                                 ".RDS"))
 # 
 # 
 # sim_stan_check$summary()
+# 
+# str(sim_stan_check)
+# draws <- sim_stan_check$draws()
+# 
+# mcmc_trace(sim_model3_stan_sim3, pars = 
+#              c("f[1]", "f[2]", "f[3]", "f[4]", "f[5]"))
+# mcmc_trace(sim_model3_stan_sim3, pars = 
+#              c("eta_1", "eta_2", "eta_3", "beta", "lp__"))
+
+
+
+### compute rhats from draws, etc
+# library(posterior)
+# a <- as_draws_array(sim_fit1_draws)
+# rhat(extract_variable_matrix(a, "eta_2"))
