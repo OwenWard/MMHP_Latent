@@ -499,6 +499,16 @@ for(cohort_id in 1:10){
   
   all_ranks <- bind_rows(init_ranks, final_ranks) 
   
+  init_ranking <- all_ranks %>% filter(when == "first14") %>% 
+  group_by(node) %>% 
+  summarise(med = median(rank)) %>% 
+  arrange(-med) %>% 
+  pull(node)
+
+  ### then set the levels off this
+  all_ranks$node <- factor(all_ranks$node, 
+                           levels = as.character(init_ranking))
+  
   coh_plot <- all_ranks %>% 
     ggplot(aes(node, rank, fill = when)) +
     geom_boxplot() +
@@ -509,6 +519,57 @@ for(cohort_id in 1:10){
          subtitle = paste0("Cohort ", cohort_id))
   print(coh_plot)
 }
+
+```
+
+
+### Further Stability Questions
+
+To further investigate the stability of these rankings we 
+can do multiple things, including comparing the I&SI scores for both time
+periods to see the correlation across time.
+
+```{r compute start-end-isi}
+isi_data <- tibble()
+
+
+for(current_cohort in 1:10) {
+  clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
+  return_df <- cleanObservationPeriod(current_cohort, 
+                                    full_data[[cohort_names[current_cohort]]],
+                                      clean_data)
+  start_events <- return_df %>% filter(day <= 14)
+  wl_start <- get_wl_matrix(start_events[, c(3, 4)])
+  isi_start <- isi98(wl_start)
+  start_inf <- tibble(score = isi_start$I + isi_start$SI,
+                      order = list(isi_start$best_order),
+                      cohort = current_cohort,
+                      time = "Start")
+  isi_data <- isi_data %>% bind_rows(start_inf)
+  end_events <- return_df %>% filter(day > 7)
+  wl_end <- get_wl_matrix(end_events[, c(3, 4)])
+  isi_end <- isi98(wl_end)
+  end_inf <- tibble(score = isi_end$I + isi_end$SI,
+                      order = list(isi_end$best_order),
+                      cohort = current_cohort,
+                      time = "End")
+  isi_data <- isi_data %>% 
+    bind_rows(end_inf)
+}
+
+```
+
+
+```{r plot_output}
+isi_data %>% ggplot(aes(cohort, score, colour = time)) +
+  geom_point(alpha = 0.5, show.guide = FALSE) + 
+  scale_x_continuous(breaks = 1:10)
+
+### want one row for each cohort
+isi_data %>% 
+  select(-order) %>% 
+  pivot_wider(names_from = time, values_from = score) %>% 
+  summarise(correlation = cor(Start, End))
 
 ```
 
@@ -835,16 +896,158 @@ return_df %>%
   filter(observe.id >= start_winds$observe.id[1]) %>% 
   filter(observe.id <= end_winds$observe.id[1]) %>% 
   ### join with wind1_memb, tally
-  left_join(wind1_memb, by = c("initiator" = "id"))
+  left_join(wind1_memb, by = c("initiator" = "id")) %>% 
+  left_join(wind1_memb, by = c("recipient" = "id")) %>% 
+  rename(send_clust = memb.x, 
+         rec_clust = memb.y) %>% 
+  group_by(send_clust, rec_clust) %>% 
+  summarise(num_events = sum(no.events)) %>% 
+  mutate(clust = if_else(send_clust == rec_clust, "internal", "external")) %>% 
+  group_by(clust) %>% 
+  summarise(events = sum(num_events)) %>% 
+  ungroup() %>% 
+  mutate(prop = events/sum(events))
 
 
+wind2_memb <- tibble(id = 1:12, memb = lec2$membership)
 
-# length(lec2$membership)
-# 
-# length(lec3$membership)
+return_df %>% 
+  filter(observe.id >= start_winds$observe.id[2]) %>% 
+  filter(observe.id <= end_winds$observe.id[2]) %>% 
+  ### join with wind1_memb, tally
+  left_join(wind2_memb, by = c("initiator" = "id")) %>% 
+  left_join(wind2_memb, by = c("recipient" = "id")) %>% 
+  rename(send_clust = memb.x, 
+         rec_clust = memb.y) %>% 
+  group_by(send_clust, rec_clust) %>% 
+  summarise(num_events = sum(no.events)) %>% 
+  mutate(clust = if_else(send_clust == rec_clust, "internal", "external")) %>% 
+  group_by(clust) %>% 
+  summarise(events = sum(num_events)) %>% 
+  ungroup() %>% 
+  mutate(prop = events/sum(events))
+
+wind3_memb <- tibble(id = 1:12, memb = lec3$membership)
+
+return_df %>% 
+  filter(observe.id >= start_winds$observe.id[3]) %>% 
+  filter(observe.id <= end_winds$observe.id[3]) %>% 
+  ### join with wind1_memb, tally
+  left_join(wind3_memb, by = c("initiator" = "id")) %>% 
+  left_join(wind3_memb, by = c("recipient" = "id")) %>% 
+  rename(send_clust = memb.x, 
+         rec_clust = memb.y) %>% 
+  group_by(send_clust, rec_clust) %>% 
+  summarise(num_events = sum(no.events)) %>% 
+  mutate(clust = if_else(send_clust == rec_clust, "internal", "external")) %>% 
+  group_by(clust) %>% 
+  summarise(events = sum(num_events)) %>% 
+  ungroup() %>% 
+  mutate(prop = events/sum(events))
 
 ```
 
+
+
+```{r repeat-all-cohorts}
+
+get_inter_ext_events <- function(current_cohort) {
+  total_event_array <- total_event_array_lst[[current_cohort]]
+  active_event_array <- active_event_array_lst[[current_cohort]]
+  clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
+  return_df <- cleanObservationPeriod(current_cohort, 
+                                    full_data[[cohort_names[current_cohort]]],
+                                      clean_data)
+  
+  start_win <- floor(max(return_df$observe.id) / 3) * (0:2) + 1
+  end_win <- floor(max(return_df$observe.id) / 3) * (1:3)
+  matrix1 <- apply(
+    total_event_array[, , start_win[1]:end_win[1]] -
+      active_event_array[, , start_win[1]:end_win[1]],
+    c(1, 2), sum
+  )
+  matrix2 <- apply(
+    total_event_array[, , start_win[2]:end_win[2]] -
+      active_event_array[, , start_win[2]:end_win[2]],
+    c(1, 2), sum
+  )
+  matrix3 <- apply(
+    total_event_array[, , start_win[3]:end_win[3]] -
+      active_event_array[, , start_win[3]:end_win[3]],
+    c(1, 2), sum
+  )
+  
+  g_community1 <- graph_from_adjacency_matrix(matrix1, mode = "undirected")
+  lec1 <- cluster_leading_eigen(g_community1)
+  
+  g_community2 <- graph_from_adjacency_matrix(matrix2, mode = "undirected")
+  lec2 <- cluster_leading_eigen(g_community2)
+  
+  g_community3 <- graph_from_adjacency_matrix(matrix3, mode = "undirected")
+  lec3 <- cluster_leading_eigen(g_community3)
+  
+  wind1_memb <- tibble(id = 1:12, memb = lec1$membership)
+  
+  return_df %>% 
+    filter(observe.id >= start_winds$observe.id[1]) %>% 
+    filter(observe.id <= end_winds$observe.id[1]) %>% 
+    ### join with wind1_memb, tally
+    left_join(wind1_memb, by = c("initiator" = "id")) %>% 
+    left_join(wind1_memb, by = c("recipient" = "id")) %>% 
+    rename(send_clust = memb.x, 
+           rec_clust = memb.y) %>% 
+    group_by(send_clust, rec_clust) %>% 
+    summarise(num_events = sum(no.events)) %>% 
+    mutate(clust = if_else(send_clust == rec_clust, "internal", "external")) %>% 
+    group_by(clust) %>% 
+    summarise(events = sum(num_events)) %>% 
+    ungroup() %>% 
+    mutate(prop = events/sum(events))
+  
+  
+  wind2_memb <- tibble(id = 1:12, memb = lec2$membership)
+  
+  return_df %>% 
+    filter(observe.id >= start_winds$observe.id[2]) %>% 
+    filter(observe.id <= end_winds$observe.id[2]) %>% 
+    ### join with wind1_memb, tally
+    left_join(wind2_memb, by = c("initiator" = "id")) %>% 
+    left_join(wind2_memb, by = c("recipient" = "id")) %>% 
+    rename(send_clust = memb.x, 
+           rec_clust = memb.y) %>% 
+    group_by(send_clust, rec_clust) %>% 
+    summarise(num_events = sum(no.events)) %>% 
+    mutate(clust = if_else(send_clust == rec_clust, "internal", "external")) %>% 
+    group_by(clust) %>% 
+    summarise(events = sum(num_events)) %>% 
+    ungroup() %>% 
+    mutate(prop = events/sum(events))
+  
+  wind3_memb <- tibble(id = 1:12, memb = lec3$membership)
+  
+  return_df %>% 
+    filter(observe.id >= start_winds$observe.id[3]) %>% 
+    filter(observe.id <= end_winds$observe.id[3]) %>% 
+    ### join with wind1_memb, tally
+    left_join(wind3_memb, by = c("initiator" = "id")) %>% 
+    left_join(wind3_memb, by = c("recipient" = "id")) %>% 
+    rename(send_clust = memb.x, 
+           rec_clust = memb.y) %>% 
+    group_by(send_clust, rec_clust) %>% 
+    summarise(num_events = sum(no.events)) %>% 
+    mutate(clust = if_else(send_clust == rec_clust, "internal", "external")) %>% 
+    group_by(clust) %>% 
+    summarise(events = sum(num_events)) %>% 
+    ungroup() %>% 
+    mutate(prop = events/sum(events))
+
+   
+}
+
+
+get_inter_ext_events(current_cohort = 2)
+
+```
 
 # Repeat Rank Simulations
 
@@ -1736,8 +1939,10 @@ num_nodes <- 20
 
 object_par <- list(sim_lambda_1 = 0.2,
                    sim_eta_1 = 1.5,
-                   gamma_var = runif(n = num_nodes, min = 0.01, max = 0.05),
-                   zeta_var = runif(n = num_nodes, min = 0.01, max = 0.05),
+                   gamma_var = runif(n = num_nodes,
+                                     min = 0.01, max = 0.05),
+                   zeta_var = runif(n = num_nodes,
+                                    min = 0.01, max = 0.05),
                    sim_eta_2 = 0.6,
                    sim_eta_3 = 3,
                    sim_beta = 2,
@@ -1945,6 +2150,10 @@ for (s in c(1:n_sim)) {
   f_draws <- sim_model3_stan_sim3 %>% 
   select(starts_with("f"))
   
+  if(ncol(lam0_draws) != sum(clean_sim_data$N_count >2)) {
+    stop("Mismatch between params and event pairs")
+  }
+  
   lambda_0_est <- apply(lam0_draws, 2, mean)
   lambda_1_est <- apply(lam1_draws, 2, mean)
   ## then put these into a matrix
@@ -2140,16 +2349,16 @@ cols_plot <- col_df %>%
 
 
 m1_ks <- tibble(Method = "C-HP",
-       ks = as.vector(KS_model1_array))
+       ks = as.vector(KS_model1_array[sims, ,]))
 
 m2_ks <- tibble(Method = "C-DCHP",
-       ks = as.vector(KS_model2_array))
+       ks = as.vector(KS_model2_array[sims, ,]))
 
 m3_ks <- tibble(Method = "C-MMHP",
-       ks = as.vector(KS_model3_array))
+       ks = as.vector(KS_model3_array[sims, ,]))
 
 true_ks <- tibble(Method = "True",
-       ks = as.vector(KS_true_array))
+       ks = as.vector(KS_true_array[sims, ,]))
 
 all_ks <- m1_ks %>% 
   bind_rows(m2_ks) %>% 
@@ -2170,16 +2379,16 @@ all_ks %>%
 
 
 m1_pr <- tibble(Method = "C-HP",
-       pr = as.vector(PR_model1_array))
+       pr = as.vector(PR_model1_array[sims, ,]))
 
 m2_pr <- tibble(Method = "C-DCHP",
-       pr = as.vector(PR_model2_array))
+       pr = as.vector(PR_model2_array[sims, ,]))
 
 m3_pr <- tibble(Method = "C-MMHP",
-       pr = as.vector(PR_model3_array))
+       pr = as.vector(PR_model3_array[sims, ,]))
 
 true_pr <- tibble(Method = "True",
-                  pr = as.vector(PR_true_array))
+      pr = as.vector(PR_true_array[sims, ,]))
 
 all_pr <- m1_pr %>% 
   bind_rows(m2_pr) %>% 

@@ -30,9 +30,9 @@ source('lib/drawIntensity.R')
 #source('lib/cleanData.R')
 # Define global variable
 n_sim <- 1
-num_nodes <- 10
+num_nodes <- 5
 cut_off <- 3
-obs_time <- 100
+obs_time <- 50
 
 model1_fn <- list(alpha.fun = function(x, y, eta1, eta2, eta3){
   return(eta1 * x * y * exp(-eta2 * abs(x-y))/(1 + exp(-eta3 *(x-y))))})
@@ -194,13 +194,17 @@ print("model3")
 ## Fit in model 3
 start_time <- Sys.time()
 sim_model3_stan_fit3 <- model3$sample(data = data_list,
+                                      iter_warmup = 500,
                                       iter_sampling = 1000,
                                       chains = 4,
-                                      refresh = 100)
+                                      refresh = 50)
 m3_time <- Sys.time() - start_time
 
 sim_model3_fit_3 <- sim_model3_stan_fit3$draws()
 sim_model3_fit3_draws <- posterior::as_draws_df(sim_model3_fit_3)
+
+# save the summary
+stan_fit3_summ <- sim_model3_stan_fit3$summary()
 
 # }
 
