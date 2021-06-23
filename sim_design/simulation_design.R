@@ -244,8 +244,8 @@ data_list$alpha_id <- top_rank
 
 start_time <- Sys.time()
 sim_stan_fit3 <- model3$sample(data = data_list,
-                               iter_warmup = 100,
-                               iter_sampling = 500,
+                               iter_warmup = 1000,
+                               iter_sampling = 1000,
                                adapt_delta = 0.9,
                                chains = 4,
                                refresh = 100)
