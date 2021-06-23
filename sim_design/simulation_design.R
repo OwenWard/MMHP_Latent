@@ -10,7 +10,7 @@ library(here)
 ##library(bayesplot)
 library(R.utils)
 library(dplyr)
-# library(compete)
+library(compete)
 options(mc.cores = parallel::detectCores())
 
 sim_data_path <- here("output", "revisions", "sim_design", "/")
