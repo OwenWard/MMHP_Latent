@@ -29,7 +29,7 @@ source('lib/drawIntensity.R')
 n_sim <- 1
 num_nodes <- 10
 cut_off <- 3
-obs_time <- 50
+obs_time <- 100
 
 model1_fn <- list(alpha.fun = function(x, y, eta1, eta2, eta3){
   return(eta1 * x * y * exp(-eta2 * abs(x-y))/(1 + exp(-eta3 *(x-y))))})
@@ -50,10 +50,11 @@ object_fn <- list(alpha.fun = function(x,y,eta1,eta2){
 object_par <- list(sim_lambda_1 = 0.4,
                    gamma_var = rep(0.15, num_nodes),
                    zeta_var = rep(0.15, num_nodes),
-                   sim_eta_1 = 3.5,
-                   sim_eta_2 = 2.6,
-                   sim_eta_3 = 7.5,
-                   sim_beta = 2,
+                   sim_eta_1 = 1.5, # from 3.5
+                   sim_eta_2 = 1.5, # from 2.6
+                   sim_eta_3 = 2, # this seems better
+                   #sim_eta_3 = 7.5,
+                   sim_beta = 1.5, # from 2
                    f_vec_1 = seq(from = 0.05, to = 0.95,
                                  length.out = num_nodes))
 
@@ -232,10 +233,20 @@ saveRDS(sim_fit2_summ, file = paste0(sim_data_path,
 
 print("model3")
 ## Fit in model 3
+
+count_data <- get_wl_matrix(df = cbind(
+  clean_sim_data$start,
+  clean_sim_data$end
+))
+isi.out <- compete::isi98(m = count_data, random = TRUE)
+top_rank <- as.numeric(isi.out$best_order[1])
+data_list$alpha_id <- top_rank
+
 start_time <- Sys.time()
 sim_stan_fit3 <- model3$sample(data = data_list,
-                               iter_warmup = 1000,
-                               iter_sampling = 1000,
+                               iter_warmup = 100,
+                               iter_sampling = 500,
+                               adapt_delta = 0.9,
                                chains = 4,
                                refresh = 100)
 
@@ -277,13 +288,6 @@ saveRDS(sim_fit3_summ, file = paste0(sim_data_path,
                                      "stan_fit_3_summ_",
                                      sim_id,
                                      ".RDS"))
-
-
-## Extract the model fit
-sim_model3_stan_sim1 <- sim_fit1_draws
-sim_model3_stan_sim2 <- sim_fit2_draws
-sim_model3_stan_sim3 <- sim_fit3_draws
-
 
 # m1_rank <- order(apply(sim_model3_stan_sim1$f, 2, mean))
 # m2_rank <- order(apply(sim_model3_stan_sim2$f, 2, mean))
