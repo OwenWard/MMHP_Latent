@@ -7,7 +7,7 @@ sim_id <- jobid
 
 library(cmdstanr)
 library(here)
-library(bayesplot)
+##library(bayesplot)
 library(R.utils)
 library(dplyr)
 # library(compete)
