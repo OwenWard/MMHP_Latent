@@ -286,7 +286,7 @@ save(object_fn, object_par, object_matrix, sim_model3_data,
 
 ####
 # sim_id <- 4
-# sim_stan_check <- readRDS(paste0(sim_data_path,
+# sim_stan_fit3 <- readRDS(paste0(sim_data_path,
 #                                 "stan_fit_3_sim_",
 #                                 sim_id,
 #                                 ".RDS"))
