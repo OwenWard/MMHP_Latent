@@ -27,7 +27,7 @@ source('lib/drawIntensity.R')
 #source('lib/cleanData.R')
 # Define global variable
 n_sim <- 1
-num_nodes <- 10
+num_nodes <- 5
 cut_off <- 3
 obs_time <- 50
 
@@ -156,8 +156,8 @@ data_list <- list(max_Nm = max(clean_sim_data$N_count),
 ## Fit in model 1
 # start_time <- Sys.time()
 sim_stan_fit1 <- model1$sample(data = data_list,
-                                      iter_sampling = 1000,
-                                      iter_warmup = 1000,
+                                      iter_sampling = 500,
+                                      iter_warmup = 500,
                                       refresh = 100,
                                       chains = 4)
 
@@ -190,8 +190,8 @@ saveRDS(sim_fit1_summ, file = paste0(sim_data_path,
 # ## Fit in model 2
 # start_time <- Sys.time()
 sim_stan_fit2 <- model2$sample(data = data_list,
-                               iter_sampling = 1000,
-                               iter_warmup = 1000,
+                               iter_sampling = 500,
+                               iter_warmup = 500,
                                refresh = 100,
                                chains = 4)
 # m2_time <- Sys.time() - start_time
@@ -238,6 +238,7 @@ sim_stan_fit3 <- model3$sample(data = data_list,
                                iter_sampling = 1000,
                                chains = 4,
                                refresh = 100)
+
 
 # m3_time <- Sys.time() - start_time
 # 
