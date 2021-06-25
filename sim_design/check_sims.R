@@ -16,10 +16,20 @@ sim_data_path <- here("output", "revisions", "sim_design", "/")
 #                    f_vec_1 = seq(from = 0.05, to = 0.95,
 #                                  length.out = num_nodes))
 
-sim_id <- 9
+sim_id <- 10
 load(paste(sim_data_path,"sim_model3_sim123_",
                   sim_id,
                   ".RData",sep=''))
+
+sim_fit1_draws <- sim_model3_stan_sim1
+sim_fit2_draws <- sim_model3_stan_sim2
+sim_fit3_draws <- sim_model3_stan_sim3
+
+
+# sim_model3_stan_sim1 <- sim_fit1_draws
+# sim_model3_stan_sim2 <- sim_fit2_draws
+# sim_model3_stan_sim3 <- sim_fit3_draws
+
 
 
 ####

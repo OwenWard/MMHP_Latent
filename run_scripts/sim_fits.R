@@ -51,14 +51,17 @@ object_fn <- list(alpha.fun = function(x,y,eta1,eta2){
                   q0.fun = function(x,y,eta3){return(exp(-eta3*y))})
 
 object_par <- list(sim_lambda_1 = 0.4,
-                   gamma_var = seq(from = 0.01, to = .2, length.out = num_nodes),
+                   gamma_var = seq(from = 0.01,
+                                    to = .2,
+                                   length.out = num_nodes),
                    zeta_var = rep(0.1, num_nodes),
                    sim_eta_1 = 1.5, # from 3.5
                    sim_eta_2 = 1.5, # from 2.6
                    sim_eta_3 = 2, # this seems better
                    #sim_eta_3 = 7.5,
                    sim_beta = 1.5, # from 2
-                   f_vec_1 = seq(from = 0.05, to = 0.95,
+                   f_vec_1 = seq(from = 0.10,
+                                 to = 0.9,
                                  length.out = num_nodes))
 
 
