@@ -2433,14 +2433,49 @@ all_ks_p$Method <- factor(all_ks_p$Method, levels = c("C-HP",
                                                 "C-MMHP",
                                                 "True") )
 
+all_ks_p %>% ggplot(aes(Method, ks)) +
+  geom_boxplot(aes(fill = Method)) +
+  scale_fill_manual(values = cols_plot) +
+  labs(y = "P Value", title = "All Simulations")
+
 all_ks_p %>% 
   filter(ks != 0) %>% 
-  mutate(log_p = -log(ks)) %>% 
+  # mutate(log_p = -log(ks)) %>% 
   ggplot(aes(log_p)) + 
   geom_histogram(aes(fill = Method)) +
   scale_fill_manual(values = cols_plot) +
   labs(y = "Negative Log KS Statistic P Value") +
   facet_wrap(~Method)
+
+
+### repeat for 1 simulation
+sims <- 12
+m1_ks_p <- tibble(Method = "C-HP",
+       ks = as.vector(KS_p_model1_array[sims, ,]))
+
+m2_ks_p <- tibble(Method = "C-DCHP",
+       ks = as.vector(KS_p_model2_array[sims, ,]))
+
+m3_ks_p <- tibble(Method = "C-MMHP",
+       ks = as.vector(KS_p_model3_array[sims, ,]))
+
+true_ks_p <- tibble(Method = "True",
+       ks = as.vector(KS_p_true_array[sims, ,]))
+
+all_ks_p <- m1_ks_p %>% 
+  bind_rows(m2_ks_p) %>% 
+  bind_rows(m3_ks_p) %>% 
+  bind_rows(true_ks_p)
+
+all_ks_p$Method <- factor(all_ks_p$Method, levels = c("C-HP",
+                                                "C-DCHP",
+                                                "C-MMHP",
+                                                "True") )
+
+all_ks_p %>% ggplot(aes(Method, ks)) +
+  geom_boxplot(aes(fill = Method)) +
+  scale_fill_manual(values = cols_plot) +
+  labs(y = "P Value", title = "single simulation")
 
 
 ```

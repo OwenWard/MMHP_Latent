@@ -27,9 +27,9 @@ source('lib/drawIntensity.R')
 #source('lib/cleanData.R')
 # Define global variable
 n_sim <- 1
-num_nodes <- 10
+num_nodes <- 5
 cut_off <- 3
-obs_time <- 100
+obs_time <- 50
 
 model1_fn <- list(alpha.fun = function(x, y, eta1, eta2, eta3){
   return(eta1 * x * y * exp(-eta2 * abs(x-y))/(1 + exp(-eta3 *(x-y))))})
@@ -48,10 +48,10 @@ object_fn <- list(alpha.fun = function(x,y,eta1,eta2){
   q0.fun = function(x,y,eta3){return(exp(-eta3*y))})
 
 object_par <- list(sim_lambda_1 = 0.4,
-                   gamma_var = rep(0.15, num_nodes),
-                   zeta_var = rep(0.15, num_nodes),
+                   gamma_var = seq(from = 0.01, to = 0.2, length.out = num_nodes),
+                   zeta_var = rep(0.1, num_nodes),
                    sim_eta_1 = 1.5, # from 3.5
-                   sim_eta_2 = 1.5, # from 2.6
+                   sim_eta_2 = 0,#1.5, # from 2.6
                    sim_eta_3 = 2, # this seems better
                    #sim_eta_3 = 7.5,
                    sim_beta = 1.5, # from 2
