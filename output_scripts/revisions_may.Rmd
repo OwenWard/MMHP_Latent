@@ -454,7 +454,8 @@ the results in this case?
 ## Stability of Rankings over Time
 
 ```{r load_cohort_rankings}
-for(cohort_id in 1:10){
+# for(cohort_id in 1:10){
+cohort_id <- 5
   start_rank <- readRDS(file = paste(data_path,
                                  "/revisions/rank_stab/", "cohort_",
                                  cohort_id, "start.RDS",
@@ -515,10 +516,11 @@ for(cohort_id in 1:10){
     labs(x = "Mouse",
          y = "Latent Rank", 
          fill = "Time Period",
-         title = "Agreement between initial and later ranking",
-         subtitle = paste0("Cohort ", cohort_id))
+         title = "Agreement between Initial and Final Ranking",
+         subtitle = paste0("Cohort ", cohort_id)) +
+    scale_fill_discrete(labels = c("First 14 Days", "Final 14 Days"))
   print(coh_plot)
-}
+# }
 
 ```
 
@@ -2228,7 +2230,7 @@ for (s in c(1:n_sim)) {
         if.pzt = FALSE
       )
       KS_model3_array[s, i, j] <- ks.test(Lambda.test, "pexp")$statistic
-      KS_p_model3_array[s, i, j] <- ks.test(Lambda_test, "pexp")$p.value
+      KS_p_model3_array[s, i, j] <- ks.test(Lambda.test, "pexp")$p.value
       state.est.latent.mmhp <- interpolate_state_est_lst[i, j][[1]]
       step.fun.est <- stepfun(
         state.est.latent.mmhp$x.hat,
@@ -2404,6 +2406,43 @@ all_pr %>%
   geom_boxplot(aes(fill = Method)) +
   scale_fill_manual(values = cols_plot) +
   labs(y = "Pearson Residual")
+```
+
+
+```{r ks-p-value}
+
+m1_ks_p <- tibble(Method = "C-HP",
+       ks = as.vector(KS_p_model1_array[sims, ,]))
+
+m2_ks_p <- tibble(Method = "C-DCHP",
+       ks = as.vector(KS_p_model2_array[sims, ,]))
+
+m3_ks_p <- tibble(Method = "C-MMHP",
+       ks = as.vector(KS_p_model3_array[sims, ,]))
+
+true_ks_p <- tibble(Method = "True",
+       ks = as.vector(KS_p_true_array[sims, ,]))
+
+all_ks_p <- m1_ks_p %>% 
+  bind_rows(m2_ks_p) %>% 
+  bind_rows(m3_ks_p) %>% 
+  bind_rows(true_ks_p)
+
+all_ks_p$Method <- factor(all_ks_p$Method, levels = c("C-HP",
+                                                "C-DCHP",
+                                                "C-MMHP",
+                                                "True") )
+
+all_ks_p %>% 
+  filter(ks != 0) %>% 
+  mutate(log_p = -log(ks)) %>% 
+  ggplot(aes(log_p)) + 
+  geom_histogram(aes(fill = Method)) +
+  scale_fill_manual(values = cols_plot) +
+  labs(y = "Negative Log KS Statistic P Value") +
+  facet_wrap(~Method)
+
+
 ```
 
 
