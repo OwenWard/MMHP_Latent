@@ -1,8 +1,8 @@
 library(ggplot2)
 library(bayesplot)
-library(ggplot2)
 library(posterior)
 library(here)
+library(tidyverse)
 
 sim_data_path <- here("output", "revisions", "sim_design", "/")
 
@@ -16,14 +16,14 @@ sim_data_path <- here("output", "revisions", "sim_design", "/")
 #                    f_vec_1 = seq(from = 0.05, to = 0.95,
 #                                  length.out = num_nodes))
 
-sim_id <- 10
-load(paste(sim_data_path,"sim_model3_sim123_",
-                  sim_id,
-                  ".RData",sep=''))
+# sim_id <- 10
+# load(paste(sim_data_path,"sim_model3_sim123_",
+#                   sim_id,
+#                   ".RData",sep=''))
 
-sim_fit1_draws <- sim_model3_stan_sim1
-sim_fit2_draws <- sim_model3_stan_sim2
-sim_fit3_draws <- sim_model3_stan_sim3
+# sim_fit1_draws <- sim_model3_stan_sim1
+# sim_fit2_draws <- sim_model3_stan_sim2
+# sim_fit3_draws <- sim_model3_stan_sim3
 
 
 # sim_model3_stan_sim1 <- sim_fit1_draws
@@ -71,6 +71,22 @@ mcmc_trace(sim_fit1_draws, pars = "beta") +
 
 ####
 
+true_ranks <- tibble(node = 1:num_nodes,
+                     rank = object_par$f_vec_1)
+
+sim_fit1_draws %>% 
+  select(starts_with("f")) %>% 
+  rename_with(~gsub("f[", "", .x, fixed = TRUE)) %>% 
+  rename_with(~gsub("]", "", .x, fixed = TRUE)) %>%
+  pivot_longer(everything(),
+               names_to = "node",
+               values_to = "rank") %>% 
+  mutate(node = factor(node, levels = 1:num_nodes)) %>% 
+  ggplot(aes(node, rank)) + 
+  geom_boxplot() +
+  geom_point(data = true_ranks, aes(node, rank), colour = "red")
+
+
 mcmc_trace(sim_fit2_draws, pars =
              c("f[1]", "f[2]", "f[3]", "f[4]", "f[5]",
                "f[6]", "f[7]", "f[8]", "f[9]", "f[10]"))
@@ -104,6 +120,18 @@ mcmc_trace(sim_fit2_draws, pars = "f[5]") +
 mcmc_trace(sim_fit2_draws, pars = "beta") +
   geom_hline(yintercept = object_par$sim_beta)
 
+
+sim_fit2_draws %>% 
+  select(starts_with("f")) %>% 
+  rename_with(~gsub("f[", "", .x, fixed = TRUE)) %>% 
+  rename_with(~gsub("]", "", .x, fixed = TRUE)) %>%
+  pivot_longer(everything(),
+               names_to = "node",
+               values_to = "rank") %>% 
+  mutate(node = factor(node, levels = 1:num_nodes)) %>% 
+  ggplot(aes(node, rank)) + 
+  geom_boxplot() +
+  geom_point(data = true_ranks, aes(node, rank), colour = "red")
 
 ####
 
@@ -154,6 +182,20 @@ mcmc_trace(sim_fit3_draws, pars = "f[10]") +
 
 mcmc_trace(sim_fit3_draws, pars = "beta") +
   geom_hline(yintercept = object_par$sim_beta)
+
+
+
+sim_fit3_draws %>% 
+  select(starts_with("f")) %>% 
+  rename_with(~gsub("f[", "", .x, fixed = TRUE)) %>% 
+  rename_with(~gsub("]", "", .x, fixed = TRUE)) %>%
+  pivot_longer(everything(),
+               names_to = "node",
+               values_to = "rank") %>% 
+  mutate(node = factor(node, levels = 1:num_nodes)) %>% 
+  ggplot(aes(node, rank)) + 
+  geom_boxplot() +
+  geom_point(data = true_ranks, aes(node, rank), colour = "red")
 
 
 ### compute rhats from draws, etc

@@ -114,7 +114,7 @@ model3_fn <- list(
 We can replace the simulation example with 5 nodes to one with
 20 nodes.
 
-```{r simulate_20_nodes}
+```{r simulate_20_nodes, eval=FALSE, include=FALSE}
 num_nodes <- 20
 cut_off <- 3
 obs_time <- 200
@@ -223,7 +223,7 @@ the true latent rankings.
 
 We can also plot the MMHP fit for a single pair using `ppdiag`.
 
-```{r plot_pair}
+```{r plot_pair, eval=FALSE, include=FALSE}
 start <- 20
 end <- 10
 
@@ -347,7 +347,7 @@ is consistent with what we see for real data, where the
 residual matrices show overall small positive values, indicating
 underestimation when we fit individual models.
 
-```{r residuals-immhp-sim}
+```{r residuals-immhp-sim, eval=FALSE, include=FALSE}
 pr_matrix <- readRDS(here("output", "revisions", "pr_matrix_immhp.RDS"))
 rr_matrix <- readRDS(here("output", "revisions", "rr_matrix_immhp.RDS"))
 # image(pr_matrix)
@@ -951,7 +951,7 @@ return_df %>%
 
 
 
-```{r repeat-all-cohorts}
+```{r repeat-all-cohorts, eval=FALSE, include=FALSE}
 
 get_inter_ext_events <- function(current_cohort) {
   total_event_array <- total_event_array_lst[[current_cohort]]
@@ -2481,7 +2481,7 @@ all_ks_p %>% ggplot(aes(Method, ks)) +
 ```
 
 
-```{r take-mean-ks/pr}
+```{r take-mean-ks/pr, include=FALSE}
 m1_ks <- tibble(Method = "C-HP",
        ks = as.vector(apply(KS_model1_array, c(2,3), mean)))
 

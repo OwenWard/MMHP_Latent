@@ -27,7 +27,7 @@ source('lib/drawIntensity.R')
 #source('lib/cleanData.R')
 # Define global variable
 n_sim <- 1
-num_nodes <- 5
+num_nodes <- 10
 cut_off <- 3
 obs_time <- 50
 
@@ -47,15 +47,16 @@ object_fn <- list(alpha.fun = function(x,y,eta1,eta2){
   q1.fun = function(x,y,eta3){return(exp(-eta3*x))},
   q0.fun = function(x,y,eta3){return(exp(-eta3*y))})
 
-object_par <- list(sim_lambda_1 = 0.4,
-                   gamma_var = seq(from = 0.01, to = 0.2, length.out = num_nodes),
-                   zeta_var = rep(0.1, num_nodes),
-                   sim_eta_1 = 1.5, # from 3.5
-                   sim_eta_2 = 0,#1.5, # from 2.6
-                   sim_eta_3 = 2, # this seems better
+object_par <- list(sim_lambda_1 = 0.6,
+                   gamma_var = seq(from = 0.01, to = 0.2,
+                                   length.out = num_nodes),
+                   zeta_var = rep(0.05, num_nodes),
+                   sim_eta_1 = 3.5, # from 3.5
+                   sim_eta_2 = 2,#1.5, # from 2.6
+                   sim_eta_3 = 3, # this seems better
                    #sim_eta_3 = 7.5,
                    sim_beta = 1.5, # from 2
-                   f_vec_1 = seq(from = 0.05, to = 0.95,
+                   f_vec_1 = seq(from = 0.25, to = 0.85,
                                  length.out = num_nodes))
 
 object_matrix <- list(
@@ -167,16 +168,16 @@ sim_fit1_draws <- posterior::as_draws_df(sim_fit1)
 # # m1_time <- Sys.time() - start_time
 
 ## save the stan object
-dir.create(sim_data_path, recursive = TRUE, showWarnings = FALSE)
-sim_fit1_summ <- sim_stan_fit1$summary()
-# sim_stan_fit1$save_object(file = paste0(sim_data_path,
-#                                         "stan_fit_1_sim_",
-#                                         sim_id,
-#                                         ".RDS"))
-saveRDS(sim_fit1_summ, file = paste0(sim_data_path,
-                                     "stan_fit_1_summ_",
-                                     sim_id,
-                                     ".RDS"))
+# dir.create(sim_data_path, recursive = TRUE, showWarnings = FALSE)
+# sim_fit1_summ <- sim_stan_fit1$summary()
+# # sim_stan_fit1$save_object(file = paste0(sim_data_path,
+# #                                         "stan_fit_1_sim_",
+# #                                         sim_id,
+# #                                         ".RDS"))
+# saveRDS(sim_fit1_summ, file = paste0(sim_data_path,
+#                                      "stan_fit_1_summ_",
+#                                      sim_id,
+#                                      ".RDS"))
 
 ### look at some mcmc diagnostics
 # sim_stan_fit1$summary() %>%
@@ -225,11 +226,11 @@ sim_fit2_draws <- posterior::as_draws_df(sim_fit2)
 #                                         sim_id,
 #                                         ".RDS"))
 
-sim_fit2_summ <- sim_stan_fit2$summary()
-saveRDS(sim_fit2_summ, file = paste0(sim_data_path,
-                                     "stan_fit_2_summ_",
-                                     sim_id,
-                                     ".RDS"))
+# sim_fit2_summ <- sim_stan_fit2$summary()
+# saveRDS(sim_fit2_summ, file = paste0(sim_data_path,
+#                                      "stan_fit_2_summ_",
+#                                      sim_id,
+#                                      ".RDS"))
 
 print("model3")
 ## Fit in model 3
@@ -242,13 +243,13 @@ isi.out <- compete::isi98(m = count_data, random = TRUE)
 top_rank <- as.numeric(isi.out$best_order[1])
 data_list$alpha_id <- top_rank
 
-start_time <- Sys.time()
+# start_time <- Sys.time()
 sim_stan_fit3 <- model3$sample(data = data_list,
-                               iter_warmup = 1000,
-                               iter_sampling = 1000,
-                               adapt_delta = 0.9,
+                               iter_warmup = 50,
+                               iter_sampling = 100,
+                               # adapt_delta = 0.9,
                                chains = 4,
-                               refresh = 100)
+                               refresh = 25)
 
 
 # m3_time <- Sys.time() - start_time
