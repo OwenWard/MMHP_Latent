@@ -72,7 +72,10 @@ object_matrix <- list(
   #   nrow = length(object_par$f_vec_1),
   #   ncol = length(object_par$f_vec_1)
   # ),
-  lambda1_matrix = 1.5*lambda0_matrix,
+  lambda1_matrix = 1.5*outer(
+    object_par$gamma_var,
+    object_par$zeta_var, "+"
+  ),
   alpha_matrix = formMatrix(
     function(x, y) {
       object_fn$alpha.fun(
