@@ -32,7 +32,7 @@ source('lib/drawIntensity.R')
 n_sim <- 1
 num_nodes <- 10
 cut_off <- 3
-obs_time <- 50
+obs_time <- 100
 
 model1_fn <- list(alpha.fun = function(x, y, eta1, eta2, eta3){
   return(eta1 * x * y * exp(-eta2 * abs(x-y))/(1 + exp(-eta3 *(x-y))))})
