@@ -4,7 +4,7 @@
 
 ### code ###
 ## run this if running on the cluster
-source("/rigel/stats/users/ogw2103/code/MMHP/MMHP_Latent/run_scripts/cluster_setup.R")
+source("/moto/stats/users/ogw2103/Code/MMHP_Latent/run_scripts/cluster_setup.R")
 # ### set cohort_id based on job num
 jobid <- Sys.getenv("SLURM_ARRAY_TASK_ID")
 jobid <- as.numeric(jobid)
@@ -16,7 +16,8 @@ save_data_path <- "output/revision/" # "output_june30/"
 ### specify the number of segments here
 no_segments <- 500
 
-library(rstan)
+# library(rstan)
+library(cmdstanr)
 options(mc.cores = parallel::detectCores())
 
 
@@ -98,22 +99,28 @@ print(paste("Cohort", current_cohort))
 
 #### fit the stan model ####
 print(paste("Cohort", current_cohort))
+
+dc_model <- cmdstan_model("lib/model3_dc_lapl.stan")
+
 stan_input_lst <- prepareDataStan(current_cohort)
 stan_input_lst$alpha_id <- expert_rank_10[[current_cohort]][1]
 stan_input_lst$delta_1 <- rep(0.5, stan_input_lst$N_til)
 
-fit_cohort_mmhp <- stan("lib/model3_current.stan",
-  data = stan_input_lst,
-  warmup = 1000,
-  iter = 2000,
-  chains = 4,
-  thin = 4,
-  control = list(
-    adapt_delta = 0.99,
-    max_treedepth = 10
-  )
+fit_cohort_mmhp <- dc_model$sample(data = stan_input_lst,
+                                   iter_warmup = 1000,
+                                   iter_sampling = 1000,
+                                   chains = 4,
+                                   thin = 4,
+                                   adapt_delta = 0.99,
+                                   max_treedepth = 10,
+                                   refresh = 100
 )
-sim_cohort_mmhp <- rstan::extract(fit_cohort_mmhp)
+
+
+cmmhp_fit <- fit_cohort_mmhp$draws()
+sim_cohort_mmhp <- posterior::as_draws_df(cmmhp_fit)
+
+# sim_cohort_mmhp <- rstan::extract(fit_cohort_mmhp)
 dir.create(paste(save_data_path, cohort_names[current_cohort], sep = ""),
   recursive = TRUE, showWarnings = FALSE
 )
@@ -156,17 +163,23 @@ interpolation_array_list <- list()
 # no_segments <- 5000 # changed this from 5000
 # specify this above
 
+gamma_draws <- sim_cohort_mmhp %>% select(starts_with("gamma"))
+
+zeta_draws <- sim_cohort_mmhp %>% select(starts_with("zeta"))
+
+f_draws <- sim_cohort_mmhp %>% select(starts_with("f"))
+
 param <- rep(list(), 1000)
 for (s in 1:1000) {
   model3_par_est <- list(
-    gamma = sim_cohort_mmhp$gamma[s, ],
-    zeta = sim_cohort_mmhp$zeta[s, ],
+    gamma = as.numeric(gamma_draws[s, ]),
+    zeta = as.numeric(zeta_draws[s, ]),
     eta_1 = sim_cohort_mmhp$eta_1[s],
     eta_2 = sim_cohort_mmhp$eta_2[s],
     eta_3 = sim_cohort_mmhp$eta_3[s],
     beta = sim_cohort_mmhp$beta[s],
     w_lambda = sim_cohort_mmhp$w_lambda[s],
-    f = sim_cohort_mmhp$f[s, ]
+    f = as.numeric(f_draws[s, ])
   )
   param[[s]] <- list(
     lambda0_matrix = outer(model3_par_est$gamma,
@@ -294,16 +307,23 @@ load(paste(save_data_path, cohort_names[current_cohort],
   "/cmmhp_est_zt_", cohort_names[current_cohort], ".RData",
   sep = ""
 ))
+
+gamma_draws <- sim_cohort_mmhp %>% select(starts_with("gamma"))
+
+zeta_draws <- sim_cohort_mmhp %>% select(starts_with("zeta"))
+
+f_draws <- sim_cohort_mmhp %>% select(starts_with("f"))
+
 model3_par_est <- list(
-  gamma = apply(sim_cohort_mmhp$gamma, 2, mean),
-  zeta = apply(sim_cohort_mmhp$zeta, 2, mean),
+  gamma = apply(gamma_draws, 2, mean),
+  zeta = apply(zeta_draws, 2, mean),
   # lambda1=mean(sim_cohort_mmhp$lambda1),
   eta_1 = mean(sim_cohort_mmhp$eta_1),
   eta_2 = mean(sim_cohort_mmhp$eta_2),
   eta_3 = mean(sim_cohort_mmhp$eta_3),
   beta = mean(sim_cohort_mmhp$beta),
   w_lambda = mean(sim_cohort_mmhp$w_lambda),
-  f = apply(sim_cohort_mmhp$f, 2, mean)
+  f = apply(f_draws, 2, mean)
 )
 model3_par_matrix <- list(
   lambda0_matrix = outer(model3_par_est$gamma,
@@ -352,7 +372,8 @@ window_pr <- c()
 for (i in 1:mice_number) {
   print(i)
   for (j in 1:mice_number) {
-    pair <- which(unique_pairs_df$initiator == i & unique_pairs_df$recipient == j)
+    pair <- which(unique_pairs_df$initiator == i & 
+                    unique_pairs_df$recipient == j)
     if (length(pair) > 0 & (i != j)) {
       par_est <- lapply(model3_par_matrix, function(x) x[i, j])
       names(par_est) <- c("lambda0", "lambda1", "alpha", "beta", "q1", "q2")
@@ -443,16 +464,22 @@ stan_train_input_lst <- prepareDataStanTrain(current_cohort)
 stan_train_input_lst$alpha_id <- expert_rank_10[[current_cohort]][1]
 stan_train_input_lst$delta_1 <- rep(0.5, stan_train_input_lst$N_til)
 
-fit_cohort_mmhp <- stan("lib/model3_current.stan",
-  data = stan_train_input_lst,
-  warmup = 1000, iter = 2000,
-  chains = 4, thin = 4,
-  control = list(
-    adapt_delta = 0.99,
-    max_treedepth = 10
-  )
+fit_cohort_mmhp <- dc_model$sample(data = stan_train_input_lst,
+                                   iter_warmup = 1000,
+                                   iter_sampling = 1000,
+                                   chains = 4,
+                                   thin = 4,
+                                   adapt_delta = 0.99,
+                                   max_treedepth = 10
 )
-sim_cohort_mmhp <- rstan::extract(fit_cohort_mmhp)
+
+
+# sim_cohort_mmhp <- rstan::extract(fit_cohort_mmhp)
+
+cmmhp_fit <- fit_cohort_mmhp$draws()
+sim_cohort_mmhp <- posterior::as_draws_df(cmmhp_fit)
+
+
 dir.create(paste(save_data_path, cohort_names[current_cohort], sep = ""),
   recursive = TRUE, showWarnings = FALSE
 )
