@@ -111,8 +111,7 @@ fit_cohort_mmhp <- dc_model$sample(data = stan_input_lst,
                                    iter_sampling = 1000,
                                    chains = 4,
                                    thin = 4,
-                                   adapt_delta = 0.99,
-                                   max_treedepth = 10,
+                                   adapt_delta = 0.9,
                                    refresh = 100
 )
 
@@ -142,8 +141,12 @@ load(paste(save_data_path, cohort_names[current_cohort],
   ".RData",
   sep = ""
 ))
+
+
 clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
-return_df <- cleanObservationPeriod(current_cohort, clean_data)
+return_df <- cleanObservationPeriod(current_cohort, 
+                                    full_data[[cohort_names[current_cohort]]],
+                                    clean_data)
 unique_pairs_df <- return_df %>%
   group_by(initiator, recipient) %>%
   summarize(
