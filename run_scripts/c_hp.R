@@ -91,7 +91,7 @@ stan_input_lst$delta_1 <- rep(0.5,stan_input_lst$N_til)
 
 fit_cohort_hp <- model1$sample(data = stan_input_lst,
                                iter_warmup = 1000,
-                               iter_sampling = 2000,
+                               iter_sampling = 1000,
                                chains = 4,
                                thin = 4,
                                adapt_delta=0.98,
