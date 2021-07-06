@@ -131,7 +131,9 @@ mice_number <- 12
 
 print(current_cohort)
 clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
-return_df <- cleanObservationPeriod(current_cohort, clean_data)
+return_df <- cleanObservationPeriod(current_cohort,
+                                    full_data[[cohort_names[current_cohort]]],
+                                    clean_data)
 unique_pairs_df <- return_df %>% group_by(initiator, recipient) %>%
   summarize(count=n(),
             observe=list(observe.id),
