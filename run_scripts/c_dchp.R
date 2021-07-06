@@ -106,8 +106,8 @@ stan_train_input_lst <- prepareDataStanTrain(current_cohort)
 stan_train_input_lst$scale <- 0.1
 
 fit_cohort_dchp <- model2$sample(data = stan_train_input_lst,
-                                 iter_warmup = 2000,
-                                 iter_sampling = 3000,
+                                 iter_warmup = 1000,
+                                 iter_sampling = 1000,
                                  thin = 4,
                                  chains = 4,
                                  adapt_delta=0.95,
