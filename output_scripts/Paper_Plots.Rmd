@@ -15,7 +15,7 @@ output:
 knitr::opts_chunk$set(
   echo = TRUE, fig.path = "paper_figure/",
   dev = "png", fig.height = 4.5, fig.width = 7,
-  warning = FALSE
+  warning = FALSE, cache = TRUE
 )
 
 slides_plots <- FALSE
@@ -166,6 +166,7 @@ my.image.plot(seq(0, 1, 0.01), seq(0, 1, 0.01), z_plot,
 
 ```{r fig-2b-diag-plot,echo=FALSE,warning=FALSE, eval=revision_plots}
 # current_cohort <- 5
+current_cohort <- 5
 
 load(paste(data_path, cohort_names[current_cohort],
   "/cohort_hp_stan_result_", cohort_names[current_cohort],
@@ -193,6 +194,7 @@ unique_pairs_df <- return_df %>%
 unique_observe_win <- unique(return_df[, c("observe.id", "observe.time")])
 
 ks.stat.matrix <- matrix(0, ncol = mice_number, nrow = mice_number)
+ks_pval_chp <- matrix(0, nrow = mice_number, ncol = mice_number)
 n_matrix <- matrix(0, ncol = mice_number, nrow = mice_number)
 Lambda_matrix <- matrix(list(), nrow = mice_number, ncol = mice_number)
 for (k in 1:mice_number) {
@@ -237,6 +239,9 @@ for (k in 1:mice_number) {
         ks.stat.matrix[i, j] <- ks.test(all_Lambda, "pexp",
           rate = 1 / mean(all_Lambda)
         )$statistic
+        ks_pval_chp[i, j] <- ks.test(all_Lambda, "pexp",
+          rate = 1 / mean(all_Lambda)
+        )$p.value
         Lambda_matrix[i, j][[1]] <- all_Lambda
       }
     }
@@ -343,6 +348,8 @@ mtext(
   at = 0.45, font = 2
 )
 # dev.off()
+ks_chp <- ks.stat.matrix
+
 ```
 
 # Figure 3: Comparison of C-HP and C-DCHP
@@ -351,7 +358,8 @@ mtext(
 
 
 ```{r fig-3a-baseline-rate, eval=revision_plots}
-# current_cohort <- 5
+current_cohort <- 5
+# current_cohort <- 6 # 3 is maybe ok, 6/7 is interesting
 
 load(paste(data_path, cohort_names[current_cohort],
   "/cohort_dchp_stan_result_", cohort_names[current_cohort],
@@ -381,10 +389,396 @@ yLabels = rev(expert_rank_10[[current_cohort]])
 # dev.off()
 ```
 
+## New Fig
+
+KS Plot for C-DCHP
+
+```{r ks-c-dchp, eval=FALSE, warning=FALSE}
+ks.stat.matrix <- matrix(0, ncol = mice_number, nrow = mice_number)
+ks_pval_dchp <- matrix(0, ncol = mice_number, nrow = mice_number)
+n_matrix <- matrix(0, ncol = mice_number, nrow = mice_number)
+Lambda_matrix <- matrix(list(), nrow = mice_number, ncol = mice_number)
+
+gamma_mean <- apply(sim_cohort_dchp$gamma, 2, mean)
+zeta_mean <- apply(sim_cohort_dchp$zeta, 2, mean)
+eta1_mean <- mean(sim_cohort_dchp$eta_1)
+eta2_mean <- mean(sim_cohort_dchp$eta_2)
+eta3_mean <- mean(sim_cohort_dchp$eta_3)
+
+for (k in 1:mice_number) {
+  for (l in c(1:mice_number)[-k]) {
+    i <- expert_rank_10[[current_cohort]][k]
+    j <- expert_rank_10[[current_cohort]][l]
+    pair <- which(unique_pairs_df$initiator == i & 
+                    unique_pairs_df$recipient == j)
+    if (length(pair) > 0) {
+      param_mean <- list(
+        lambda0 = gamma_mean[i] + zeta_mean[j],
+        ## need to modify this
+        # lambda0 <- mean(sim_cohort_dchp$gamma)
+        alpha = model1_fn$alpha.fun(
+          f_est[i],
+          f_est[j],
+          eta1_mean,
+          eta2_mean,
+          eta3_mean
+        ),
+        beta = mean(sim_cohort_dchp$beta)
+      )
+      current_window_vec <- unique_pairs_df$observe[[pair]]
+      all_Lambda <- numeric(0)
+      for (cur in c(1:length(current_window_vec))) { ## check length > 2
+        cur_win <- current_window_vec[cur]
+        current_event_time <- return_df[return_df$initiator == i &
+          return_df$recipient == j &
+          return_df$observe.id == cur_win, "event.times"][[1]]
+        current_obs_time <- return_df[return_df$initiator == i &
+          return_df$recipient == j &
+          return_df$observe.id == cur_win, "observe.time"]
+        Lambda_vec <- uniHawkesCompensator(
+          object = param_mean,
+          events = c(
+            current_event_time,
+            current_obs_time
+          )
+        )
+        all_Lambda <- c(all_Lambda, Lambda_vec)
+        n_matrix[i, j] <- n_matrix[i, j] + length(current_event_time)
+      }
+      if (length(all_Lambda) > 0) {
+        ks.stat.matrix[i, j] <- ks.test(all_Lambda, "pexp",
+          rate = 1 / mean(all_Lambda)
+        )$statistic
+        ks_pval_dchp[i, j] <- ks.test(all_Lambda, "pexp",
+          rate = 1 / mean(all_Lambda)
+        )$p.value
+        Lambda_matrix[i, j][[1]] <- all_Lambda
+      }
+    }
+  }
+}
+col.vec <- cRamp(as.vector(ks.stat.matrix))
+# need to do some sort of transformation between these here
+vir_cols <- viridis::viridis(length((as.vector(ks.stat.matrix))))
+# order(as.vector(ks.stat.matrix),method = "")
+
+values <- as.vector(ks.stat.matrix)
+sorted_vals <- sort(ks.stat.matrix)
+# match(values,sorted_vals)
+col.vec.vir <- vir_cols[match(values, sorted_vals)]
+
+####
+par(
+  oma = c(6, 4, 4, 1), mar = rep(0, 4),
+  mgp = c(0, .2, 0)
+)
+layout(cbind(matrix(
+  data = c(1:(12 * 12)), nrow = 12, ncol = 12,
+  byrow = TRUE
+), rep(12 * 12 + 1, 12)),
+widths = c(rep(1, 12), 2), heights = rep(1, 12)
+)
+for (i in expert_rank_10[[current_cohort]]) {
+  for (j in expert_rank_10[[current_cohort]]) {
+    if (ks.stat.matrix[i, j] == 0) {
+      plot(0, 0,
+        xlim = c(0, 5), ylim = c(0, 5), type = "n", xlab = "", ylab = "",
+        axes = FALSE, frame = TRUE
+      )
+      rect(par("usr")[1], par("usr")[3], par("usr")[2], par("usr")[4],
+        border = 0, col = "white"
+      )
+    } else {
+      Lambda.test <- Lambda_matrix[i, j][[1]]
+      curve(pexp(x, 1 / mean(Lambda.test)), min(Lambda.test), max(Lambda.test),
+        ylab = "", xlab = "", axes = FALSE, frame = TRUE
+      )
+      rect(par("usr")[1], par("usr")[3], par("usr")[2], par("usr")[4],
+        border = 0, col = col.vec.vir[matrixToVecIdx(i, j, mice_number)]
+      )
+      curve(pexp(x, 1 / mean(Lambda.test)), min(Lambda.test), max(Lambda.test),
+        ylab = "", xlab = "", axes = FALSE, frame = TRUE, add = TRUE, lwd = 2
+      )
+      plot(ecdf(Lambda.test),
+        add = TRUE, do.points = FALSE,
+        verticals = TRUE, col = "red", lwd = 2
+      )
+    }
+  }
+}
+par(mar = c(0, 2, 0, 3), mgp = c(0, 0.8, 0))
+m1_ks <- ks.stat.matrix
+col_obj <- list(
+  x.vec = seq(0, max(as.vector(ks.stat.matrix)), length.out = 100),
+  col.vec = viridis(100)
+)
+
+temp <- cLegend(as.vector(ks.stat.matrix))
+image(1, col_obj$x.vec,
+  matrix(
+    data = col_obj$x.vec,
+    ncol = length(col_obj$x.vec), nrow = 1
+  ),
+  col = col_obj$col.vec,
+  xlab = "", ylab = "", axes = FALSE
+)
+axis(4,
+  at = c(0, 0.3, 0.6), labels = c(0, 0.3, 0.6), las = HORIZONTAL <- 1,
+  cex.axis = 2.4
+)
+
+mtext(
+  text = expert_rank_10[[current_cohort]],
+  side = 1, line = 1.8, outer = TRUE, cex = 1.8,
+  at = 1 / 14 * c(1:12) - 1 / 22
+)
+mtext(
+  text = expert_rank_10[[current_cohort]],
+  side = 2, line = 0.5, outer = TRUE, cex = 1.8,
+  at = 1 / 12 * c(12:1) - 1 / 20, las = 2
+)
+mtext(
+  text = "C-DCHP", side = 3, line = 1.4, outer = TRUE,
+  cex = 2.2,
+  at = 0.45, font = 2
+)
+# dev.off()
+
+ks_dchp <- ks.stat.matrix
+
+```
+
+
+Plot the negative log of the p values here.
+
+```{r potential-fig3-diag, eval=FALSE}
+M1_ks_p <- tibble(ks_p = as.vector(ks_chp), method = "C-HP")
+
+M2_ks_p <- tibble(ks_p = as.vector(ks_dchp), 
+                  method = "C-DCHP")
+
+ks_p <- bind_rows(M1_ks_p, M2_ks_p) %>% 
+  left_join(col_df, by = "method")
+
+cols_plot <- col_df %>%
+  filter(method %in% c("C-HP", "C-DCHP")) %>% 
+  pull(cols)
+
+exp_fcn <- function(x) exp(-x)
+
+ks_p$method <- factor(ks_p$method, levels = c("C-HP", "C-DCHP"))
+
+ks_p %>% 
+  filter(ks_p != 0) %>% 
+  mutate(log_p = -log(ks_p)) %>% 
+  ggplot(aes(x = log_p)) + 
+  # geom_freqpoly(binwidth = 20) +
+  geom_histogram(aes(y = ..density.., fill = method), bins = 50) +
+  scale_fill_manual(values = cols_plot) +
+  labs(y = "Negative Log KS Statistic P Value") +
+  stat_function(fun = exp_fcn, colour = "red") +
+  facet_wrap(~method) +
+  labs(fill = "Method") +
+  theme_minimal()
+
+```
+
+
+Could repeat this across all cohorts?
+
+```{r above across all_cohorts, eval=FALSE}
+
+ks_chp_array <- array(0, dim = c(10, mice_number, mice_number))
+ks_dchp_array <- array(0, dim = c(10, mice_number, mice_number))
+
+for(current_cohort in 1:10) {
+  load(paste(data_path, cohort_names[current_cohort],
+    "/cohort_hp_stan_result_", cohort_names[current_cohort],
+    ".RData",
+    sep = ""
+  ))
+  load(paste(data_path, cohort_names[current_cohort],
+    "/cohort_dchp_stan_result_", cohort_names[current_cohort],
+    ".RData",
+    sep = ""
+  ))
+  eta1_mean <- mean(sim_cohort_hp$eta_1)
+  eta2_mean <- mean(sim_cohort_hp$eta_2)
+  eta3_mean <- mean(sim_cohort_hp$eta_3)
+  f_est <- apply(sim_cohort_hp$f, 2, mean)
+  clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
+  return_df <- cleanObservationPeriod(current_cohort,
+    raw_df =
+      full_data[[cohort_names[current_cohort]]],
+    clean_data
+  )
+  unique_pairs_df <- return_df %>%
+    group_by(initiator, recipient) %>%
+    dplyr::summarize(
+      count = n(),
+      observe = list(observe.id),
+      observe.length = list(observe.time),
+      no.events = list(no.events)
+    )
+  unique_observe_win <- unique(return_df[, c("observe.id", "observe.time")])
+  
+  ks.stat.matrix <- matrix(0, ncol = mice_number, nrow = mice_number)
+  ks_pval_chp <- matrix(0, nrow = mice_number, ncol = mice_number)
+  n_matrix <- matrix(0, ncol = mice_number, nrow = mice_number)
+  Lambda_matrix <- matrix(list(), nrow = mice_number, ncol = mice_number)
+  for (k in 1:mice_number) {
+    for (l in c(1:mice_number)[-k]) {
+      i <- expert_rank_10[[current_cohort]][k]
+      j <- expert_rank_10[[current_cohort]][l]
+      pair <- which(unique_pairs_df$initiator == i & 
+                      unique_pairs_df$recipient == j)
+      if (length(pair) > 0) {
+        param_mean <- list(
+          lambda0 = mean(sim_cohort_hp$lambda0),
+          alpha = model1_fn$alpha.fun(
+            f_est[i],
+            f_est[j],
+            eta1_mean,
+            eta2_mean,
+            eta3_mean
+          ),
+          beta = mean(sim_cohort_hp$beta)
+        )
+        current_window_vec <- unique_pairs_df$observe[[pair]]
+        all_Lambda <- numeric(0)
+        for (cur in c(1:length(current_window_vec))) { ## check length > 2
+          cur_win <- current_window_vec[cur]
+          current_event_time <- return_df[return_df$initiator == i &
+            return_df$recipient == j &
+            return_df$observe.id == cur_win, "event.times"][[1]]
+          current_obs_time <- return_df[return_df$initiator == i &
+            return_df$recipient == j &
+            return_df$observe.id == cur_win, "observe.time"]
+          Lambda_vec <- uniHawkesCompensator(
+            object = param_mean,
+            events = c(
+              current_event_time,
+              current_obs_time
+            )
+          )
+          all_Lambda <- c(all_Lambda, Lambda_vec)
+          n_matrix[i, j] <- n_matrix[i, j] + length(current_event_time)
+        }
+        if (length(all_Lambda) > 0) {
+          ks.stat.matrix[i, j] <- ks.test(all_Lambda, "pexp",
+            rate = 1 / mean(all_Lambda)
+          )$statistic
+          ks_chp_array[current_cohort, i, j] <- ks.test(all_Lambda,
+                                                        "pexp",
+            rate = 1 / mean(all_Lambda)
+          )$p.value
+          Lambda_matrix[i, j][[1]] <- all_Lambda
+        }
+      }
+    }
+  }
+  
+  
+  ### c-dchp
+  gamma_mean <- apply(sim_cohort_dchp$gamma, 2, mean)
+  zeta_mean <- apply(sim_cohort_dchp$zeta, 2, mean)
+  eta1_mean <- mean(sim_cohort_dchp$eta_1)
+  eta2_mean <- mean(sim_cohort_dchp$eta_2)
+  eta3_mean <- mean(sim_cohort_dchp$eta_3)
+  
+  for (k in 1:mice_number) {
+    for (l in c(1:mice_number)[-k]) {
+      i <- expert_rank_10[[current_cohort]][k]
+      j <- expert_rank_10[[current_cohort]][l]
+      pair <- which(unique_pairs_df$initiator == i & 
+                      unique_pairs_df$recipient == j)
+      if (length(pair) > 0) {
+        param_mean <- list(
+          lambda0 = gamma_mean[i] + zeta_mean[j],
+          ## need to modify this
+          # lambda0 <- mean(sim_cohort_dchp$gamma)
+          alpha = model1_fn$alpha.fun(
+            f_est[i],
+            f_est[j],
+            eta1_mean,
+            eta2_mean,
+            eta3_mean
+          ),
+          beta = mean(sim_cohort_dchp$beta)
+        )
+        current_window_vec <- unique_pairs_df$observe[[pair]]
+        all_Lambda <- numeric(0)
+        for (cur in c(1:length(current_window_vec))) { ## check length > 2
+          cur_win <- current_window_vec[cur]
+          current_event_time <- return_df[return_df$initiator == i &
+            return_df$recipient == j &
+            return_df$observe.id == cur_win, "event.times"][[1]]
+          current_obs_time <- return_df[return_df$initiator == i &
+            return_df$recipient == j &
+            return_df$observe.id == cur_win, "observe.time"]
+          Lambda_vec <- uniHawkesCompensator(
+            object = param_mean,
+            events = c(
+              current_event_time,
+              current_obs_time
+            )
+          )
+          all_Lambda <- c(all_Lambda, Lambda_vec)
+          n_matrix[i, j] <- n_matrix[i, j] + length(current_event_time)
+        }
+        if (length(all_Lambda) > 0) {
+          ks.stat.matrix[i, j] <- ks.test(all_Lambda, "pexp",
+            rate = 1 / mean(all_Lambda)
+          )$statistic
+          ks_dchp_array[current_cohort, i, j] <- ks.test(all_Lambda, "pexp",
+            rate = 1 / mean(all_Lambda)
+          )$p.value
+          Lambda_matrix[i, j][[1]] <- all_Lambda
+        }
+      }
+    }
+  }
+}
+
+```
+
+```{r plot-all-cohorts, eval=FALSE}
+M1_ks_p <- tibble(ks_p = as.vector(ks_chp_array), method = "C-HP")
+
+M2_ks_p <- tibble(ks_p = as.vector(ks_dchp_array), 
+                  method = "C-DCHP")
+
+ks_p <- bind_rows(M1_ks_p, M2_ks_p) %>% 
+  left_join(col_df, by = "method")
+
+cols_plot <- col_df %>%
+  filter(method %in% c("C-HP", "C-DCHP")) %>% 
+  pull(cols)
+
+exp_fcn <- function(x) exp(-x)
+
+ks_p$method <- factor(ks_p$method, levels = c("C-HP", "C-DCHP"))
+
+ks_p %>% 
+  filter(ks_p != 0) %>% 
+  mutate(log_p = -log(ks_p)) %>% 
+  ggplot(aes(x = log_p)) + 
+  # geom_freqpoly(binwidth = 20) +
+  geom_histogram(aes(y = ..density.., fill = method), bins = 50) +
+  scale_fill_manual(values = cols_plot) +
+  labs(y = "Negative Log KS Statistic P Value") +
+  stat_function(fun = exp_fcn, colour = "red") +
+  facet_wrap(~method) +
+  labs(fill = "Method") +
+  theme_minimal()
+
+
+```
+
 ## Figure 3b: Ranking Comparison
 
 ```{r fig-3b-rank-comparison, include=FALSE,eval=original_plots}
-# current_cohort <- 5
+current_cohort <- 5
 colors_plot <- col_df %>%
   filter(method %in% c("C-HP", "C-DCHP")) %>%
   pull(cols)
@@ -464,6 +858,7 @@ legend("bottomleft",
 
 ```{r, eval=FALSE, include=FALSE}
 ## need Hmisc for this
+library(Hmisc)
 
 par(mar = c(3, 3, 1, 1))
 plot(as.vector(n_matrix[n_matrix > 0]),
@@ -694,24 +1089,31 @@ rank_means %>%
 Reformatting this to boxplots for each of the 3 models, with the true
 ranking values included for each.
 
-Will need to update this with full final simulations.
+Will need to update this with full final simulations but fully set up now.
 
 ```{r new-fig-4a, eval = revision_plots}
-sim_data_path <- here("output", "revisions", "sim_m3", "june_18", "/")
+sim_data_path <- here("output", "revisions", "sim_m3", "sim_3", "/")
 
 num_nodes <- 10
 
-f_vec <- seq(from = 0.10,
+f_vec <- seq(from = 0.2,
                to = 0.9,
                length.out = num_nodes)
 
 sim_ranks_mean <- tibble()
 sim_ranks <- tibble()
 
-sims_id <- 1:50
-sims_id <- sims_id[c(-22,-23, -24, -33, -34, -36, -39, -40, -41, -45)]
+model_colors <- col_df %>%
+  filter(method %in% c(
+    "C-HP",
+    "C-DCHP", "C-MMHP"
+  )) %>%
+  pull(cols)
 
-for(curr_sim in sims_id) {
+sims <- 1:20
+sims <- sims[c(-9, -13)]
+
+for(curr_sim in sims) {
   load(paste0(sim_data_path,
               "sim_model3_fit123_",
               curr_sim,
@@ -741,7 +1143,7 @@ for(curr_sim in sims_id) {
   f_m2_sims$model <- "C-DCHP"
   
   f_m3 <- sim_model3_stan_sim3 %>% select(starts_with("f"))
-  m3_ranks <- apply(f_m1, 2, mean)
+  m3_ranks <- apply(f_m3, 2, mean)
   
   f_m3_sims <- f_m3 %>% 
     rename_with(~gsub("f[", "", .x, fixed = TRUE)) %>% 
@@ -775,37 +1177,66 @@ sim_ranks_mean$node <- factor(sim_ranks_mean$node, levels = 1:num_nodes)
 
 # sim_ranks$node
 
+sim_ranks_mean$model <- factor(sim_ranks_mean$model, 
+                               levels = c( "C-HP", "C-DCHP", "C-MMHP"))
 
-sim_ranks_mean %>% 
+mean_sims <- sim_ranks_mean %>% 
+  left_join(col_df, by = c("model" = "method")) 
+
+mean_sims$model <- factor(mean_sims$model, levels = c("C-HP", "C-DCHP",
+                                                      "C-MMHP"))
+
+
+true_ranks <- tibble(node = rep(1:num_nodes,3),
+                     true_rank = rep(f_vec,3),
+                     model = c(rep("C-HP", 10),rep("C-DCHP", 10),
+                               rep("C-MMHP", 10)))
+true_ranks$node <- factor(true_ranks$node, levels = 1:num_nodes)
+
+true_ranks$model <- factor(true_ranks$model, 
+                           levels = c("C-HP", "C-DCHP","C-MMHP"))
+
+mean_sims %>% 
   # filter(model == "C-MMHP") %>% 
-  ggplot(aes(node, ranks)) + 
-  geom_boxplot() +
+  ggplot(aes(node, ranks, fill = model)) + 
+  geom_boxplot(show.legend = FALSE) +
+  scale_fill_manual(values = model_colors, guide = FALSE) +
+  # geom_point(aes(node, true_rank, colour = "red")) +
+  ylim(c(0,1)) +
+  labs(title = "(a)",
+       subtitle = "Mean rank from each simulation", 
+       y = "Posterior Mean Rank", x = "Node") +
   facet_wrap(~model) +
-  geom_point(aes(node, true_rank, colour = "red"),
-             show.legend = FALSE) +
-  labs(title = "Mean rank from each simulation")
+  geom_point(data = true_ranks,
+             aes(node, true_rank, colour = "True Value")) +
+  scale_shape_discrete(name = "True Value") +
+  theme_minimal() +
+  theme(legend.title = element_blank(),
+        legend.position = "bottom",
+        plot.title = element_text(hjust = 0.5, size = 26),
+        text = element_text(size = 18),
+        legend.text = element_text(size = 18)) 
+   
 
 ## this is just the mean from each simulation, not the posterior draws
 
-true_ranks <- tibble(node = 1:num_nodes, true_rank = f_vec)
-true_ranks$node <- factor(true_ranks$node, levels = 1:num_nodes)
 
-sim_ranks %>% 
-  ggplot(aes(node, rank)) +
-  geom_boxplot() +
-  facet_wrap(~model) +
-  geom_point(data = true_ranks, aes(node, true_rank, colour = "red"),
-             show.legend = FALSE) +
-  labs(title = "All Posterior Draws")
+# sim_ranks %>%
+#   ggplot(aes(node, rank)) +
+#   geom_boxplot() +
+#   facet_wrap(~model) +
+#   geom_point(data = true_ranks, aes(node, true_rank, colour = "red"),
+#              show.legend = FALSE) +
+#   labs(title = "All Posterior Draws")
 ```
 
 ## Figure 4b: Recover Latent States
 
 
-Need to redo this after finally correctly formulating the 
+Need to modify this after finally correctly formulating the 
 simulations.
 
-```{r prepare data for 4b,cache=TRUE, eval=revision_plots}
+```{r prepare data for 4b,cache=TRUE, eval=FALSE}
 plot.s <- 7 # 7 is pretty good
 plot.i <- 4
 plot.j <- 5
@@ -982,15 +1413,22 @@ object_hat <- list(
 )
 
 ## then need to load in the state estimate here
-load(paste0(here("output", "revisions", "sim_m3"),
-  "/", "fit123_state_est_",
+# load(paste0(here("output", "revisions", "sim_m3"),
+#   "/", "fit123_state_est_",
+#   plot.s,
+#   ".RData"
+# ))
+
+load(paste0(
+  sim_data_path, "/", "fit123_state_est_",
   plot.s,
   ".RData"
 ))
 
 state.est.latent.mmhp <- interpolate_state_est_lst[plot.i, plot.j][[1]]
 state.est.latent.mmhp.new <- fixInterpolateState(state.est.latent.mmhp,
-  termination = 200
+  termination = 50 
+  ### TO DO update for longer sims
 )
 
 step.fun.est <- stepfun(
@@ -1021,7 +1459,7 @@ lambda.true <- mmhpTrueIntensityNumeric(
 ```
 
 
-```{r fig-4b-recover-latent-states,fig.width=8,fig.height=4}
+```{r fig-4b-recover-latent-states,fig.width=8,fig.height=4, eval=FALSE}
 mmhp_lty <- 1
 
 y.ub <- c(8, 8, 8) # c(130,72,31)
@@ -1054,7 +1492,7 @@ true.object <- object_true
 
 
 
-```{r actual-plot}
+```{r actual-plot, eval=FALSE}
 layout(matrix(c(1:6), 6, 1), heights = rep(c(7.5, 2.5), 3))
 par(
   mar = c(0, 0.3, 0, 0.1), oma = c(0, 3.5, 4, 0),
@@ -1381,7 +1819,8 @@ mtext(text = "Intensity", side = 2,
 
 ## Fig 4 repeated for data generated from other models
 
-For completeness, we also wish to repeat the above two plots using data generated 
+For completeness, we also wish to repeat the
+above two plots using data generated 
 from M1 and M2.
 
 For data simulated from M1.
@@ -2458,11 +2897,18 @@ mtext(text = "Intensity", side = 2, line = 0.6, outer = TRUE, cex = 2.5)
 
 To be updated!
 
-```{r data for fig 5,cache=TRUE}
-# load(paste(sim_data_path,"sim_model3_fit123.RData",sep=''))
-# load(paste(sim_data_path,"fit123_state_est.RData",sep=''))
-####
-#### load new format
+```{r data for fig 5,cache=TRUE, eval=revision_plots}
+n_sim <- 25
+
+
+
+num_nodes <- 10
+
+object_par <- list(f_vec_1 = seq(from = 0.1, to = 0.9,
+                                 length.out = num_nodes))
+### TO DO
+
+sim_data_path <- here("output", "revisions", "sim_m3", "june_18", "/")
 
 
 ## Initialize
@@ -2536,7 +2982,12 @@ KS_p_true_array <- array(0, dim = c(
 ))
 
 ## Iteration on 50 simulations
-for (s in c(1:n_sim)) {
+sims <- 1:25
+sims <- sims[c(-12, -22, -23, -24)]
+
+
+for (s in sims) {
+  print(s)
   load(paste0(sim_data_path, "sim_model3_fit123_", s, ".RData"))
   load(paste(sim_data_path, "fit123_state_est_", s, ".RData", sep = ""))
   clean_sim_data <- cleanSimulationData(
@@ -2549,19 +3000,22 @@ for (s in c(1:n_sim)) {
 
   ## model 1
   #########
+  ### transform from cmdstan here
+  f_draws <- sim_model3_stan_sim1 %>% 
+  select(starts_with("f"))
+  
+  ###
   model1_par_est <- list(
     lambda0 = mean(sim_model3_stan_sim1$lambda0),
     eta_1 = mean(sim_model3_stan_sim1$eta_1),
     eta_2 = mean(sim_model3_stan_sim1$eta_2),
     eta_3 = mean(sim_model3_stan_sim1$eta_3),
     beta = mean(sim_model3_stan_sim1$beta),
-    
-    ### TO DO
-    f = apply(sim_model3_stan_sim1$f, 2, mean)
+    f = apply(f_draws, 2, mean)
   )
 
-  for (i in c(1:5)) {
-    for (j in c(1:5)[-i]) {
+  for (i in c(1:num_nodes)) {
+    for (j in c(1:num_nodes)[-i]) {
       current_t <- sim_model3_data$mmhp_matrix[i, j][[1]]$tau
       m1_object <- list(
         lambda0 = model1_par_est$lambda0,
@@ -2597,20 +3051,26 @@ for (s in c(1:n_sim)) {
 
   ## model2
   #############
+  ### convert to cmdstan
+  gamma_draws <- sim_model3_stan_sim2 %>% 
+  select(starts_with("gamma"))
+  zeta_draws <- sim_model3_stan_sim2 %>% 
+  select(starts_with("zeta"))
+  f_draws <- sim_model3_stan_sim2 %>% 
+  select(starts_with("f"))
+  
   model2_par_est <- list(
-    
-    ### TO DO
-    gamma = apply(sim_model3_stan_sim2$gamma, 2, mean),
-    zeta = apply(sim_model3_stan_sim2$zeta, 2, mean),
+    gamma = apply(gamma_draws, 2, mean),
+    zeta = apply(zeta_draws, 2, mean),
     eta_1 = mean(sim_model3_stan_sim2$eta_1),
     eta_2 = mean(sim_model3_stan_sim2$eta_2),
     eta_3 = mean(sim_model3_stan_sim2$eta_3),
     beta = mean(sim_model3_stan_sim2$beta),
-    f = apply(sim_model3_stan_sim2$f, 2, mean)
+    f = apply(f_draws, 2, mean)
   )
 
-  for (i in c(1:5)) {
-    for (j in c(1:5)[-i]) {
+  for (i in c(1:num_nodes)) {
+    for (j in c(1:num_nodes)[-i]) {
       current_t <- sim_model3_data$mmhp_matrix[i, j][[1]]$tau
       m2_object <- list(
         lambda0 = model2_par_est$gamma[i] +
@@ -2647,8 +3107,20 @@ for (s in c(1:n_sim)) {
 
   ## Model3 & true model
   ######
-  lambda_0_est <- apply(sim_model3_stan_sim3$lambda0, 2, mean)
-  lambda_1_est <- apply(sim_model3_stan_sim3$lambda1, 2, mean)
+  ### cmdstan part
+  lam0_draws <- sim_model3_stan_sim3 %>% 
+  select(starts_with("lambda0"))
+  lam1_draws <- sim_model3_stan_sim3 %>% 
+  select(starts_with("lambda1"))
+  f_draws <- sim_model3_stan_sim3 %>% 
+  select(starts_with("f"))
+  
+  if(ncol(lam0_draws) != sum(clean_sim_data$N_count >2)) {
+    stop("Mismatch between params and event pairs")
+  }
+  
+  lambda_0_est <- apply(lam0_draws, 2, mean)
+  lambda_1_est <- apply(lam1_draws, 2, mean)
   ## then put these into a matrix
   lam0_par_est <- matrix(0,
     nrow = length(object_par$f_vec_1),
@@ -2661,7 +3133,6 @@ for (s in c(1:n_sim)) {
   for (i in seq_along(lambda_0_est)) {
     row_id <- clean_sim_data$I_fit[i]
     col_id <- clean_sim_data$J_fit[i]
-    ### TO DO
     lam0_par_est[row_id, col_id] <- lambda_0_est[i]
     lam1_par_est[row_id, col_id] <- lambda_1_est[i]
   }
@@ -2672,7 +3143,7 @@ for (s in c(1:n_sim)) {
     eta_2 = mean(sim_model3_stan_sim3$eta_2),
     eta_3 = mean(sim_model3_stan_sim3$eta_3),
     beta = mean(sim_model3_stan_sim3$beta),
-    f = apply(sim_model3_stan_sim3$f, 2, mean)
+    f = apply(f_draws, 2, mean)
   )
   clean_sim_data <- cleanSimulationData(
     raw_data = sim_model3_data,
@@ -2680,8 +3151,8 @@ for (s in c(1:n_sim)) {
     N = length(object_par$f_vec_1)
   )
 
-  for (i in c(1:5)) {
-    for (j in c(1:5)[-i]) {
+  for (i in c(1:num_nodes)) {
+    for (j in c(1:num_nodes)[-i]) {
       test.mmhp <- sim_model3_data$mmhp_matrix[i, j][[1]]
       temp.t <- test.mmhp$tau
       current.n <- length(temp.t) - 1
@@ -2722,7 +3193,7 @@ for (s in c(1:n_sim)) {
         if.pzt = FALSE
       )
       KS_model3_array[s, i, j] <- ks.test(Lambda.test, "pexp")$statistic
-      KS_p_model3_array[s, i, j] <- ks.test(Lambda_test, "pexp")$p.value
+      KS_p_model3_array[s, i, j] <- ks.test(Lambda.test, "pexp")$p.value
       state.est.latent.mmhp <- interpolate_state_est_lst[i, j][[1]]
       step.fun.est <- stepfun(
         state.est.latent.mmhp$x.hat,
@@ -2761,10 +3232,9 @@ for (s in c(1:n_sim)) {
           params = object_true,
           t = temp.t,
           latent = list(
-            x =
-              fixStateTransition(test.mmhp)$x,
-            z =
-              fixStateTransition(test.mmhp)$z
+            ## these are the truth
+            x = fixStateTransition(test.mmhp)$x,
+            z = fixStateTransition(test.mmhp)$z
           ),
           time.vec = time.segment
         )
@@ -2776,15 +3246,17 @@ for (s in c(1:n_sim)) {
       Lambda_true_array[s, i, j] <- sum(true.intensity$lambda.t) *
         (time.segment[2] - time.segment[1])
       PR_true_array[s, i, j] <- sum(1 / sqrt(true.intensity.events)) -
-        sum(sqrt(true.intensity$lambda.t)) *
+        sum(sqrt(true.intensity$lambda.t)) * 
         (time.segment[2] - time.segment[1])
     }
   }
+  rm(sim_model3_data)
 }
+
 ```
 
 
-```{r fig5a-residual-ks, fig.height=7}
+```{r fig5a-residual-ks, fig.height=7, eval=original_plots}
 # cols_plot <- col_df %>% filter(method %in% c("C-HP","C-DCHP","C-MMHP",
 #                                              "True"))
 
@@ -2854,16 +3326,162 @@ mtext(text = "(a)", side = 3, line = 0.5, outer = TRUE, cex = 2.5, font = 2)
 ```
 
 
+New potential Figure 5a plots.
+
+```{r log-p-value}
+cols_plot <- col_df %>% 
+  filter(method %in% c("C-HP","C-DCHP","C-MMHP", "True")) %>%
+  arrange(factor(method, levels = c("C-HP", "C-DCHP", "C-MMHP", "True"))) %>%
+  pull(cols)
+
+
+m1_ks_p <- tibble(Method = "C-HP",
+                  ks = as.vector(KS_p_model1_array[sims, ,]))
+
+m2_ks_p <- tibble(Method = "C-DCHP",
+                  ks = as.vector(KS_p_model2_array[sims, ,]))
+
+m3_ks_p <- tibble(Method = "C-MMHP",
+                  ks = as.vector(KS_p_model3_array[sims, ,]))
+
+true_ks_p <- tibble(Method = "True",
+                    ks = as.vector(KS_p_true_array[sims, ,]))
+
+all_ks_p <- m1_ks_p %>% 
+  bind_rows(m2_ks_p) %>% 
+  bind_rows(m3_ks_p) %>% 
+  bind_rows(true_ks_p)
+
+all_ks_p$Method <- factor(all_ks_p$Method, levels = c("C-HP",
+                                                      "C-DCHP",
+                                                      "C-MMHP",
+                                                      "True") )
+
+exp_fcn <- function(x) exp(-x)
+
+all_ks_p %>% 
+  filter(ks != 0) %>% 
+  mutate(log_p = -log(ks)) %>% 
+  ggplot(aes(x = log_p)) + 
+  # geom_freqpoly(binwidth = 20) +
+  geom_histogram(aes(y = ..density.., fill = Method), bins = 50) +
+  scale_fill_manual(values = cols_plot) +
+  labs(y = "Negative Log KS Statistic P Value") +
+  stat_function(fun = exp_fcn, colour = "red") +
+  facet_wrap(~Method) +
+  theme_minimal()
+
+```
+
+Inferred ranking boxplots against true rankings.
+
+```{r posterior-mean-ranks}
+sim_data_path <- here("output", "revisions", "sim_m3", "june_18", "/")
+
+num_nodes <- 10
+
+# object_par$f_vec_1
+
+sim_ranks_mean <- tibble()
+sim_ranks <- tibble()
+
+
+for(curr_sim in sims) {
+  load(paste0(sim_data_path,
+              "sim_model3_fit123_",
+              curr_sim,
+              ".RData"))
+  
+  f_m1 <- sim_model3_stan_sim1 %>% select(starts_with("f"))
+  m1_ranks <- apply(f_m1, 2, mean)
+  
+  f_m1_sims <- f_m1 %>% 
+    rename_with(~gsub("f[", "", .x, fixed = TRUE)) %>% 
+    rename_with(~gsub("]", "", .x, fixed = TRUE)) %>% 
+    pivot_longer(everything(),
+                 names_to = "node",
+                 values_to = "rank")
+  f_m1_sims$model <- "C-HP"
+  
+  f_m2 <- sim_model3_stan_sim2 %>% select(starts_with("f"))
+  m2_ranks <- apply(f_m2, 2, mean)
+  
+  f_m2_sims <- f_m2 %>% 
+    rename_with(~gsub("f[", "", .x, fixed = TRUE)) %>% 
+    rename_with(~gsub("]", "", .x, fixed = TRUE)) %>% 
+    pivot_longer(everything(),
+                 names_to = "node",
+                 values_to = "rank")
+  
+  f_m2_sims$model <- "C-DCHP"
+  
+  f_m3 <- sim_model3_stan_sim3 %>% select(starts_with("f"))
+  m3_ranks <- apply(f_m3, 2, mean)
+  
+  f_m3_sims <- f_m3 %>% 
+    rename_with(~gsub("f[", "", .x, fixed = TRUE)) %>% 
+    rename_with(~gsub("]", "", .x, fixed = TRUE)) %>% 
+    pivot_longer(everything(),
+                 names_to = "node",
+                 values_to = "rank")
+  
+  f_m3_sims$model <- "C-MMHP"
+
+  curr_mean_ranks <- tibble(model = c(rep("C-HP", num_nodes),
+                                 rep("C-DCHP", num_nodes),
+                                 rep("C-MMHP", num_nodes)),
+                       ranks = c(m1_ranks,
+                                 m2_ranks,
+                                 m3_ranks),
+                       node = rep(1:num_nodes, 3),
+                       true_rank = rep(object_par$f_vec_1, 3),
+                       sim_id = curr_sim)
+  sim_ranks_mean <- sim_ranks_mean %>% 
+    bind_rows(curr_mean_ranks)
+  
+  sim_ranks <- sim_ranks %>% 
+    bind_rows(f_m1_sims, f_m2_sims, f_m3_sims)
+  
+}
+
+
+sim_ranks$node <- factor(sim_ranks$node, levels = 1:num_nodes)
+sim_ranks_mean$node <- factor(sim_ranks_mean$node, levels = 1:num_nodes)
+
+# sim_ranks$node
+
+sim_ranks_mean$model <- factor(sim_ranks_mean$model,
+                               levels = c("C-HP", "C-DCHP", "C-MMHP"))
+
+sim_ranks_mean %>% 
+  # filter(model == "C-MMHP") %>% 
+  ggplot(aes(node, ranks, fill = model)) + 
+  geom_boxplot() +
+  scale_fill_manual(values = cols_plot, guide = 'none') +
+  facet_wrap(~model) +
+  geom_point(aes(node, true_rank, colour = "True Value"),
+             show.legend = TRUE) +
+  labs(title = "Mean rank from each simulation") +
+  theme_minimal() +
+  theme(legend.title = element_blank(),
+        legend.position = "bottom")
+
+```
+
+
+
 # Figure 5b: Simulation Spearman Rank
+
+Need to update this again for the final simulation parameter setting.
+
 ```{r fig-5b-spearman-sim, fig.height=7}
-sim_files <- list.files(here("output", "sims_m3_update"),
-  pattern = "rank_sim"
-)
+sim_files <- list.files(here("output", "revisions", "rank_sims/"), 
+                        pattern = "rank_sim")
 
 all_sims <- list()
 for (i in seq_along(sim_files)) {
   single_fit <- readRDS(here(
-    "output", "sims_m3_update",
+    "output", "revisions", "rank_sims",
     sim_files[i]
   ))
   all_sims[[i]] <- single_fit
@@ -2889,7 +3507,7 @@ sim_data$name <- case_when(
   name == "isi" ~ "I&SI",
   name == "m1" ~ "C-HP",
   name == "m2" ~ "C-DCHP",
-  name == "m3_dc" ~ "C-MMHP",
+  name == "m3" ~ "C-MMHP",
   name == "agg" ~ "AggRank",
   name == "glicko" ~ "Glicko"
 )
@@ -2963,16 +3581,20 @@ plot_latent_df <- data.frame(
   force = rep(0, 1000 * mice_number * no_method)
 )
 ## agg
-plot_latent_df$force[(1:(1000 * mice_number))] <- as.vector(sim_agg_rank$x[1001:2000, ])
+plot_latent_df$force[(1:(1000 * mice_number))] <-
+  as.vector(sim_agg_rank$x[1001:2000, ])
 
 ## M1
-plot_latent_df$force[(1:(1000 * mice_number)) + 1000 * mice_number] <- as.vector(sim_cohort_hp$f)
+plot_latent_df$force[(1:(1000 * mice_number)) +
+                       1000 * mice_number] <- as.vector(sim_cohort_hp$f)
 
 ## M2
-plot_latent_df$force[(1:(1000 * mice_number)) + 2000 * mice_number] <- as.vector(sim_cohort_dchp$f)
+plot_latent_df$force[(1:(1000 * mice_number)) + 
+                       2000 * mice_number] <- as.vector(sim_cohort_dchp$f)
 
 ## M3
-plot_latent_df$force[(1:(1000 * mice_number)) + 3000 * mice_number] <- as.vector(sim_cohort_mmhp$f)
+plot_latent_df$force[(1:(1000 * mice_number)) + 
+                       3000 * mice_number] <- as.vector(sim_cohort_mmhp$f)
 
 plot_latent_df$Mice <- factor(plot_latent_df$Mice,
   levels = expert_rank_10[[current_cohort]]
@@ -2992,11 +3614,9 @@ plot_cols <- col_df %>%
 
 p1 <- ggplot(
   plot_latent_df,
-  aes(x = Mice, y = force, fill = Method)
-) +
+  aes(x = Mice, y = force, fill = Method)) +
   geom_boxplot(alpha = 0.7) +
   scale_fill_manual(values = plot_cols) +
-  # scale_fill_manual(values = c("gray", "steelblue", "goldenrod2" , "firebrick2")) +
   ggtitle("(a)") +
   theme_bw() +
   theme(
@@ -3011,9 +3631,9 @@ p1 <- ggplot(
 p1
 # dev.off()
 ```
+
+
 ## Figure 6b: Spearman rank correlation
-
-
 
 ```{r fig-6b-overall-rank-correlation}
 load("../output/weighted_rank_data.RData")
@@ -3047,8 +3667,6 @@ p2
 
 
 # Figure 7: Pearson residual matrices
-
-
 
 ```{r fig-7-prMatrix-Cohort3, fig.width=7, fig.height=7}
 current_cohort <- 3
@@ -3178,7 +3796,8 @@ for (current_cohort in 1:10) {
 
   m1_score <- positiveNegativeApproxError(m1_pr)
   m2_score <- positiveNegativeApproxError(m2_pr)
-  m3_score <- positiveNegativeApproxError(m3_pr) ## smallest value which is good
+  m3_score <- positiveNegativeApproxError(m3_pr) 
+  ## smallest value which is good
   ind_score <- positiveNegativeApproxError(indep_pr)
   ## this doesn't make sense because all negative
   ## values
@@ -3237,7 +3856,7 @@ struct_plot %>%
 
 ## Figure 8a: MAE of interaction predictions, single cohort
 
-```{r fig-8a-frob-norm-cohort5, fig.width=8,fig.height=4,eval=FALSE}
+```{r fig-8a-frob-norm-cohort5, fig.width=8,fig.height=4,eval=TRUE}
 load("../output/plot_N_predict.RData")
 current_cohort <- 5 # cohort 1 looks worse than rest
 
@@ -3279,7 +3898,7 @@ p3 <- temp_plot_df %>%
   ylab("MAE") +
   ylim(0, 8) + # aren't infinite but >150 and <200
   NULL
-p3 + labs(fill = "Method")
+p3 + labs(fill = "Method", title = "Single Cohort")
 ```
 
 
@@ -3331,7 +3950,7 @@ all_cohort_box %>%
   facet_grid(cols = vars(day)) +
   # guides(color=guide_legend(title="Method")) +
   xlab("Prediction horizon (day)") +
-  ylab("Frobenius norm of error") +
+  ylab("MAE") +
   labs(fill = "Method") +
   # ylim(0, 80) +
   NULL
@@ -3486,7 +4105,8 @@ for (s in 1:1000) {
     )
   } else {
     # try(
-    history_matrix <- history_matrix[, 1:testing_end] # temp_gl$history[,1:testing_end]
+    history_matrix <- history_matrix[, 1:testing_end] 
+    # temp_gl$history[,1:testing_end]
     # )
   }
   sim_gl_array[, , s] <- history_matrix[, training_end:testing_end]
@@ -3499,7 +4119,8 @@ for (s in 1:1000) {
 par(mar = c(3, 5, 3, 1))
 testing_end <- testing_end - 1
 plot(1,
-  type = "n", xlab = "", ylab = "Glicko ranking", xlim = c(0, dim(gl$history)[2]),
+  type = "n", xlab = "",
+  ylab = "Glicko ranking", xlim = c(0, dim(gl$history)[2]),
   ylim = c(min(gl$history[, , 1]), max(gl$history[, , 1])),
   cex.axis = 2, cex.lab = 2
 )
@@ -3508,7 +4129,8 @@ for (m in c(1:mice_number)) {
   lines(gl$history[m, 1:training_end, 1],
     cex = 0.6, col = col_vec[m], lwd = history_width, lty = ltypes_vec[m]
   )
-  lines(c(rep(NA, training_end), gl$history[m, (training_end + 1):testing_end, 1]),
+  lines(c(rep(NA, training_end),
+          gl$history[m, (training_end + 1):testing_end, 1]),
     cex = 0.6, col = shade_vec[m], lwd = history_width, lty = ltypes_vec[m]
   )
 
@@ -3516,7 +4138,9 @@ for (m in c(1:mice_number)) {
   cur_end <- testing_end
   mean_vec <- apply(sim_gl_array[m, , ], 1, function(x) mean(na.omit(x)))
   sd_vec <- apply(sim_gl_array[m, , ], 1, function(x) sd(na.omit(x)))
-  polygon(c(newx, rev(newx)), c(mean_vec - sd_vec, rev(mean_vec + sd_vec)), col = shade_vec[m], border = NA)
+  polygon(c(newx, rev(newx)),
+          c(mean_vec - sd_vec, rev(mean_vec + sd_vec)),
+          col = shade_vec[m], border = NA)
   # polygon(c(newx), c(mean_vec-sd_vec),col = shade_vec[m], border = NA)
   lines(c(rep(NA, training_end), mean_vec),
     cex = 0.6, col = col_vec[m], lwd = 1, lty = 2
@@ -3528,13 +4152,15 @@ for (d in c(19:21)) {
   abline(v = nrow(df[df$day <= (d - 1), ]), lty = 2, lwd = 0.4)
   text(x = nrow(df[df$day <= (d - 1), ]), y = 2600, d)
 }
-mtext(text = "(a)", side = 3, line = -2.3, outer = TRUE, cex = 2.8, at = 0.5, font = 2)
+mtext(text = "(a)", side = 3, line = -2.3,
+      outer = TRUE, cex = 2.8, at = 0.5, font = 2)
 ```
 
 ```{r fig-glicko-pred-slides,eval=slides_plots,include=slides_plots}
 par(mar = c(3, 5, 3, 1))
 plot(1,
-  type = "n", xlab = "", ylab = "Glicko ranking", xlim = c(0, dim(gl$history)[2]),
+  type = "n", xlab = "",
+  ylab = "Glicko ranking", xlim = c(0, dim(gl$history)[2]),
   ylim = c(min(gl$history[, , 1]), max(gl$history[, , 1])),
   cex.axis = 2, cex.lab = 2
 )
@@ -3543,7 +4169,8 @@ for (m in c(1:mice_number)) {
   lines(gl$history[m, 1:training_end, 1],
     cex = 0.6, col = col_vec[m], lwd = history_width, lty = ltypes_vec[m]
   )
-  lines(c(rep(NA, training_end), gl$history[m, (training_end + 1):testing_end, 1]),
+  lines(c(rep(NA, training_end), 
+          gl$history[m, (training_end + 1):testing_end, 1]),
     cex = 0.6, col = shade_vec[m], lwd = history_width, lty = ltypes_vec[m]
   )
 
@@ -3607,7 +4234,8 @@ unique_pairs_df <- return_df %>%
     observe.length = list(observe.time),
     no.events = list(no.events)
   )
-unique_observe_win <- unique(return_df[, c("day", "observe.id", "observe.time")])
+unique_observe_win <- unique(return_df[,
+                                       c("day", "observe.id", "observe.time")])
 
 ## 5.  find how many 1s for each pair
 print(".......state separation plot........")
@@ -3622,13 +4250,17 @@ active_event_array <- array(0, dim = c(
 
 for (i in 1:mice_number) {
   for (j in c(1:mice_number)[-i]) {
-    pair <- which(unique_pairs_df$initiator == i & unique_pairs_df$recipient == j)
+    pair <- which(unique_pairs_df$initiator == i & 
+                    unique_pairs_df$recipient == j)
     if (length(pair) > 0) {
       current_window_vec <- unique_pairs_df$observe[[pair]]
       for (cur_win in current_window_vec) {
-        row_indicator <- return_df$initiator == i & return_df$recipient == j & return_df$observe.id == cur_win
-        total_event_array[i, j, cur_win] <- length(return_df[row_indicator, "event.times"][[1]])
-        active_event_array[i, j, cur_win] <- sum(apply(2 - state_array_list[[pair]][[cur_win]], 1, mean) > 0.5)
+        row_indicator <- return_df$initiator == i & 
+          return_df$recipient == j & return_df$observe.id == cur_win
+        total_event_array[i, j, cur_win] <- length(return_df[
+          row_indicator, "event.times"][[1]])
+        active_event_array[i, j, cur_win] <- 
+          sum(apply(2 - state_array_list[[pair]][[cur_win]], 1, mean) > 0.5)
       }
     }
   }
@@ -3718,7 +4350,8 @@ df <- df[df$Actor != "Start" & df$Actor != "End", ]
 df1 <- expandrows(df)
 df1 <- df1[order(df1$Timestamp), ] # ensure in date order
 df1$event <- 1:nrow(df1)
-glick.df <- df1[, c("event", "Actor", "Recipient", "score"), with = FALSE] # need event, actor, recipient, score
+glick.df <- df1[, c("event", "Actor", "Recipient", "score"),
+                with = FALSE] # need event, actor, recipient, score
 real.gl <- my_glicko(glick.df, history = TRUE, cval = 2)
 clean_data_all <- cleanData(full_data[[cohort_names[current_cohort]]],
   cut_off = 1
@@ -3747,7 +4380,8 @@ for (t in 1:length(task.types)) {
   temp_vec <- rep(NA, 2000)
   cur_real_rank <- real.gl$history[, day_end_idx[t], 1]
   for (s in c(1:2000)) {
-    temp_result <- cor.test(-sim_dsnl_active$x[s, t, ], cur_real_rank, method = "spearman")
+    temp_result <- cor.test(-sim_dsnl_active$x[s, t, ], cur_real_rank,
+                            method = "spearman")
     temp_vec[s] <- temp_result$estimate
   }
   data.tbl$sub.type[(1:2000) + (t - 1) * 2000 + 42000] <- sub.types[2]

@@ -36,6 +36,7 @@ sim_data_path <- here("output", "revisions", "sim_design", "/")
 mcmc_trace(sim_fit1_draws, pars =
              c("f[1]", "f[2]", "f[3]", "f[4]", "f[5]", "f[6]", "f[7]",
                "f[8]", "f[9]", "f[10]"))
+
 mcmc_trace(sim_fit1_draws, pars =
              c("eta_1", "eta_2", "eta_3", "beta", "lp__"))
 
@@ -138,6 +139,7 @@ sim_fit2_draws %>%
 mcmc_trace(sim_fit3_draws, pars =
              c("f[1]", "f[2]", "f[3]", "f[4]", "f[5]", "f[6]",
                "f[7]", "f[8]", "f[9]", "f[10]"))
+
 mcmc_trace(sim_fit3_draws, pars =
              c("eta_1", "eta_2", "eta_3", "beta", "lp__"))
 

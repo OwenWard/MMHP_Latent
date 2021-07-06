@@ -50,13 +50,13 @@ object_fn <- list(alpha.fun = function(x,y,eta1,eta2){
 object_par <- list(sim_lambda_1 = 0.6,
                    gamma_var = seq(from = 0.01, to = 0.2,
                                    length.out = num_nodes),
-                   zeta_var = rep(0.05, num_nodes),
-                   sim_eta_1 = 3.5, # from 3.5
+                   zeta_var = c(rep(0.05, num_nodes/2), rep(0.1, num_nodes/2)),
+                   sim_eta_1 = 1, # from 3.5
                    sim_eta_2 = 2,#1.5, # from 2.6
                    sim_eta_3 = 3, # this seems better
                    #sim_eta_3 = 7.5,
                    sim_beta = 1.5, # from 2
-                   f_vec_1 = seq(from = 0.25, to = 0.85,
+                   f_vec_1 = seq(from = 0.2, to = 0.9,
                                  length.out = num_nodes))
 
 object_matrix <- list(
@@ -64,9 +64,13 @@ object_matrix <- list(
     object_par$gamma_var,
     object_par$zeta_var, "+"
   ),
-  lambda1_matrix = matrix(object_par$sim_lambda_1,
-                          nrow = length(object_par$f_vec_1),
-                          ncol = length(object_par$f_vec_1)
+  # lambda1_matrix = matrix(object_par$sim_lambda_1,
+  #                         nrow = length(object_par$f_vec_1),
+  #                         ncol = length(object_par$f_vec_1)
+  # ),
+  lambda1_matrix = 1.5 * outer(
+    object_par$gamma_var,
+    object_par$zeta_var, "+"
   ),
   alpha_matrix = formMatrix(
     function(x, y) {
@@ -245,11 +249,11 @@ data_list$alpha_id <- top_rank
 
 # start_time <- Sys.time()
 sim_stan_fit3 <- model3$sample(data = data_list,
-                               iter_warmup = 50,
-                               iter_sampling = 100,
+                               iter_warmup = 20,
+                               iter_sampling = 200,
                                # adapt_delta = 0.9,
-                               chains = 4,
-                               refresh = 25)
+                               chains = 1,
+                               refresh = 10)
 
 
 # m3_time <- Sys.time() - start_time

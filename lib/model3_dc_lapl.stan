@@ -1,14 +1,22 @@
 data{
   int<lower=1> N_til;//number of pairs => nrow(unique_pairs_df)
-  int<lower=1> no_observations;//total number of observation windows -> max(return_df$observe.id)
+  int<lower=1> no_observations;//total number of observation windows -> 
+  // max(return_df$observe.id)
   int<lower=1,upper=12> I_fit[N_til];
   int<lower=1,upper=12> J_fit[N_til];
-  int<lower=1> max_Nm; //maximum of number of events for each pair each window => max(unlist(lapply(return_df$event.times,length))))
-  int<lower=0,upper=max_Nm> Nm[N_til,no_observations]; //number of events for each pair => count_matrix
-  vector[max_Nm+1] interevent_time_matrix[N_til,no_observations]; // include termination time difference in the last entry
-  vector[max_Nm] event_matrix[N_til,no_observations]; // event times in each observation window
-  //real<lower=0> delta_window[no_observations]; //length of non-observation period 
-  real<lower=0> finishing_time[no_observations]; //for each pair, each observation window, what is the finishing time
+  int<lower=1> max_Nm; 
+  // maximum of number of events for each pair each window => 
+  // max(unlist(lapply(return_df$event.times,length))))
+  int<lower=0,upper=max_Nm> Nm[N_til,no_observations]; 
+  //number of events for each pair => count_matrix
+  vector[max_Nm+1] interevent_time_matrix[N_til,no_observations]; 
+  // include termination time difference in the last entry
+  vector[max_Nm] event_matrix[N_til,no_observations]; 
+  // event times in each observation window
+  //real<lower=0> delta_window[no_observations]; 
+  //length of non-observation period 
+  real<lower=0> finishing_time[no_observations]; 
+  //for each pair, each observation window, what is the finishing time
   int<lower=0,upper=12> alpha_id;
   vector<lower=0,upper=1>[N_til] delta_1;
 }
@@ -41,11 +49,16 @@ transformed parameters{
   for(i in 1:N_til){
     lambda0[i] = gamma[I_fit[i]]+zeta[J_fit[i]];  
     lambda1[i] = lambda0[i]*(1+w_lambda);
-    alpha[i] = exp(-eta_2*fabs(f[I_fit[i]]-f[J_fit[i]]))*f[I_fit[i]]*f[J_fit[i]]*eta_1;///(1+exp(-eta_3*(f[I_fit[i]]-f[J_fit[i]])));//eta_1*f[I_fit[i]]*f[J_fit[i]];
+    alpha[i] = exp(-eta_2*fabs(f[I_fit[i]]-f[J_fit[i]])) * 
+    f[I_fit[i]]*f[J_fit[i]]*eta_1;
+    ///(1+exp(-eta_3*(f[I_fit[i]]-f[J_fit[i]])));
+    //eta_1*f[I_fit[i]]*f[J_fit[i]];
     //f_max = (f[I_fit[i]]+f[J_fit[i]]+fabs(f[I_fit[i]]-f[J_fit[i]]))/2;
     //f_min = (f[I_fit[i]]+f[J_fit[i]]-fabs(f[I_fit[i]]-f[J_fit[i]]))/2;
-    q1[i] = exp(-eta_3*f[I_fit[i]]);//exp(-(f_max+eta_2*(f[I_fit[i]]-f[J_fit[i]])));
-    q2[i] = exp(-eta_3*f[J_fit[i]]);//exp((f_min-eta_3*(f[I_fit[i]]+f[J_fit[i]])));
+    q1[i] = exp(-eta_3*f[I_fit[i]]);
+    //exp(-(f_max+eta_2*(f[I_fit[i]]-f[J_fit[i]])));
+    q2[i] = exp(-eta_3*f[J_fit[i]]);
+    //exp((f_min-eta_3*(f[I_fit[i]]+f[J_fit[i]])));
     //delta_1[i] = q2[i]/(q1[i]+q2[i]);
     log_delta[i][1] = log(delta_1[i]);
     log_delta[i][2] = log(1-delta_1[i]);
@@ -103,36 +116,63 @@ model{
       interevent = interevent_time_matrix[i,j];
       if(Nm[i,j]==0){ // there is no event occured in this period
         //--- prepare for forward calculation
-        probs_1[1][1] = log(temp_q2/(temp_q1+temp_q2)+temp_q1/(temp_q1+temp_q2)*exp(-(temp_q1+temp_q2)*interevent[1])); //1->1
-        probs_2[1][2] = log(temp_q1/(temp_q1+temp_q2)+temp_q2/(temp_q1+temp_q2)*exp(-(temp_q1+temp_q2)*interevent[1])); //2->2
+        probs_1[1][1] = log(temp_q2/(temp_q1+temp_q2) + 
+        temp_q1/(temp_q1+temp_q2) * 
+        exp(-(temp_q1+temp_q2)*interevent[1])); //1->1
+        probs_2[1][2] = log(temp_q1/(temp_q1+temp_q2) + 
+        temp_q2/(temp_q1+temp_q2) * 
+        exp(-(temp_q1+temp_q2)*interevent[1])); //2->2
         probs_1[1][2] = log1m_exp(probs_2[1][2]); //2->1
         probs_2[1][1] = log1m_exp(probs_1[1][1]); //1->2
         R[1] = 0;
         K0 = exp(-(temp_q1+temp_q2)*interevent[1]);
         K1 = (1-exp(-(temp_q1+temp_q2)*interevent[1]))/(temp_q1+temp_q2);
         K2 = (1-exp(-(temp_q1+temp_q2)*interevent[1]))/(temp_q1+temp_q2);
-        int_1[1][1] = ((temp_q2^2*temp_lambda1+temp_q2*temp_q1*temp_lambda0)*interevent[1] +
-                         (temp_q1^2*temp_lambda1+temp_q2*temp_q1*temp_lambda0)*K0*interevent[1] +
-                         (temp_lambda1-temp_lambda0)*temp_q2*temp_q1*K1 + (temp_lambda1-temp_lambda0)*temp_q2*temp_q1*K2)/(temp_q1+temp_q2)^2/exp(probs_1[1][1]); //1->1
-        int_1[1][2] = ((temp_q2^2*temp_lambda1+temp_lambda0*temp_q1*temp_q2)*interevent[1] -
-                         (temp_lambda1*temp_q1*temp_q2+temp_lambda0*temp_q2^2)*K0*interevent[1] +
-                         (temp_lambda0-temp_lambda1)*temp_q2^2*K1 + (temp_lambda1-temp_lambda0)*temp_q1*temp_q2*K2)/(temp_q1+temp_q2)^2/exp(probs_1[1][2]); //2->1
-        int_2[1][1] = ((temp_q1*temp_q2*temp_lambda1+temp_q1^2*temp_lambda0)*interevent[1] -
-                         (temp_q1^2*temp_lambda1+temp_q1*temp_q2*temp_lambda0)*K0*interevent[1] +
-                         (temp_lambda1-temp_lambda0)*temp_q1^2*K1 + temp_q1*temp_q2*(temp_lambda0-temp_lambda1)*K2)/(temp_q1+temp_q2)^2/exp(probs_2[1][1]); //1->2
-        int_2[1][2] = ((temp_q1*temp_q2*temp_lambda1+temp_lambda0*temp_q1^2)*interevent[1] +
-                         (temp_q1*temp_q2*temp_lambda1+temp_lambda0*temp_q2^2)*K0*interevent[1] +
-                         (temp_lambda0-temp_lambda1)*temp_q1*temp_q2*K1 + (temp_lambda0-temp_lambda1)*temp_q1*temp_q2*K2)/(temp_q1+temp_q2)^2/exp(probs_2[1][2]); //2->2
+        int_1[1][1] = ((temp_q2^2*temp_lambda1+temp_q2*temp_q1*temp_lambda0) * 
+          interevent[1] +
+          (temp_q1^2*temp_lambda1+temp_q2*temp_q1*temp_lambda0) * K0 * 
+          interevent[1] +
+          (temp_lambda1-temp_lambda0)*temp_q2*temp_q1*K1 + 
+          (temp_lambda1-temp_lambda0) * temp_q2*temp_q1*K2)/
+          (temp_q1+temp_q2)^2/exp(probs_1[1][1]); //1->1
+        int_1[1][2] = ((temp_q2^2*temp_lambda1+temp_lambda0*temp_q1*temp_q2) * 
+          interevent[1] -
+          (temp_lambda1*temp_q1*temp_q2+temp_lambda0*temp_q2^2) * K0 * 
+          interevent[1] +
+          (temp_lambda0-temp_lambda1) * temp_q2^2 * K1 +
+          (temp_lambda1-temp_lambda0)*temp_q1*temp_q2*K2)/
+          (temp_q1+temp_q2)^2/exp(probs_1[1][2]); //2->1
+        int_2[1][1] = ((temp_q1*temp_q2*temp_lambda1+temp_q1^2*temp_lambda0) * 
+          interevent[1] -
+          (temp_q1^2*temp_lambda1+temp_q1*temp_q2*temp_lambda0) * K0 * 
+          interevent[1] +
+          (temp_lambda1-temp_lambda0)*temp_q1^2*K1 + 
+          temp_q1*temp_q2*(temp_lambda0-temp_lambda1)*K2)/
+          (temp_q1+temp_q2)^2/exp(probs_2[1][1]); //1->2
+        int_2[1][2] = ((temp_q1*temp_q2*temp_lambda1+temp_lambda0*temp_q1^2) * 
+        interevent[1] +
+                         (temp_q1*temp_q2*temp_lambda1+temp_lambda0*temp_q2^2) *
+                         K0*interevent[1] +
+                         (temp_lambda0-temp_lambda1)*temp_q1*temp_q2*K1 +
+                         (temp_lambda0-temp_lambda1)*temp_q1*temp_q2*K2)/
+                         (temp_q1+temp_q2)^2/exp(probs_2[1][2]); //2->2
         
-        forward_termination[1] = log_sum_exp(temp_log_delta + probs_1[1] - int_1[1]);
-        forward_termination[2] = log_sum_exp(temp_log_delta + probs_2[1] - int_2[1]);
+        forward_termination[1] = log_sum_exp(temp_log_delta + 
+                                             probs_1[1] - int_1[1]);
+        forward_termination[2] = log_sum_exp(temp_log_delta + 
+                                             probs_2[1] - int_2[1]);
         target += log_sum_exp(forward_termination);
-        //target += -temp_lambda0*interevent[1]*temp_delta_1-temp_lambda1*interevent[1]*(1-temp_delta_1);
+        //target += -temp_lambda0*interevent[1] * 
+        //           temp_delta_1-temp_lambda1*interevent[1]*(1-temp_delta_1);
       }else{ 
         // --- log probability of Markov transition logP_ij(t)
         for(n in 1:(Nm[i,j]+1)){
-          probs_1[n][1] = log(temp_q2/(temp_q1+temp_q2)+temp_q1/(temp_q1+temp_q2)*exp(-(temp_q1+temp_q2)*interevent[n])); //1->1
-          probs_2[n][2] = log(temp_q1/(temp_q1+temp_q2)+temp_q2/(temp_q1+temp_q2)*exp(-(temp_q1+temp_q2)*interevent[n])); //2->2
+          probs_1[n][1] = log( temp_q2/(temp_q1+temp_q2) + 
+                               temp_q1/(temp_q1+temp_q2) * 
+                               exp(-(temp_q1+temp_q2)*interevent[n])); //1->1
+          probs_2[n][2] = log( temp_q1/(temp_q1+temp_q2) + 
+                               temp_q2/(temp_q1+temp_q2) * 
+                               exp(-(temp_q1+temp_q2)*interevent[n])); //2->2
           probs_1[n][2] = log1m_exp(probs_2[n][2]); //2->1
           probs_2[n][1] = log1m_exp(probs_1[n][1]); //1->2
         }
@@ -149,43 +189,71 @@ model{
           K1 = (1-exp(-(temp_q1+temp_q2)*interevent[n]))/(temp_q1+temp_q2);
           K2 = (1-exp(-(temp_q1+temp_q2)*interevent[n]))/(temp_q1+temp_q2);
           K3 = R[n]*(exp(temp_beta*interevent[n])-1)/temp_beta;
-          K4 = R[n]*(1-exp(-(temp_beta+temp_q1+temp_q2)*interevent[n]))*exp(temp_beta*interevent[n])/(temp_beta+temp_q1+temp_q2);
-          K5 = R[n]*(1-exp(-(temp_q1+temp_q2-temp_beta)*interevent[n]))/(temp_q1+temp_q2-temp_beta);
-          int_1[n][1] = ((temp_q2^2*temp_lambda1+temp_q2*temp_q1*temp_lambda0)*interevent[n] +
-                           (temp_q1^2*temp_lambda1+temp_q2*temp_q1*temp_lambda0)*K0*interevent[n] +
-                           (temp_lambda1-temp_lambda0)*temp_q2*temp_q1*K1 + (temp_lambda1-temp_lambda0)*temp_q2*temp_q1*K2 +
+          K4 = R[n]*(1-exp(-(temp_beta+temp_q1+temp_q2)*interevent[n])) * 
+                     exp(temp_beta*interevent[n])/(temp_beta+temp_q1+temp_q2);
+          K5 = R[n]*(1-exp(-(temp_q1+temp_q2-temp_beta)*interevent[n])) / 
+                    (temp_q1+temp_q2-temp_beta);
+          int_1[n][1] = ((temp_q2^2*temp_lambda1+temp_q2*temp_q1*temp_lambda0) * 
+                        interevent[n] +
+                        (temp_q1^2*temp_lambda1+temp_q2*temp_q1*temp_lambda0) * 
+                        K0 * interevent[n] +
+                           (temp_lambda1-temp_lambda0) * temp_q2*temp_q1*K1 + 
+                           (temp_lambda1-temp_lambda0) * temp_q2*temp_q1*K2 +
                            temp_alpha*K3*(temp_q2^2+temp_q1^2*K0) +
-                           temp_alpha*temp_q1*temp_q2*K4 + temp_alpha*temp_q1*temp_q2*K5)/(temp_q1+temp_q2)^2/exp(probs_1[n][1]); //1->1
-          int_1[n][2] = ((temp_q2^2*temp_lambda1+temp_lambda0*temp_q1*temp_q2)*interevent[n] -
-                           (temp_lambda1*temp_q1*temp_q2+temp_lambda0*temp_q2^2)*K0*interevent[n] +
-                           (temp_lambda0-temp_lambda1)*temp_q2^2*K1 + (temp_lambda1-temp_lambda0)*temp_q1*temp_q2*K2 +
+                           temp_alpha*temp_q1*temp_q2*K4 + 
+                           temp_alpha*temp_q1*temp_q2*K5)/
+                           (temp_q1+temp_q2)^2/exp(probs_1[n][1]); //1->1
+          int_1[n][2] = ((temp_q2^2*temp_lambda1+temp_lambda0*temp_q1*temp_q2) * 
+                        interevent[n] -
+                        (temp_lambda1*temp_q1*temp_q2+temp_lambda0*temp_q2^2) * 
+                        K0 * interevent[n] +
+                           (temp_lambda0-temp_lambda1)*temp_q2^2*K1 + 
+                           (temp_lambda1-temp_lambda0)*temp_q1*temp_q2*K2 +
                            temp_alpha*temp_q2*K3*(temp_q2-temp_q1*K0) -
-                           temp_alpha*temp_q2^2*K4 + temp_alpha*temp_q1*temp_q2*K5)/(temp_q1+temp_q2)^2/exp(probs_1[n][2]); //2->1
-          int_2[n][1] = ((temp_q1*temp_q2*temp_lambda1+temp_q1^2*temp_lambda0)*interevent[n] -
-                           (temp_q1^2*temp_lambda1+temp_q1*temp_q2*temp_lambda0)*K0*interevent[n] +
-                           (temp_lambda1-temp_lambda0)*temp_q1^2*K1 + temp_q1*temp_q2*(temp_lambda0-temp_lambda1)*K2 +
+                           temp_alpha*temp_q2^2*K4 +
+                           temp_alpha*temp_q1*temp_q2*K5)/
+                           (temp_q1+temp_q2)^2/exp(probs_1[n][2]); //2->1
+          int_2[n][1] = ((temp_q1*temp_q2*temp_lambda1+temp_q1^2*temp_lambda0) * 
+                        interevent[n] -
+                        (temp_q1^2*temp_lambda1+temp_q1*temp_q2*temp_lambda0) * 
+                        K0 * interevent[n] +
+                        (temp_lambda1-temp_lambda0)*temp_q1^2*K1 + 
+                        temp_q1*temp_q2*(temp_lambda0-temp_lambda1)*K2 +
                            temp_alpha*temp_q1*K3*(temp_q2-temp_q1*K0) +
-                           temp_alpha*temp_q1^2*K4 - temp_alpha*temp_q2*temp_q1*K5)/(temp_q1+temp_q2)^2/exp(probs_2[n][1]); //1->2
-          int_2[n][2] = ((temp_q1*temp_q2*temp_lambda1+temp_lambda0*temp_q1^2)*interevent[n] +
-                           (temp_q1*temp_q2*temp_lambda1+temp_lambda0*temp_q2^2)*K0*interevent[n] +
-                           (temp_lambda0-temp_lambda1)*temp_q1*temp_q2*K1 + (temp_lambda0-temp_lambda1)*temp_q1*temp_q2*K2 +
+                           temp_alpha*temp_q1^2*K4 -
+                           temp_alpha*temp_q2*temp_q1*K5)/
+                           (temp_q1+temp_q2)^2/exp(probs_2[n][1]); //1->2
+          int_2[n][2] = ((temp_q1*temp_q2*temp_lambda1+temp_lambda0*temp_q1^2) * 
+                        interevent[n] +
+                        (temp_q1*temp_q2*temp_lambda1+temp_lambda0*temp_q2^2) * 
+                        K0 *interevent[n] +
+                        (temp_lambda0-temp_lambda1)*temp_q1*temp_q2*K1 +
+                        (temp_lambda0-temp_lambda1)*temp_q1*temp_q2*K2 +
                            temp_alpha*temp_q1*temp_q2*K3*(1+K0) -
-                           temp_alpha*temp_q1*temp_q2*K4 - temp_alpha*temp_q1*temp_q2*K5)/(temp_q1+temp_q2)^2/exp(probs_2[n][2]); //2->2
+                           temp_alpha*temp_q1*temp_q2*K4 - 
+                           temp_alpha*temp_q1*temp_q2*K5)/
+                           (temp_q1+temp_q2)^2/exp(probs_2[n][2]); //2->2
         }
         
         //consider n = 1
-        forward[1][1] = log(temp_lambda1) + log_sum_exp(probs_1[1]-int_1[1]+temp_log_delta); 
-        forward[1][2] = log(temp_lambda0) + log_sum_exp(probs_2[1]-int_2[1]+temp_log_delta); 
+        forward[1][1] = log(temp_lambda1) + 
+                        log_sum_exp(probs_1[1]-int_1[1]+temp_log_delta); 
+        forward[1][2] = log(temp_lambda0) + 
+                        log_sum_exp(probs_2[1]-int_2[1]+temp_log_delta); 
         
         if(Nm[i,j]>1){
           for(n in 2:Nm[i,j]){
-            forward[n][1] = log_sum_exp(forward[n-1] + probs_1[n] - int_1[n]) + log(temp_lambda1+temp_alpha*R[n]);
-            forward[n][2] = log_sum_exp(forward[n-1] + probs_2[n] - int_2[n]) + log(temp_lambda0);
+            forward[n][1] = log_sum_exp(forward[n-1] + probs_1[n] - int_1[n]) + 
+                            log(temp_lambda1+temp_alpha*R[n]);
+            forward[n][2] = log_sum_exp(forward[n-1] + probs_2[n] - int_2[n]) + 
+                            log(temp_lambda0);
           }
         }
         
-        forward_termination[1] = log_sum_exp(forward[Nm[i,j]] + probs_1[Nm[i,j]+1] - int_1[Nm[i,j]+1]);
-        forward_termination[2] = log_sum_exp(forward[Nm[i,j]] + probs_2[Nm[i,j]+1] - int_2[Nm[i,j]+1]);
+        forward_termination[1] = log_sum_exp(forward[Nm[i,j]] + 
+                                      probs_1[Nm[i,j]+1] - int_1[Nm[i,j]+1]);
+        forward_termination[2] = log_sum_exp(forward[Nm[i,j]] + 
+                                      probs_2[Nm[i,j]+1] - int_2[Nm[i,j]+1]);
         
         target += log_sum_exp(forward_termination);
       }
