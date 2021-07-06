@@ -112,6 +112,7 @@ fit_cohort_mmhp <- dc_model$sample(data = stan_input_lst,
                                    chains = 4,
                                    thin = 4,
                                    adapt_delta = 0.9,
+                                   max_treedepth = 15,
                                    refresh = 100
 )
 
@@ -472,7 +473,9 @@ fit_cohort_mmhp <- dc_model$sample(data = stan_train_input_lst,
                                    iter_sampling = 1000,
                                    chains = 4,
                                    thin = 4,
-                                   adapt_delta = 0.9
+                                   adapt_delta = 0.9,
+                                   max_treedepth = 15,
+                                   refresh = 100
 )
 
 
