@@ -267,8 +267,9 @@ fit_mmhp_sep <- immhp_model$sample(data = stan_train_input_lst,
                                    thin = 4,
                                    chains = 4)
 
-sim_mmhp_sep <- rstan::extract(fit_mmhp_sep)
-
+# sim_mmhp_sep <- rstan::extract(fit_mmhp_sep)
+immhp_fit <- fit_mmhp_sep$draws()
+sim_mmhp_sep <- posterior::as_draws_df(immhp_fit)
 
 dir.create(paste(save_data_path, cohort_names[current_cohort],sep=''), 
            recursive = TRUE, showWarnings = FALSE)
@@ -318,7 +319,7 @@ mmhp_residual_array <- array(0,
 lam0_draws <- sim_mmhp_sep %>% select(starts_with("lambda0"))
 lam1_draws <- sim_mmhp_sep %>% select(starts_with("lambda1"))
 alpha_draws <- sim_mmhp_sep %>% select(starts_with("alpha"))
-beta_draws <- sim_mmhp_sep %>% select(starts_with("beta"))
+beta_draws <- sim_mmhp_sep %>% select(ends_with("beta"))
 q1_draws <- sim_mmhp_sep %>% select(starts_with("q1"))
 q2_draws <- sim_mmhp_sep %>% select(starts_with("q2"))
 

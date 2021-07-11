@@ -324,7 +324,7 @@ for(i in 1:mice_number){
                       lambda1 = mean(lam1_draws %>% pull(pair)),
                         # mean(sim_cohort_mmhp$lambda1[,pair]),
                       alpha = mean(alpha_draws %>% pull(pair)),
-                      beta = mean(beta_draws %>% pull(pair)),
+                      beta = mean(beta_draws$beta),
                       q1 = mean(q1_draws %>% pull(pair)),
                       q2 = mean(q2_draws %>% pull(pair)))
       current_window_vec <- unique_pairs_df$observe[[pair]]
@@ -412,7 +412,7 @@ Lambda_mmhp_matrix <- matrix(rep(list(),
 lam0_draws <- sim_mmhp_sep %>% select(starts_with("lambda0"))
 lam1_draws <- sim_mmhp_sep %>% select(starts_with("lambda1"))
 alpha_draws <- sim_mmhp_sep %>% select(starts_with("alpha"))
-beta_draws <- sim_mmhp_sep %>% select(starts_with("beta"))
+beta_draws <- sim_mmhp_sep %>% select(ends_with("beta"))
 q1_draws <- sim_mmhp_sep %>% select(starts_with("q1"))
 q2_draws <- sim_mmhp_sep %>% select(starts_with("q2"))
 
