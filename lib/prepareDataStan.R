@@ -223,7 +223,9 @@ prepareDataStanIMMHP <- function(current_cohort){
 ############################################################################
 prepareDataStanTrainIMMHP <- function(current_cohort, train_day = 15){
   clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
-  return_df <- cleanObservationPeriod(current_cohort, clean_data)
+  return_df <- cleanObservationPeriod(current_cohort, 
+                                      full_data[[cohort_names[current_cohort]]],
+                                      clean_data)
   return_df <- return_df[return_df$day<=train_day,]
   
   unique_pairs_df <- return_df %>% group_by(initiator, recipient) %>% dplyr::summarize(count=n(), observe=list(observe.id))
