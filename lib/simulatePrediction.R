@@ -51,8 +51,8 @@ simulateLatentMMHP <- function(lambda0_matrix,
   mmhp_matrix <- matrix(rep(list(), N*N),nrow = N, ncol =N) 
   for(i in c(1:N)){
     for(j in c(1:N)[-i]){
-      #print(paste(i,"->",j))
-      if(alpha_matrix[i,j]>0){
+      # print(paste(i,"->",j))
+      if(alpha_matrix[i,j]>0 & lambda0_matrix[i,j] > 0){
         sim_mmhp_object <- list(lambda0=lambda0_matrix[i,j],
                                 lambda1=lambda1_matrix[i,j],
                                 alpha=alpha_matrix[i,j],
@@ -62,11 +62,14 @@ simulateLatentMMHP <- function(lambda0_matrix,
         if(sim_mmhp_object$alpha>sim_mmhp_object$beta){
           sim.cur.result <- NULL
           while(is.null(sim.cur.result)){
-            sim.cur.result <- tryCatch(expr = {withTimeout(simulate.mmhp(object = sim_mmhp_object, 
-                                                                         termination=horizon,
-                                                                         if.prefer.active=if.prefer.active),
-                                                           timeout = 15)},
-                                       TimeoutException = function(ex) cat("Timeout. Skipping.\n"))
+            sim.cur.result <- tryCatch(
+              expr = {withTimeout(simulate.mmhp(object = sim_mmhp_object, 
+                                                termination = horizon,
+                                                if.prefer.active = 
+                                                  if.prefer.active),
+                                                timeout = 15)},
+                                       TimeoutException = function(ex) cat(
+                                         "Timeout. Skipping.\n"))
           }
           temp_mmhp <- sim.cur.result
         }else{

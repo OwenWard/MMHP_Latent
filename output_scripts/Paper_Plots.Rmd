@@ -168,15 +168,21 @@ my.image.plot(seq(0, 1, 0.01), seq(0, 1, 0.01), z_plot,
 # current_cohort <- 5
 current_cohort <- 5
 
+data_path <- "../output/revisions/"
+
 load(paste(data_path, cohort_names[current_cohort],
   "/cohort_hp_stan_result_", cohort_names[current_cohort],
   ".RData",
   sep = ""
 ))
+
 eta1_mean <- mean(sim_cohort_hp$eta_1)
 eta2_mean <- mean(sim_cohort_hp$eta_2)
 eta3_mean <- mean(sim_cohort_hp$eta_3)
-f_est <- apply(sim_cohort_hp$f, 2, mean)
+
+f_draws <- sim_cohort_hp %>% select(starts_with("f"))
+
+f_est <- apply(f_draws, 2, mean)
 clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
 return_df <- cleanObservationPeriod(current_cohort,
   raw_df =
@@ -366,8 +372,12 @@ load(paste(data_path, cohort_names[current_cohort],
   ".RData",
   sep = ""
 ))
-gamma_mean <- apply(sim_cohort_dchp$gamma, 2, mean)
-zeta_mean <- apply(sim_cohort_dchp$zeta, 2, mean)
+
+gamma_draws <- sim_cohort_dchp %>% select(starts_with("gamma"))
+zeta_draws <- sim_cohort_dchp %>% select(starts_with("zeta"))
+
+gamma_mean <- apply(gamma_draws, 2, mean)
+zeta_mean <- apply(zeta_draws, 2, mean)
 
 # social matrix plot
 latent_social_matrix <- gamma_mean %*%
@@ -399,8 +409,8 @@ ks_pval_dchp <- matrix(0, ncol = mice_number, nrow = mice_number)
 n_matrix <- matrix(0, ncol = mice_number, nrow = mice_number)
 Lambda_matrix <- matrix(list(), nrow = mice_number, ncol = mice_number)
 
-gamma_mean <- apply(sim_cohort_dchp$gamma, 2, mean)
-zeta_mean <- apply(sim_cohort_dchp$zeta, 2, mean)
+gamma_mean <- apply(gamma_draws, 2, mean)
+zeta_mean <- apply(zeta_draws, 2, mean)
 eta1_mean <- mean(sim_cohort_dchp$eta_1)
 eta2_mean <- mean(sim_cohort_dchp$eta_2)
 eta3_mean <- mean(sim_cohort_dchp$eta_3)
@@ -586,6 +596,8 @@ ks_p %>%
 
 Could repeat this across all cohorts?
 
+What is `data_path` here?
+
 ```{r above across all_cohorts, eval=FALSE}
 
 ks_chp_array <- array(0, dim = c(10, mice_number, mice_number))
@@ -605,7 +617,9 @@ for(current_cohort in 1:10) {
   eta1_mean <- mean(sim_cohort_hp$eta_1)
   eta2_mean <- mean(sim_cohort_hp$eta_2)
   eta3_mean <- mean(sim_cohort_hp$eta_3)
-  f_est <- apply(sim_cohort_hp$f, 2, mean)
+  f_draws <- sim_cohort_hp %>% select(starts_with("f"))
+  
+  f_est <- apply(f_draws, 2, mean)
   clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
   return_df <- cleanObservationPeriod(current_cohort,
     raw_df =
@@ -680,8 +694,10 @@ for(current_cohort in 1:10) {
   
   
   ### c-dchp
-  gamma_mean <- apply(sim_cohort_dchp$gamma, 2, mean)
-  zeta_mean <- apply(sim_cohort_dchp$zeta, 2, mean)
+  gamma_draws <- sim_cohort_dchp %>% select(starts_with("gamma"))
+  zeta_draws <- sim_cohort_dchp %>% select(starts_with("zeta"))
+  gamma_mean <- apply(gamma_draws, 2, mean)
+  zeta_mean <- apply(zeta_draws, 2, mean)
   eta1_mean <- mean(sim_cohort_dchp$eta_1)
   eta2_mean <- mean(sim_cohort_dchp$eta_2)
   eta3_mean <- mean(sim_cohort_dchp$eta_3)
@@ -774,6 +790,29 @@ ks_p %>%
 
 
 ```
+
+
+Further diagnostic plots for C-HP vs C-DCHP
+
+
+```{r plot-pvalues-m1-m2-here}
+ks_p %>% filter(ks_p != 0) %>%
+  select(-cols) %>% 
+  mutate(id = row_number()) %>% 
+  pivot_wider(names_from = method, values_from = ks_p)
+
+
+bind_cols(M1_ks_p, M2_ks_p) %>% 
+  rename(chp_p = ks_p...1, cdchp_p = ks_p...3) %>% 
+  filter(chp_p != 0) %>% 
+  ggplot(aes(chp_p, cdchp_p)) + geom_point() +
+  labs(x = "C-HP p Value", y = "C-DCHP p Value",
+       title = "p Value for C-HP and C-DCHP") +
+  theme_minimal()
+
+```
+
+
 
 ## Figure 3b: Ranking Comparison
 
@@ -1091,8 +1130,8 @@ ranking values included for each.
 
 Will need to update this with full final simulations but fully set up now.
 
-```{r new-fig-4a, eval = revision_plots}
-sim_data_path <- here("output", "revisions", "sim_m3", "sim_3", "/")
+```{r new-fig-4a, eval = revision_plots, message=FALSE, warning=FALSE}
+sim_data_path <- here("output", "revisions", "sim_m3", "sim_2", "/")
 
 num_nodes <- 10
 
@@ -1110,8 +1149,8 @@ model_colors <- col_df %>%
   )) %>%
   pull(cols)
 
-sims <- 1:20
-sims <- sims[c(-9, -13)]
+sims <- 1:50
+sims <- sims[c(-18)]
 
 for(curr_sim in sims) {
   load(paste0(sim_data_path,
@@ -1189,7 +1228,7 @@ mean_sims$model <- factor(mean_sims$model, levels = c("C-HP", "C-DCHP",
 
 true_ranks <- tibble(node = rep(1:num_nodes,3),
                      true_rank = rep(f_vec,3),
-                     model = c(rep("C-HP", 10),rep("C-DCHP", 10),
+                     model = c(rep("C-HP", 10), rep("C-DCHP", 10),
                                rep("C-MMHP", 10)))
 true_ranks$node <- factor(true_ranks$node, levels = 1:num_nodes)
 
@@ -1366,19 +1405,13 @@ clean_sim_data <- cleanSimulationData(
   N = length(object_par$f_vec_1)
 )
 
-### TO DO
-### need to check this here for pairs with less than cut off events
-
 for (i in seq_along(lam0_vec)) {
   row_id <- clean_sim_data$I_fit[i]
   col_id <- clean_sim_data$J_fit[i]
   lam0_par_est[row_id, col_id] <- lam0_vec[i]
   lam1_par_est[row_id, col_id] <- lam1_vec[i]
 }
-
-
 ###
-
 #############
 mmhp_par_est <- list(
   lambda0 = lam0_par_est,
@@ -3669,7 +3702,8 @@ p2
 # Figure 7: Pearson residual matrices
 
 ```{r fig-7-prMatrix-Cohort3, fig.width=7, fig.height=7}
-current_cohort <- 3
+current_cohort <- 5
+data_path <- "../output/"
 ## 2 and 8 maybe look better
 ## 3 probably looks the best
 
@@ -3730,6 +3764,33 @@ myMultiMatrixPlot(
 )
 # mtext(text="(a)",side=3,line=0.5,outer=TRUE,cex=2.5,font=2)
 ```
+
+```{r m1-m2-pr, fig.width=6}
+current_cohort <- 5
+m1_m2_plot <- list(m1_pr[
+    rev(expert_rank_10[[current_cohort]]),
+    expert_rank_10[[current_cohort]]
+  ],
+  m2_pr[
+    rev(expert_rank_10[[current_cohort]]),
+    expert_rank_10[[current_cohort]]
+  ])
+
+
+myMultiMatrixPlot(
+  X = m1_m2_plot, no_matrix = 2, n_row = 1,
+  xLabels = expert_rank_10[[current_cohort]],
+  yLabels = rev(expert_rank_10[[current_cohort]]),
+  min = -80, max = 80, axis_cex = 2, title_cex = 1.8,
+  colorPalette = "RdBu", if.emp = FALSE,
+  # legend.mar=c(0.5,.5,0.5,0.5),
+  title_lst = list("C-HP", "C-DCHP"),
+  # title_lst = list("I-MMHP"),
+  col_axis = c(-80, -40, 0, 40, 80), fake_matrix = TRUE,
+  matrix.mar = c(2.5, 2.5, 2.5, 1)
+)
+```
+
 
 ```{r fig-7b-matrix-structure-score, fig.width=7, fig.height=7}
 library(NMF)

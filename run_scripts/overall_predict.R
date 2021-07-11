@@ -110,24 +110,31 @@ for (current_cohort in 1:10) {
     ".RData",
     sep = ""
   ))
-  f_result_list[[current_cohort]][2, ] <- apply(sim_cohort_hp$f, 2, median)
-  f_sd_list[[current_cohort]][2, ] <- apply(sim_cohort_hp$f, 2, sd)
+  f_draws <- sim_cohort_hp %>% select(starts_with("f"))
+  f_result_list[[current_cohort]][2, ] <- apply(f_draws, 2, median)
+  f_sd_list[[current_cohort]][2, ] <- apply(f_draws, 2, sd)
   ## M2
-  load(paste(data_path, cohort_names[current_cohort],
-    "/cohort_dchp_stan_result_", cohort_names[current_cohort],
-    ".RData",
-    sep = ""
+  load(paste(data_path, 
+             cohort_names[current_cohort],
+             "/cohort_dchp_stan_result_",
+             cohort_names[current_cohort],
+             ".RData",
+             sep = ""
   ))
-  f_result_list[[current_cohort]][3, ] <- apply(sim_cohort_dchp$f, 2, median)
-  f_sd_list[[current_cohort]][3, ] <- apply(sim_cohort_dchp$f, 2, sd)
+  f_draws <- sim_cohort_dchp %>% select(starts_with("f"))
+  f_result_list[[current_cohort]][3, ] <- apply(f_draws, 2, median)
+  f_sd_list[[current_cohort]][3, ] <- apply(f_draws, 2, sd)
   ## M3
-  load(paste(data_path, cohort_names[current_cohort],
-    "/cohort_mmhp_stan_result_", cohort_names[current_cohort],
-    ".RData",
-    sep = ""
+  load(paste(data_path, 
+             cohort_names[current_cohort],
+             "/cohort_mmhp_stan_result_",
+             cohort_names[current_cohort],
+             ".RData",
+             sep = ""
   ))
-  f_result_list[[current_cohort]][4, ] <- apply(sim_cohort_mmhp$f, 2, median)
-  f_sd_list[[current_cohort]][4, ] <- apply(sim_cohort_mmhp$f, 2, sd)
+  f_draws <- sim_cohort_mmhp %>% select(starts_with("f"))
+  f_result_list[[current_cohort]][4, ] <- apply(f_draws, 2, median)
+  f_sd_list[[current_cohort]][4, ] <- apply(f_draws, 2, sd)
 }
 
 spearman_df <- matrix(0, nrow = 10, ncol = 4)
@@ -149,8 +156,11 @@ for (current_cohort in fit_cohorts) {
   }
 }
 
-save(f_result_list, f_sd_list, spearman_df, pearson_df,
-  file = paste(data_path, "weighted_rank_data.RData", sep = "")
+save(f_result_list,
+     f_sd_list,
+     spearman_df,
+     pearson_df,
+     file = paste(data_path, "weighted_rank_data.RData", sep = "")
 )
 
 
@@ -198,7 +208,8 @@ for (current_cohort in 1:10) {
     raw_df = full_data[[cohort_names[current_cohort]]],
     clean_data
   )
-  to_predice_obs <- unique(return_df[return_df$day >= 16, c("day", "observe.id", "observe.time")])
+  to_predice_obs <- unique(return_df[return_df$day >= 16,
+                                     c("day", "observe.id", "observe.time")])
 
   real_N_matrix_list <- list()
   predict_day_norm_df <- data.frame(
@@ -429,22 +440,28 @@ for (current_cohort in fit_cohorts) {
     sep = ""
   ))
   ## m2
-  load(paste(data_path, cohort_names[current_cohort],
-    "/cohort_dchp_predict_stan_result_", cohort_names[current_cohort],
-    ".RData",
-    sep = ""
+  load(paste(data_path, 
+             cohort_names[current_cohort],
+             "/cohort_dchp_predict_stan_result_",
+             cohort_names[current_cohort],
+             ".RData",
+             sep = ""
   ))
   ## m3
-  load(paste(data_path, cohort_names[current_cohort],
-    "/cohort_mmhp_predict_stan_result_", cohort_names[current_cohort],
-    ".RData",
-    sep = ""
+  load(paste(data_path, 
+             cohort_names[current_cohort],
+             "/cohort_mmhp_predict_stan_result_",
+             cohort_names[current_cohort],
+             ".RData",
+             sep = ""
   ))
   ## I-mmhp
-  load(paste(data_path, cohort_names[current_cohort],
-    "/predict_immhp_stan_result_", cohort_names[current_cohort],
-    ".RData",
-    sep = ""
+  load(paste(data_path,
+             cohort_names[current_cohort],
+             "/predict_immhp_stan_result_",
+             cohort_names[current_cohort],
+             ".RData",
+             sep = ""
   ))
   cur <- 1
   for (d_test in c(16:21)) {
@@ -485,14 +502,17 @@ for (current_cohort in fit_cohorts) {
         )
       )
       ## m2
+      f_draws <- sim_cohort_dchp %>% select(starts_with("f"))
+      gamma_draws <- sim_cohort_dchp %>% select(starts_with("gamma"))
+      zeta_draws <- sim_cohort_dchp %>% select(starts_with("zeta"))
       model2_par_est <- list(
-        gamma = sim_cohort_dchp$gamma[s, ],
-        zeta = sim_cohort_dchp$zeta[s, ],
+        gamma = as.numeric(gamma_draws[s, ]),
+        zeta = as.numeric(zeta_draws[s,]),
         eta_1 = sim_cohort_dchp$eta_1[s],
         eta_2 = sim_cohort_dchp$eta_2[s],
         eta_3 = sim_cohort_dchp$eta_3[s],
         beta = sim_cohort_dchp$beta[s],
-        f = sim_cohort_dchp$f[s, ]
+        f = as.numeric(f_draws[s, ])
       )
       model2_par_matrix <- list(
         lambda0_matrix =
@@ -516,6 +536,8 @@ for (current_cohort in fit_cohorts) {
       )
 
       ## m3
+      #### TO DO
+      ### need to update the matrix fill in here
       model3_par_est <- list(
         lambda0 = sim_cohort_mmhp$lambda0[s],
         lambda1 = sim_cohort_mmhp$lambda1[s],
