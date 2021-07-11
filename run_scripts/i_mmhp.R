@@ -13,7 +13,7 @@ cohort_id <- jobid
 #cohort_id <- 1
 #####
 
-save_data_path <- "output/revision/"
+save_data_path <- "output/revisions/"
 
 no_segments <- 500
 
@@ -300,7 +300,10 @@ num_winds <- nrow(unique_observe_win)
 
 
 load(paste(save_data_path, cohort_names[current_cohort], 
-           "/sep_mmhp_stan_result_", cohort_names[current_cohort],".RData",sep=''))
+           "/sep_mmhp_stan_result_",
+           cohort_names[current_cohort],
+           ".RData",
+           sep = ''))
 load(paste(save_data_path,
            cohort_names[current_cohort],
            "/mmhp_est_zt_",
@@ -319,7 +322,8 @@ mmhp_residual_array <- array(0,
 lam0_draws <- sim_mmhp_sep %>% select(starts_with("lambda0"))
 lam1_draws <- sim_mmhp_sep %>% select(starts_with("lambda1"))
 alpha_draws <- sim_mmhp_sep %>% select(starts_with("alpha"))
-beta_draws <- sim_mmhp_sep %>% select(ends_with("beta"))
+beta_draws <- sim_mmhp_sep %>% select(starts_with("beta")) %>% 
+  select(!contains("delta"))
 q1_draws <- sim_mmhp_sep %>% select(starts_with("q1"))
 q2_draws <- sim_mmhp_sep %>% select(starts_with("q2"))
 

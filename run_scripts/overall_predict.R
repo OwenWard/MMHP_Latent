@@ -608,7 +608,7 @@ for (current_cohort in fit_cohorts) {
         q1_matrix = matrix(0, nrow = 12, ncol = 12),
         q2_matrix = matrix(0, nrow = 12, ncol = 12)
       )
-      ## check this!, don't think this will work!
+      ## check this, not sure this will work...
       for (l in c(1:length(mmhp_par_names))) {
         for (pair in c(1:nrow(unique_pairs_df))) {
           mmhp_par_matrix[[mmhp_matrix_names[l]]][unique_pairs_df$initiator[pair],
