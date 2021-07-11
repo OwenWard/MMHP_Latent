@@ -412,7 +412,8 @@ Lambda_mmhp_matrix <- matrix(rep(list(),
 lam0_draws <- sim_mmhp_sep %>% select(starts_with("lambda0"))
 lam1_draws <- sim_mmhp_sep %>% select(starts_with("lambda1"))
 alpha_draws <- sim_mmhp_sep %>% select(starts_with("alpha"))
-beta_draws <- sim_mmhp_sep %>% select(ends_with("beta"))
+beta_draws <- sim_mmhp_sep %>% select(starts_with("beta")) %>% 
+  select(!contains("delta"))
 q1_draws <- sim_mmhp_sep %>% select(starts_with("q1"))
 q2_draws <- sim_mmhp_sep %>% select(starts_with("q2"))
 
