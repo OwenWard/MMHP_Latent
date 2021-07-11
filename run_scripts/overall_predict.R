@@ -10,10 +10,10 @@ source("/moto/stats/users/ogw2103/Code/MMHP_Latent/run_scripts/cluster_setup.R")
 # cohort_id <- jobid
 # cohort_id <- 1
 ####
-data_path <- "output/"
+data_path <- "output/revisions/"
 
-library(rstan)
-options(mc.cores = parallel::detectCores())
+# library(rstan)
+# options(mc.cores = parallel::detectCores())
 
 library(PlayerRatings)
 library(compete)
@@ -536,24 +536,32 @@ for (current_cohort in fit_cohorts) {
       )
 
       ## m3
-      #### TO DO
       ### need to update the matrix fill in here
+      lam0_draws <- sim_cohort_mmhp %>% select(starts_with("lambda0"))
+      lam1_draws <- sim_cohort_mmhp %>% select(starts_with("lambda1"))
+      f_draws <- sim_cohort_mmhp %>% select(starts_with("f"))
       model3_par_est <- list(
-        lambda0 = sim_cohort_mmhp$lambda0[s],
-        lambda1 = sim_cohort_mmhp$lambda1[s],
+        lambda0 = as.numeric(lam0_draws[s, ]),
+        lambda1 = as.numeric(lam1_draws[s, ]),
         eta_1 = sim_cohort_mmhp$eta_1[s],
         eta_2 = sim_cohort_mmhp$eta_2[s],
         eta_3 = sim_cohort_mmhp$eta_3[s],
         beta = sim_cohort_mmhp$beta[s],
-        f = sim_cohort_mmhp$f[s, ]
+        f = as.numeric(f_draws[s, ])
       )
+      ## update matrix here
+      lam0_matrix <- matrix(0, nrow = mice_number, ncol = mice_number)
+      lam1_matrix <- matrix(0, nrow = mice_number, ncol = mice_number)
+      for (i in seq_along(clean_data$I_fit)) {
+        row_id <- clean_data$I_fit[i]
+        col_id <- clean_data$J_fit[i]
+        lam0_matrix[row_id, col_id] <- model3_par_est$lambda0[i]
+        lam1_matrix[row_id, col_id] <- model3_par_est$lambda1[i]
+      }
+      
       model3_par_matrix <- list(
-        lambda0_matrix = matrix(model3_par_est$lambda0,
-          nrow = mice_number, ncol = mice_number
-        ),
-        lambda1_matrix = matrix(model3_par_est$lambda1,
-          nrow = mice_number, ncol = mice_number
-        ),
+        lambda0_matrix = lam0_matrix,
+        lambda1_matrix = lam1_matrix,
         alpha_matrix = formMatrix(
           function(x, y) {
             model3_fn$alpha.fun(
@@ -600,9 +608,11 @@ for (current_cohort in fit_cohorts) {
         q1_matrix = matrix(0, nrow = 12, ncol = 12),
         q2_matrix = matrix(0, nrow = 12, ncol = 12)
       )
+      ## check this!, don't think this will work!
       for (l in c(1:length(mmhp_par_names))) {
         for (pair in c(1:nrow(unique_pairs_df))) {
-          mmhp_par_matrix[[mmhp_matrix_names[l]]][unique_pairs_df$initiator[pair], unique_pairs_df$recipient[pair]] <- sim_mmhp_sep[[mmhp_par_names[l]]][s, pair]
+          mmhp_par_matrix[[mmhp_matrix_names[l]]][unique_pairs_df$initiator[pair],
+                                                  unique_pairs_df$recipient[pair]] <- sim_mmhp_sep[[mmhp_par_names[l]]][s, pair]
         }
       }
 
