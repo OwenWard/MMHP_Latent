@@ -96,12 +96,14 @@ for (current_cohort in 1:10) {
     ".RData",
     sep = ""
   ))
+  x_draws <- sim_agg_rank %>% select(starts_with("x"))
+  
   f_result_list[[current_cohort]][1, ] <- apply(
-    sim_agg_rank$x[1001:2000, ],
+    x_draws,
     2, median
   )
   f_sd_list[[current_cohort]][1, ] <- apply(
-    sim_agg_rank$x[1001:2000, ],
+    x_draws,
     2, sd
   )
   ## M1
@@ -300,11 +302,16 @@ for (current_cohort in 1:10) {
         est_array_mmhp[d_test - 15, s, , ]))
 
       # DSNL
+      dsnl_lambda <- sim_predict_dsnl %>% select(starts_with("lambda_d"))
+      dsnl_lambda_arr <- array(as.matrix(dsnl_lambda), dim = c(1000, 6, 12, 12))
       if (d_test == 16) {
-        est_array_dsnl[d_test - 15, s, , ] <- sim_predict_dsnl$lambda_d[1000 + s, d_test - 15, , ] * (test_day_end[d_test - 15] - test_start)
+        ## d_test - 15 corresponds to the first entry
+        est_array_dsnl[d_test - 15, s, , ] <- dsnl_lambda_arr[s, d_test - 15, , ] *
+          (test_day_end[d_test - 15] - test_start)
       } else {
         est_array_dsnl[d_test - 15, s, , ] <- est_array_dsnl[d_test - 16, s, , ] +
-          sim_predict_dsnl$lambda_d[1000 + s, d_test - 15, , ] * (test_day_end[d_test - 15] - test_day_end[d_test - 16])
+          dsnl_lambda_arr[s, d_test - 15, , ] * 
+          (test_day_end[d_test - 15] - test_day_end[d_test - 16])
       }
       predict_day_norm_df[cur + 4, "norm"] <- sqrt(sum((real_N_matrix_list[[d_test]] -
         est_array_dsnl[d_test - 15, s, , ])^2))
@@ -474,13 +481,14 @@ for (current_cohort in fit_cohorts) {
 
     for (s in c(1:predict_sim)) {
       ## m1
+      f_draws <- sim_cohort_hp %>% select(starts_with("f"))
       model1_par_est <- list(
         lambda0 = sim_cohort_hp$lambda0[s],
         eta_1 = sim_cohort_hp$eta_1[s],
         eta_2 = sim_cohort_hp$eta_2[s],
         eta_3 = sim_cohort_hp$eta_3[s],
         beta = sim_cohort_hp$beta[s],
-        f = sim_cohort_hp$f[s, ]
+        f = as.numeric(f_draws[s, ])
       )
       model1_par_matrix <- list(
         lambda0_matrix = matrix(model1_par_est$lambda0,
