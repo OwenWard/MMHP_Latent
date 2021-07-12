@@ -56,7 +56,7 @@ object_par <- list(sim_lambda_1 = 0.6,
                    zeta_var = rep(0.1, num_nodes),
                    sim_eta_1 = 1, # from 3.5
                    sim_eta_2 = 2,#1.5, # from 2.6
-                   sim_eta_3 = 1.25, # this seems better
+                   sim_eta_3 = 1.5, # 
                    #sim_eta_3 = 7.5,
                    sim_beta = 1.5, # from 2
                    f_vec_1 = seq(from = 0.2, to = 0.9,
