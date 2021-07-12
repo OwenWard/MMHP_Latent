@@ -771,7 +771,11 @@ for (current_cohort in fit_cohorts) {
       )$estimate
 
       # DSNL (not related to observation windows)
-      est_intensity_array_dsnl[d_test - 15, s, , ] <- sim_predict_dsnl$lambda_d[1000 + s, d_test - 15, , ]
+      ## updated here also
+      dsnl_lambda <- sim_predict_dsnl %>% select(starts_with("lambda_d"))
+      dsnl_lambda_arr <- array(as.matrix(dsnl_lambda), dim = c(1000, 6, 12, 12))
+      est_intensity_array_dsnl[d_test - 15, s, , ] <- 
+        dsnl_lambda_arr[s, d_test - 15, , ]
       predict_day_rank_df[cur + 4, "spearman"] <- cor.test(real_gl_vec,
         rowSums(est_intensity_array_dsnl[d_test - 15, s, , ]),
         method = "spearman", exact = FALSE
