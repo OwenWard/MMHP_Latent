@@ -97,7 +97,7 @@ for (current_cohort in 1:10) {
     sep = ""
   ))
   x_draws <- sim_agg_rank %>% select(starts_with("x"))
-  
+
   f_result_list[[current_cohort]][1, ] <- apply(
     x_draws,
     2, median
@@ -116,23 +116,23 @@ for (current_cohort in 1:10) {
   f_result_list[[current_cohort]][2, ] <- apply(f_draws, 2, median)
   f_sd_list[[current_cohort]][2, ] <- apply(f_draws, 2, sd)
   ## M2
-  load(paste(data_path, 
-             cohort_names[current_cohort],
-             "/cohort_dchp_stan_result_",
-             cohort_names[current_cohort],
-             ".RData",
-             sep = ""
+  load(paste(data_path,
+    cohort_names[current_cohort],
+    "/cohort_dchp_stan_result_",
+    cohort_names[current_cohort],
+    ".RData",
+    sep = ""
   ))
   f_draws <- sim_cohort_dchp %>% select(starts_with("f"))
   f_result_list[[current_cohort]][3, ] <- apply(f_draws, 2, median)
   f_sd_list[[current_cohort]][3, ] <- apply(f_draws, 2, sd)
   ## M3
-  load(paste(data_path, 
-             cohort_names[current_cohort],
-             "/cohort_mmhp_stan_result_",
-             cohort_names[current_cohort],
-             ".RData",
-             sep = ""
+  load(paste(data_path,
+    cohort_names[current_cohort],
+    "/cohort_mmhp_stan_result_",
+    cohort_names[current_cohort],
+    ".RData",
+    sep = ""
   ))
   f_draws <- sim_cohort_mmhp %>% select(starts_with("f"))
   f_result_list[[current_cohort]][4, ] <- apply(f_draws, 2, median)
@@ -159,10 +159,10 @@ for (current_cohort in fit_cohorts) {
 }
 
 save(f_result_list,
-     f_sd_list,
-     spearman_df,
-     pearson_df,
-     file = paste(data_path, "weighted_rank_data.RData", sep = "")
+  f_sd_list,
+  spearman_df,
+  pearson_df,
+  file = paste(data_path, "weighted_rank_data.RData", sep = "")
 )
 
 
@@ -210,8 +210,10 @@ for (current_cohort in 1:10) {
     raw_df = full_data[[cohort_names[current_cohort]]],
     clean_data
   )
-  to_predice_obs <- unique(return_df[return_df$day >= 16,
-                                     c("day", "observe.id", "observe.time")])
+  to_predice_obs <- unique(return_df[
+    return_df$day >= 16,
+    c("day", "observe.id", "observe.time")
+  ])
 
   real_N_matrix_list <- list()
   predict_day_norm_df <- data.frame(
@@ -310,8 +312,8 @@ for (current_cohort in 1:10) {
           (test_day_end[d_test - 15] - test_start)
       } else {
         est_array_dsnl[d_test - 15, s, , ] <- est_array_dsnl[d_test - 16, s, , ] +
-          dsnl_lambda_arr[s, d_test - 15, , ] * 
-          (test_day_end[d_test - 15] - test_day_end[d_test - 16])
+          dsnl_lambda_arr[s, d_test - 15, , ] *
+            (test_day_end[d_test - 15] - test_day_end[d_test - 16])
       }
       predict_day_norm_df[cur + 4, "norm"] <- sqrt(sum((real_N_matrix_list[[d_test]] -
         est_array_dsnl[d_test - 15, s, , ])^2))
@@ -342,20 +344,20 @@ for (current_cohort in 1:10) {
     all_cohort_norm_df[c(cur_all:(cur_all + no_method - 1)), "method"] <- c("m1", "m2", "m3", "mmhp", "dsnl")
     ### repeat for mae
     all_cohort_mae_df[cur_all, "norm"] <- mean(abs(real_N_matrix_list[[d_test]] -
-                                                       apply(est_array_m1[d_test - 15, , , ], c(2, 3), median)))
+      apply(est_array_m1[d_test - 15, , , ], c(2, 3), median)))
     all_cohort_mae_df[cur_all + 1, "norm"] <- mean(abs(real_N_matrix_list[[d_test]] -
-                                                           apply(est_array_m2[d_test - 15, , , ], c(2, 3), median)))
+      apply(est_array_m2[d_test - 15, , , ], c(2, 3), median)))
     all_cohort_mae_df[cur_all + 2, "norm"] <- mean(abs(real_N_matrix_list[[d_test]] -
-                                                           apply(est_array_m3[d_test - 15, , , ], c(2, 3), median)))
+      apply(est_array_m3[d_test - 15, , , ], c(2, 3), median)))
     all_cohort_mae_df[cur_all + 3, "norm"] <- mean(abs(real_N_matrix_list[[d_test]] -
-                                                           apply(est_array_mmhp[d_test - 15, , , ], c(2, 3), median)))
+      apply(est_array_mmhp[d_test - 15, , , ], c(2, 3), median)))
     all_cohort_mae_df[cur_all + 4, "norm"] <- mean(abs(real_N_matrix_list[[d_test]] -
-                                                           apply(est_array_dsnl[d_test - 15, , , ], c(2, 3), median)))
+      apply(est_array_dsnl[d_test - 15, , , ], c(2, 3), median)))
     all_cohort_mae_df[c(cur_all:(cur_all + no_method - 1)), "day"] <- rep(d_test, no_method)
     all_cohort_mae_df[c(cur_all:(cur_all + no_method - 1)), "cohort"] <- rep(current_cohort, no_method)
     all_cohort_mae_df[c(cur_all:(cur_all + no_method - 1)), "method"] <- c("m1", "m2", "m3", "mmhp", "dsnl")
-    
-    
+
+
     cur_all <- cur_all + no_method
   }
   predict_day_norm_df_lst[[current_cohort]] <- predict_day_norm_df
@@ -413,7 +415,10 @@ for (current_cohort in fit_cohorts) {
     raw_df = full_data[[cohort_names[current_cohort]]],
     clean_data
   )
-  to_predice_obs <- unique(return_df[(return_df$day >= 16) & (return_df$day <= 21), c("day", "observe.id", "observe.time")]) ## change with day info
+  to_predice_obs <- unique(return_df[(return_df$day >= 16) &
+                                       (return_df$day <= 21), c("day",
+                                                                "observe.id",
+                                                                "observe.time")]) ## change with day info
 
   #------------ gl score
   df <- full_data[[cohort_names[current_cohort]]]
@@ -421,11 +426,15 @@ for (current_cohort in fit_cohorts) {
   df1 <- expandrows(df)
   df1 <- df1[order(df1$Timestamp), ] # ensure in date order
   df1$event <- 1:nrow(df1)
-  glick.df <- df1[, c("event", "Actor", "Recipient", "score"), with = FALSE] # need event, actor, recipient, score
+  glick.df <- df1[,
+                  c("event", "Actor", "Recipient", "score"),
+                  with = FALSE] # need event, actor, recipient, score
   real.gl <- my_glicko(glick.df, history = TRUE, cval = 2)
 
-  test_day_end <- unlist(lapply(c(16:21), function(x) clean_data_all$day_hour[max(which(clean_data_all$day == x))]))
-  test_day_end_idx <- unlist(lapply(c(16:21), function(x) max(which(clean_data_all$day == x))))
+  test_day_end <- unlist(lapply(c(16:21),
+                                function(x) clean_data_all$day_hour[max(which(clean_data_all$day == x))]))
+  test_day_end_idx <- unlist(lapply(c(16:21),
+                                    function(x) max(which(clean_data_all$day == x))))
   test_start <- tail(train_clean_data$day_hour, 1)
 
   predict_day_rank_df <- data.frame(
@@ -433,11 +442,31 @@ for (current_cohort in fit_cohorts) {
     day = rep(NA, predict_sim * 6 * no_method),
     method = rep(NA, predict_sim * 6 * no_method)
   )
-  est_intensity_array_m1 <- array(0, dim = c(6, predict_sim, mice_number, mice_number))
-  est_intensity_array_m2 <- array(0, dim = c(6, predict_sim, mice_number, mice_number))
-  est_intensity_array_m3 <- array(0, dim = c(6, predict_sim, mice_number, mice_number))
-  est_intensity_array_mmhp <- array(0, dim = c(6, predict_sim, mice_number, mice_number))
-  est_intensity_array_dsnl <- array(0, dim = c(6, predict_sim, mice_number, mice_number))
+  est_intensity_array_m1 <- array(0,
+                                  dim = c(6,
+                                          predict_sim,
+                                          mice_number,
+                                          mice_number))
+  est_intensity_array_m2 <- array(0,
+                                  dim = c(6,
+                                          predict_sim,
+                                          mice_number,
+                                          mice_number))
+  est_intensity_array_m3 <- array(0,
+                                  dim = c(6,
+                                          predict_sim,
+                                          mice_number,
+                                          mice_number))
+  est_intensity_array_mmhp <- array(0,
+                                    dim = c(6,
+                                            predict_sim,
+                                            mice_number,
+                                            mice_number))
+  est_intensity_array_dsnl <- array(0,
+                                    dim = c(6,
+                                            predict_sim,
+                                            mice_number,
+                                            mice_number))
 
   # Load parameter values
   ## m1
@@ -447,28 +476,28 @@ for (current_cohort in fit_cohorts) {
     sep = ""
   ))
   ## m2
-  load(paste(data_path, 
-             cohort_names[current_cohort],
-             "/cohort_dchp_predict_stan_result_",
-             cohort_names[current_cohort],
-             ".RData",
-             sep = ""
+  load(paste(data_path,
+    cohort_names[current_cohort],
+    "/cohort_dchp_predict_stan_result_",
+    cohort_names[current_cohort],
+    ".RData",
+    sep = ""
   ))
   ## m3
-  load(paste(data_path, 
-             cohort_names[current_cohort],
-             "/cohort_mmhp_predict_stan_result_",
-             cohort_names[current_cohort],
-             ".RData",
-             sep = ""
+  load(paste(data_path,
+    cohort_names[current_cohort],
+    "/cohort_mmhp_predict_stan_result_",
+    cohort_names[current_cohort],
+    ".RData",
+    sep = ""
   ))
   ## I-mmhp
   load(paste(data_path,
-             cohort_names[current_cohort],
-             "/predict_immhp_stan_result_",
-             cohort_names[current_cohort],
-             ".RData",
-             sep = ""
+    cohort_names[current_cohort],
+    "/predict_immhp_stan_result_",
+    cohort_names[current_cohort],
+    ".RData",
+    sep = ""
   ))
   cur <- 1
   for (d_test in c(16:21)) {
@@ -515,7 +544,7 @@ for (current_cohort in fit_cohorts) {
       zeta_draws <- sim_cohort_dchp %>% select(starts_with("zeta"))
       model2_par_est <- list(
         gamma = as.numeric(gamma_draws[s, ]),
-        zeta = as.numeric(zeta_draws[s,]),
+        zeta = as.numeric(zeta_draws[s, ]),
         eta_1 = sim_cohort_dchp$eta_1[s],
         eta_2 = sim_cohort_dchp$eta_2[s],
         eta_3 = sim_cohort_dchp$eta_3[s],
@@ -566,7 +595,7 @@ for (current_cohort in fit_cohorts) {
         lam0_matrix[row_id, col_id] <- model3_par_est$lambda0[i]
         lam1_matrix[row_id, col_id] <- model3_par_est$lambda1[i]
       }
-      
+
       model3_par_matrix <- list(
         lambda0_matrix = lam0_matrix,
         lambda1_matrix = lam1_matrix,
@@ -616,16 +645,27 @@ for (current_cohort in fit_cohorts) {
         q1_matrix = matrix(0, nrow = 12, ncol = 12),
         q2_matrix = matrix(0, nrow = 12, ncol = 12)
       )
-      ## check this, not sure this will work...
+      
       for (l in c(1:length(mmhp_par_names))) {
         for (pair in c(1:nrow(unique_pairs_df))) {
-          mmhp_par_matrix[[mmhp_matrix_names[l]]][unique_pairs_df$initiator[pair],
-                                                  unique_pairs_df$recipient[pair]] <- sim_mmhp_sep[[mmhp_par_names[l]]][s, pair]
+          curr_draws <- sim_mmhp_sep %>% 
+            select(starts_with(mmhp_par_names[l])) %>% 
+            select(!contains("delta"))
+          
+          mmhp_par_matrix[[mmhp_matrix_names[l]]][
+            unique_pairs_df$initiator[pair],
+            unique_pairs_df$recipient[pair]
+          ] <- as.numeric(curr_draws[s, pair])
+          # mmhp_par_matrix[[mmhp_matrix_names[l]]][
+          #   unique_pairs_df$initiator[pair],
+          #   unique_pairs_df$recipient[pair]
+          # ] <- sim_mmhp_sep[[mmhp_par_names[l]]][s, pair]
         }
       }
 
       cur_day_windows <- which(to_predice_obs$day == d_test)
-      for (w in cur_day_windows) { # the window is absolute not change with the day
+      for (w in cur_day_windows) { 
+        # the window is absolute not change with the day
         ## M1
         clean_sim <- cleanSimulationDataForNCount(m1_predict_sim[w, s][[1]])
         for (i in c(1:mice_number)) {
@@ -635,7 +675,8 @@ for (current_cohort in fit_cohorts) {
             est_intensity_array_m1[d_test - 15, s, i, j] <- max(
               est_intensity_array_m1[d_test - 15, s, i, j],
               uniHawkesIntensity(
-                object = est_par, events = unlist(clean_sim$time_each_pair[i, j]),
+                object = est_par,
+                events = unlist(clean_sim$time_each_pair[i, j]),
                 current_time = to_predice_obs$observe.time[w]
               )
             )
@@ -651,7 +692,8 @@ for (current_cohort in fit_cohorts) {
             est_intensity_array_m2[d_test - 15, s, i, j] <- max(
               est_intensity_array_m2[d_test - 15, s, i, j],
               uniHawkesIntensity(
-                object = est_par, events = unlist(clean_sim$time_each_pair[i, j]),
+                object = est_par,
+                events = unlist(clean_sim$time_each_pair[i, j]),
                 current_time = to_predice_obs$observe.time[w]
               )
             )
@@ -663,11 +705,17 @@ for (current_cohort in fit_cohorts) {
         for (i in c(1:mice_number)) {
           for (j in c(1:mice_number)[-i]) {
             est_par <- lapply(mmhp_par_matrix, function(x) x[i, j])
-            names(est_par) <- c("lambda0", "lambda1", "alpha", "beta", "q1", "q2")
+            names(est_par) <- c("lambda0",
+                                "lambda1",
+                                "alpha",
+                                "beta",
+                                "q1",
+                                "q2")
             est_intensity_array_m3[d_test - 15, s, i, j] <- max(
               est_intensity_array_m3[d_test - 15, s, i, j],
               mmhpIntensityAtTime(
-                params = est_par, events = unlist(clean_sim$time_each_pair[i, j]),
+                params = est_par,
+                events = unlist(clean_sim$time_each_pair[i, j]),
                 current_time = to_predice_obs$observe.time[w],
                 latent_z = 1,
                 latent_x = 0
@@ -681,11 +729,17 @@ for (current_cohort in fit_cohorts) {
         for (i in c(1:mice_number)) {
           for (j in c(1:mice_number)[-i]) {
             est_par <- lapply(model3_par_matrix, function(x) x[i, j])
-            names(est_par) <- c("lambda0", "lambda1", "alpha", "beta", "q1", "q2")
+            names(est_par) <- c("lambda0",
+                                "lambda1",
+                                "alpha",
+                                "beta",
+                                "q1",
+                                "q2")
             est_intensity_array_mmhp[d_test - 15, s, i, j] <- max(
               est_intensity_array_mmhp[d_test - 15, s, i, j],
               mmhpIntensityAtTime(
-                params = est_par, events = unlist(clean_sim$time_each_pair[i, j]),
+                params = est_par,
+                events = unlist(clean_sim$time_each_pair[i, j]),
                 current_time = to_predice_obs$observe.time[w],
                 latent_z = mmhp_predict_sim[w, s][[1]][[4]][i, j][[1]]$z,
                 latent_x = mmhp_predict_sim[w, s][[1]][[4]][i, j][[1]]$x
@@ -724,17 +778,34 @@ for (current_cohort in fit_cohorts) {
       )$estimate
 
       predict_day_rank_df[c(cur:(cur + 4)), "day"] <- rep(d_test, 5)
-      predict_day_rank_df[c(cur:(cur + 4)), "method"] <- c("m1", "m2", "m3", "mmhp", "dsnl")
+      predict_day_rank_df[c(cur:(cur + 4)), "method"] <- c("m1",
+                                                           "m2",
+                                                           "m3",
+                                                           "mmhp",
+                                                           "dsnl")
       cur <- cur + 5
     }
-    all_cohort_rank_df[cur_all, "spearman"] <- cor.test(real_gl_vec, rowSums(apply(est_intensity_array_m1[d_test - 15, , , ], c(2, 3), median)), exact = FALSE)$estimate
-    all_cohort_rank_df[cur_all + 1, "spearman"] <- cor.test(real_gl_vec, rowSums(apply(est_intensity_array_m2[d_test - 15, , , ], c(2, 3), median)), exact = FALSE)$estimate
-    all_cohort_rank_df[cur_all + 2, "spearman"] <- cor.test(real_gl_vec, rowSums(apply(est_intensity_array_m3[d_test - 15, , , ], c(2, 3), median)), exact = FALSE)$estimate
-    all_cohort_rank_df[cur_all + 3, "spearman"] <- cor.test(real_gl_vec, rowSums(apply(est_intensity_array_mmhp[d_test - 15, , , ], c(2, 3), median)), exact = FALSE)$estimate
-    all_cohort_rank_df[cur_all + 4, "spearman"] <- cor.test(real_gl_vec, rowSums(apply(est_intensity_array_dsnl[d_test - 15, , , ], c(2, 3), median)), exact = FALSE)$estimate
-    all_cohort_rank_df[c(cur_all:(cur_all + no_method - 1)), "day"] <- rep(d_test, no_method)
-    all_cohort_rank_df[c(cur_all:(cur_all + no_method - 1)), "cohort"] <- rep(current_cohort, no_method)
-    all_cohort_rank_df[c(cur_all:(cur_all + no_method - 1)), "method"] <- c("m1", "m2", "m3", "mmhp", "dsnl")
+    all_cohort_rank_df[cur_all,
+                       "spearman"] <- cor.test(real_gl_vec,
+                                               rowSums(apply(est_intensity_array_m1[d_test - 15, , , ], c(2, 3), median)), exact = FALSE)$estimate
+    all_cohort_rank_df[cur_all + 1,
+                       "spearman"] <- cor.test(real_gl_vec,
+                                               rowSums(apply(est_intensity_array_m2[d_test - 15, , , ], c(2, 3), median)), exact = FALSE)$estimate
+    all_cohort_rank_df[cur_all + 2,
+                       "spearman"] <- cor.test(real_gl_vec,
+                                               rowSums(apply(est_intensity_array_m3[d_test - 15, , , ], c(2, 3), median)), exact = FALSE)$estimate
+    all_cohort_rank_df[cur_all + 3,
+                       "spearman"] <- cor.test(real_gl_vec,
+                                               rowSums(apply(est_intensity_array_mmhp[d_test - 15, , , ], c(2, 3), median)), exact = FALSE)$estimate
+    all_cohort_rank_df[cur_all + 4,
+                       "spearman"] <- cor.test(real_gl_vec,
+                                               rowSums(apply(est_intensity_array_dsnl[d_test - 15, , , ], c(2, 3), median)), exact = FALSE)$estimate
+    all_cohort_rank_df[c(cur_all:(cur_all + no_method - 1)),
+                       "day"] <- rep(d_test, no_method)
+    all_cohort_rank_df[c(cur_all:(cur_all + no_method - 1)),
+                       "cohort"] <- rep(current_cohort, no_method)
+    all_cohort_rank_df[c(cur_all:(cur_all + no_method - 1)),
+                       "method"] <- c("m1", "m2", "m3", "mmhp", "dsnl")
     cur_all <- cur_all + no_method
   }
   predict_day_rank_df_lst[[current_cohort]] <- predict_day_rank_df
