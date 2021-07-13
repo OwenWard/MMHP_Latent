@@ -3,7 +3,7 @@
 source("/moto/stats/users/ogw2103/Code/MMHP_Latent/run_scripts/cluster_setup.R")
 
 
-data_path <- "output/revisions/rank_sims/"
+data_path <- "output/revisions/rank_sims/sim_4/"
 
 
 jobid <- Sys.getenv("SLURM_ARRAY_TASK_ID")
@@ -28,7 +28,7 @@ source(here("lib", "myGlicko.R"))
 source(here("lib", "naiveRankHierarchy.R"))
 source(here("lib", "expertRankHierarchy.R"))
 cut_off <- 3
-num_nodes <- 20
+num_nodes <- 10
 
 model1_fn <- list(alpha.fun = function(x, y, eta1, eta2, eta3) {
   return(eta1 * x * y * exp(-eta2 * abs(x - y)) / (1 + exp(-eta3 * (x - y))))
@@ -61,23 +61,16 @@ object_fn <- list(
   }
 )
 
-object_par <- list(
-  sim_lambda_1 = 0.5,
-  gamma_var = seq(
-    from = 0.01,
-    to = 0.2,
-    length.out = num_nodes
-  ),
-  zeta_var = rep(0.05, num_nodes),
-  sim_eta_1 = 3.5,
-  sim_eta_2 = 0.6,
-  sim_eta_3 = 3,
-  sim_beta = 2,
-  f_vec_1 = seq(
-    from = 0.05, to = 0.95,
-    length.out = num_nodes
-  )
-)
+object_par <- list(sim_lambda_1 = 0.6,
+                   gamma_var = seq(from = 0.01, to = 0.2,
+                                   length.out = num_nodes),
+                   zeta_var = rep(0.1, num_nodes),
+                   sim_eta_1 = 1, # from 3.5
+                   sim_eta_2 = 2,#1.5, # from 2.6
+                   sim_eta_3 = 1.5, # 
+                   sim_beta = 1.5, # from 2
+                   f_vec_1 = seq(from = 0.2, to = 0.9,
+                                 length.out = num_nodes))
 
 object_matrix <- list(
   lambda0_matrix = outer(
@@ -287,14 +280,14 @@ gl_ranks <- order(gl_train$ratings$Rating)
 ## then save these
 
 output_rank <- tibble(
-  truth = 1:20,
+  truth = 1:num_nodes,
   m1 = m1_rank,
   m2 = m2_rank,
   m3 = m3_rank,
   isi = isi_rank,
   agg = agg_rank,
   glicko = gl_ranks,
-  sim = rep(sim_id, 20)
+  sim = rep(sim_id, num_nodes)
 )
 
 dir.create(data_path, recursive = TRUE, showWarnings = FALSE)
