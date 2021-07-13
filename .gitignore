@@ -18,3 +18,4 @@ run_scripts/slurm*
 output_jul*
 output_scripts/slide_figure/*
 output_scripts/response_figure/*
+output/*
