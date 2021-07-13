@@ -14,6 +14,7 @@ data_path <- "output/revisions/"
 
 # library(rstan)
 # options(mc.cores = parallel::detectCores())
+options(dplyr.summarise.inform = FALSE)
 
 library(PlayerRatings)
 library(compete)
