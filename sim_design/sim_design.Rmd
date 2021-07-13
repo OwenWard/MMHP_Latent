@@ -1,0 +1,1253 @@
+---
+title: "Better Designed Simulations"
+author: "Owen G. Ward"
+date: '`r Sys.Date()`'
+output: 
+  html_document:
+    toc: true
+    toc_depth: 2
+    toc_float: true
+    number_sections: FALSE
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE
+)
+
+func_dir <- "../lib/"
+Sys.setenv(LOCAL_CPPFLAGS = "-march=corei7 -mtune=corei7")
+options(mc.cores = parallel::detectCores())
+
+library(here)
+library(cmdstanr)
+library(ppdiag)
+library(tidyverse)
+library(R.utils)
+library(RColorBrewer)
+library(fields)
+library(bayesplot)
+library(posterior)
+library(viridis)
+library(here)
+library(compete)
+source(paste(func_dir, "naiveRankHierarchy.R", sep = ""))
+source(paste(func_dir, "expertRankHierarchy.R", sep = ""))
+source(paste(func_dir, "cleanData.R", sep = ""))
+source(paste(func_dir, "prepareDataStan.R", sep = ""))
+source(paste(func_dir, "inferLatentMmhp.R", sep = ""))
+source(paste(func_dir, "plotUtil.R", sep = ""))
+source(paste(func_dir, "mmhp.R", sep = ""))
+source(paste(func_dir, "uniHawkes.R", sep = ""))
+source(paste(func_dir, "simulatePrediction.R", sep = ""))
+source(paste(func_dir, "myGlicko.R", sep = ""))
+source(paste(func_dir, "matrixPlotParameter.R", sep = ""))
+source(paste(func_dir, "residualStructureScore.R", sep = ""))
+source(paste(func_dir, "drawIntensity.R", sep = ""))
+source(paste(func_dir, "circularPlot.R", sep = ""))
+
+
+theme_set(theme_minimal())
+
+col_df <- tibble(method = c("I&SI",
+                            "AggRank",
+                            "DSNL",
+                            "Glicko",
+                            "I-MMHP",
+                            "C-HP",
+                            "C-DCHP",
+                            "True",
+                            "C-MMHP"),
+            cols = viridis(9))
+
+model1_fn <- list(alpha.fun = function(x, y, eta1, eta2, eta3) {
+  return(eta1 * x * y * exp(-eta2 * abs(x - y)) / (1 + exp(-eta3 * (x - y))))
+})
+
+model3_fn <- list(
+  alpha.fun = function(x, y, eta1, eta2) {
+    return(eta1 * x * y * exp(-eta2 * abs(x - y)))
+  },
+  q1.fun = function(x, y, eta3) {
+    return(exp(-eta3 * x))
+  },
+  q0.fun = function(x, y, eta3) {
+    return(exp(-eta3 * y))
+  }
+)
+
+
+sim_data_path <- here("output", "revisions", "sim_m3", "sim_3", "/")
+
+```
+
+
+
+In this document we want to better develop the properties of
+the proposed latent ranking models for animal interactions, leading to
+better designed and more robust simulation studies.
+
+
+# Parameters of the Simulation Model
+
+
+We specify the following parameters for our simulation model.
+
+```{r specify-pars}
+num_nodes <- 10 #20
+cut_off <- 3
+obs_time <- 100#50 #100
+
+object_par <- list(sim_lambda_1 = 0.6,
+                   gamma_var = seq(from = 0.01, to = 0.2,
+                                   length.out = num_nodes),
+                   zeta_var = rep(0.1, num_nodes),
+                   sim_eta_1 = 1, # from 3.5
+                   sim_eta_2 = 2,#1.5, # from 2.6
+                   sim_eta_3 = 3, # this seems better
+                   #sim_eta_3 = 7.5,
+                   sim_beta = 1.5, # from 2
+                   f_vec_1 = seq(from = 0.2, to = 0.9,
+                                 length.out = num_nodes))
+
+object_fn <- list(alpha.fun = function(x,y,eta1,eta2){
+  return(eta1*x*y*exp(-eta2*abs(x-y)))},
+                  q1.fun = function(x,y,eta3){return(exp(-eta3*x))},
+                  q0.fun = function(x,y,eta3){return(exp(-eta3*y))})
+
+```
+
+
+# Fitting the Simulated Models
+
+We fit each of the 3 proposed models to this simulated data.
+
+
+
+# Evaluating the Fit of the Simulated Models
+
+
+We can explore the fit of a given model by visualizing the 
+posterior trace plots for each parameter first, to confirm our
+Bayesian model correctly sampled from the posterior.
+
+```{r load-specific-stan-fit}
+current_cohort <- 1
+
+print(current_cohort)
+### currently 13,14,17 completed
+
+load(paste0(sim_data_path, "sim_model3_fit123_", current_cohort, ".RData"))
+load(paste(sim_data_path, "fit123_state_est_", current_cohort,
+           ".RData", sep = ""))
+clean_sim_data <- cleanSimulationData(
+    raw_data = sim_model3_data,
+    cut_off = cut_off,
+    N = length(object_par$f_vec_1)
+  )
+
+```
+
+## Model 1
+
+```{r examine-m1-stan}
+mcmc_trace(sim_model3_stan_sim1, pars = c("eta_1", "eta_2", "eta_3"))
+
+mcmc_trace(sim_model3_stan_sim1, pars = c("f[1]",
+                                          "f[5]",
+                                          "f[10]"))
+
+mcmc_dens(sim_model3_stan_sim1, pars = c("eta_1", "eta_2", "eta_3"))
+
+mcmc_dens(sim_model3_stan_sim1, pars = c("f[1]",
+                                          "f[5]",
+                                          "f[10]"))
+
+mcmc_dens(sim_model3_stan_sim1, pars = c("lp__", "lambda0", "beta"))
+
+```
+
+## Model 2
+
+```{r examine-m2-stan}
+mcmc_trace(sim_model3_stan_sim2, pars = c("eta_1", "eta_2", "eta_3"))
+
+mcmc_trace(sim_model3_stan_sim2, pars = c("f[1]",
+                                          "f[5]",
+                                          "f[10]"))
+
+mcmc_dens(sim_model3_stan_sim2, pars = c("eta_1", "eta_2", "eta_3"))
+
+mcmc_dens(sim_model3_stan_sim2, pars = c("f[1]",
+                                          "f[5]",
+                                          "f[10]"))
+
+mcmc_dens(sim_model3_stan_sim2, pars = c("lp__", "beta"))
+
+```
+
+## Model 3
+
+```{r examine-m3-stan}
+mcmc_trace(sim_model3_stan_sim3, pars = c("eta_1", "eta_2", "eta_3"))
+
+mcmc_trace(sim_model3_stan_sim3, pars = c("f[1]",
+                                          "f[5]",
+                                          "f[10]"))
+
+mcmc_dens(sim_model3_stan_sim3, pars = c("eta_1", "eta_2", "eta_3"))
+
+mcmc_dens(sim_model3_stan_sim3, pars = c("f[1]",
+                                          "f[5]",
+                                          "f[10]"))
+
+mcmc_dens(sim_model3_stan_sim3, pars = c("lp__", "beta"))
+
+```
+
+
+These traceplots indicate that M1 has identifiability issues, struggling
+with multimodality for multiple parameters, which is not the case in
+M2 and M3. Similarly, M3 seems to better recover the model parameters
+than M2.
+
+
+## Model Diagnostics
+
+We can then evaluate the fit of each model further, by 
+computing the compensators of the point process.
+
+```{r init-diags}
+n_sim <- 1
+
+N_array <- array(0, dim = c(
+  n_sim, length(object_par$f_vec_1),
+  length(object_par$f_vec_1)
+))
+Lambda_model3_array <- array(0, dim = c(
+  n_sim, length(object_par$f_vec_1),
+  length(object_par$f_vec_1)
+))
+Lambda_model1_array <- array(0, dim = c(
+  n_sim, length(object_par$f_vec_1),
+  length(object_par$f_vec_1)
+))
+Lambda_model2_array <- array(0, dim = c(
+  n_sim, length(object_par$f_vec_1),
+  length(object_par$f_vec_1)
+))
+Lambda_true_array <- array(0, dim = c(
+  n_sim, length(object_par$f_vec_1),
+  length(object_par$f_vec_1)
+))
+PR_model1_array <- array(0, dim = c(
+  n_sim, length(object_par$f_vec_1),
+  length(object_par$f_vec_1)
+))
+PR_model2_array <- array(0, dim = c(
+  n_sim, length(object_par$f_vec_1),
+  length(object_par$f_vec_1)
+))
+PR_model3_array <- array(0, dim = c(
+  n_sim, length(object_par$f_vec_1),
+  length(object_par$f_vec_1)
+))
+PR_true_array <- array(0, dim = c(
+  n_sim, length(object_par$f_vec_1),
+  length(object_par$f_vec_1)
+))
+KS_model1_array <- array(0, dim = c(
+  n_sim, length(object_par$f_vec_1),
+  length(object_par$f_vec_1)
+))
+KS_model2_array <- array(0, dim = c(
+  n_sim, length(object_par$f_vec_1),
+  length(object_par$f_vec_1)
+))
+KS_model3_array <- array(0, dim = c(
+  n_sim, length(object_par$f_vec_1),
+  length(object_par$f_vec_1)
+))
+KS_true_array <- array(0, dim = c(
+  n_sim, length(object_par$f_vec_1),
+  length(object_par$f_vec_1)
+))
+KS_p_model1_array <- array(0, dim = c(
+  n_sim, length(object_par$f_vec_1),
+  length(object_par$f_vec_1)
+))
+KS_p_model2_array <- array(0, dim = c(
+  n_sim, length(object_par$f_vec_1),
+  length(object_par$f_vec_1)
+))
+KS_p_model3_array <- array(0, dim = c(
+  n_sim, length(object_par$f_vec_1),
+  length(object_par$f_vec_1)
+))
+KS_p_true_array <- array(0, dim = c(
+  n_sim, length(object_par$f_vec_1),
+  length(object_par$f_vec_1)
+))
+
+```
+
+```{r compute-diagnostics}
+s <- 1
+### transform from cmdstan here
+f_draws <- sim_model3_stan_sim1 %>% 
+select(starts_with("f"))
+###
+model1_par_est <- list(
+  lambda0 = mean(sim_model3_stan_sim1$lambda0),
+  eta_1 = mean(sim_model3_stan_sim1$eta_1),
+  eta_2 = mean(sim_model3_stan_sim1$eta_2),
+  eta_3 = mean(sim_model3_stan_sim1$eta_3),
+  beta = mean(sim_model3_stan_sim1$beta),
+  f = apply(f_draws, 2, mean)
+)
+
+for (i in c(1:num_nodes)) {
+  for (j in c(1:num_nodes)[-i]) {
+    current_t <- sim_model3_data$mmhp_matrix[i, j][[1]]$tau
+    m1_object <- list(
+      lambda0 = model1_par_est$lambda0,
+      alpha = model1_fn$alpha.fun(
+        model1_par_est$f[i],
+        model1_par_est$f[j],
+        model1_par_est$eta_1,
+        model1_par_est$eta_2,
+        model1_par_est$eta_3
+      ),
+      beta = model1_par_est$beta
+    )
+    Lambda_model1_array[s, i, j] <-
+      uniHawkesIntegralIntensity(
+        object = m1_object,
+        events = current_t,
+        termination = tail(current_t, 1)
+      )
+    Lambda_test <- uniHawkesCompensator(
+      object = m1_object,
+      events = current_t
+    )
+    KS_model1_array[s, i, j] <- ks.test(Lambda_test, "pexp")$statistic
+    KS_p_model1_array[s, i, j] <- ks.test(Lambda_test, "pexp")$p.value
+    PR_model1_array[s, i, j] <- uniHawkesPearsonResidual(
+      object = m1_object,
+      events = current_t,
+      termination =
+        tail(current_t, 1)
+    )
+  }
+}
+
+## model2
+#############
+### convert to cmdstan
+gamma_draws <- sim_model3_stan_sim2 %>% 
+select(starts_with("gamma"))
+zeta_draws <- sim_model3_stan_sim2 %>% 
+select(starts_with("zeta"))
+f_draws <- sim_model3_stan_sim2 %>% 
+select(starts_with("f"))
+
+model2_par_est <- list(
+  gamma = apply(gamma_draws, 2, mean),
+  zeta = apply(zeta_draws, 2, mean),
+  eta_1 = mean(sim_model3_stan_sim2$eta_1),
+  eta_2 = mean(sim_model3_stan_sim2$eta_2),
+  eta_3 = mean(sim_model3_stan_sim2$eta_3),
+  beta = mean(sim_model3_stan_sim2$beta),
+  f = apply(f_draws, 2, mean)
+)
+
+for (i in c(1:num_nodes)) {
+  for (j in c(1:num_nodes)[-i]) {
+    current_t <- sim_model3_data$mmhp_matrix[i, j][[1]]$tau
+    m2_object <- list(
+      lambda0 = model2_par_est$gamma[i] +
+        model2_par_est$zeta[j],
+      alpha = model1_fn$alpha.fun(
+        model2_par_est$f[i],
+        model2_par_est$f[j],
+        model2_par_est$eta_1,
+        model2_par_est$eta_2,
+        model2_par_est$eta_3
+      ),
+      beta = model2_par_est$beta
+    )
+    Lambda_model2_array[s, i, j] <-
+      uniHawkesIntegralIntensity(
+        object = m1_object,
+        events = current_t,
+        termination = tail(current_t, 1)
+      )
+    Lambda_test <- uniHawkesCompensator(
+      object = m2_object,
+      events = current_t
+    )
+    KS_model2_array[s, i, j] <- ks.test(Lambda_test, "pexp")$statistic
+    KS_p_model2_array[s, i, j] <- ks.test(Lambda_test, "pexp")$p.value
+    PR_model2_array[s, i, j] <-
+      uniHawkesPearsonResidual(
+        object = m2_object,
+        events = current_t,
+        termination = tail(current_t, 1)
+      )
+  }
+}
+
+```
+
+We can then briefly look at some of these fits.
+
+```{r m1-m2-diags}
+# hist(as.vector(-log(KS_p_model1_array)))
+# hist(as.vector(-log(KS_p_model2_array)))
+# 
+# hist(as.vector(PR_model1_array))
+# hist(as.vector(PR_model2_array))
+
+
+exp_fcn <- function(x) exp(-x)
+
+tibble(ks = as.vector(KS_p_model1_array)) %>% 
+  filter(ks != 0) %>% 
+  mutate(log_p = -log(ks)) %>% 
+  ggplot(aes(x = log_p)) + 
+  # geom_freqpoly(binwidth = 20) +
+  geom_histogram(aes(y = ..density..)) +
+  # scale_fill_manual(values = cols_plot) +
+  labs(y = "Negative Log KS Statistic P Value", title = "C-HP") +
+  stat_function(fun = exp_fcn, colour = "red") 
+
+tibble(ks = as.vector(KS_p_model2_array)) %>% 
+  filter(ks != 0) %>% 
+  mutate(log_p = -log(ks)) %>% 
+  ggplot(aes(x = log_p)) + 
+  # geom_freqpoly(binwidth = 20) +
+  geom_histogram(aes(y = ..density..)) +
+  # scale_fill_manual(values = cols_plot) +
+  labs(y = "Negative Log KS Statistic P Value", title = "C-DCHP") +
+  stat_function(fun = exp_fcn, colour = "red") 
+
+```
+
+
+```{r}
+## Model3 & true model
+######
+### cmdstan part
+lam0_draws <- sim_model3_stan_sim3 %>% 
+select(starts_with("lambda0"))
+lam1_draws <- sim_model3_stan_sim3 %>% 
+select(starts_with("lambda1"))
+f_draws <- sim_model3_stan_sim3 %>% 
+select(starts_with("f"))
+
+
+
+lambda_0_est <- apply(lam0_draws, 2, mean)
+lambda_1_est <- apply(lam1_draws, 2, mean)
+## then put these into a matrix
+lam0_par_est <- matrix(0,
+  nrow = length(object_par$f_vec_1),
+  ncol = length(object_par$f_vec_1)
+)
+lam1_par_est <- matrix(0,
+  nrow = length(object_par$f_vec_1),
+  ncol = length(object_par$f_vec_1)
+)
+for (i in seq_along(lambda_0_est)) {
+  row_id <- clean_sim_data$I_fit[i]
+  col_id <- clean_sim_data$J_fit[i]
+  if(clean_sim_data$N_count[row_id, col_id ] >= cut_off) {
+    lam0_par_est[row_id, col_id] <- lambda_0_est[i]
+    lam1_par_est[row_id, col_id] <- lambda_1_est[i]
+  }
+  
+}
+mmhp_par_est <- list(
+  lambda0 = lam0_par_est,
+  lambda1 = lam1_par_est,
+  eta_1 = mean(sim_model3_stan_sim3$eta_1),
+  eta_2 = mean(sim_model3_stan_sim3$eta_2),
+  eta_3 = mean(sim_model3_stan_sim3$eta_3),
+  beta = mean(sim_model3_stan_sim3$beta),
+  f = apply(f_draws, 2, mean)
+)
+clean_sim_data <- cleanSimulationData(
+  raw_data = sim_model3_data,
+  cut_off = cut_off,
+  N = length(object_par$f_vec_1)
+)
+
+for (i in c(1:num_nodes)) {
+  for (j in c(1:num_nodes)[-i]) {
+    test.mmhp <- sim_model3_data$mmhp_matrix[i, j][[1]]
+    temp.t <- test.mmhp$tau
+    current.n <- length(temp.t) - 1
+    time.segment <- seq(0, tail(temp.t, 1), length.out = 10000)
+
+    object_hat <- list(
+      lambda0 = mmhp_par_est$lambda0[i, j],
+      lambda1 = mmhp_par_est$lambda1[i, j],
+      alpha = model3_fn$alpha.fun(
+        mmhp_par_est$f[i],
+        mmhp_par_est$f[j],
+        mmhp_par_est$eta_1,
+        mmhp_par_est$eta_2
+      ),
+      beta = mmhp_par_est$beta,
+      q1 = model3_fn$q1.fun(
+        mmhp_par_est$f[i],
+        mmhp_par_est$f[j],
+        mmhp_par_est$eta_3
+      ),
+      q2 = model3_fn$q0.fun(
+        mmhp_par_est$f[i],
+        mmhp_par_est$f[j],
+        mmhp_par_est$eta_3
+      )
+    )
+
+    object_true <- lapply(object_matrix, function(x) x[i, j])
+    names(object_true) <- c("lambda0", "lambda1",
+                            "alpha", "beta", "q1", "q2")
+
+    ## est Lambda and [R]
+    if(length(temp.t) > 2){
+      Lambda.test <- mmhpCompensator(
+        params = object_hat,
+        t = temp.t,
+        pzt = 2 -
+          event_state_est_lst[i, j][[1]]$zt_v,
+        if.pzt = FALSE
+      )
+      KS_model3_array[s, i, j] <- ks.test(Lambda.test, "pexp")$statistic
+      KS_p_model3_array[s, i, j] <- ks.test(Lambda.test, "pexp")$p.value
+      state.est.latent.mmhp <- interpolate_state_est_lst[i, j][[1]]
+      step.fun.est <- stepfun(
+        state.est.latent.mmhp$x.hat,
+        2 - state.est.latent.mmhp$z.hat
+      )
+      est.intensity <- mmhpIntensityNumeric(
+        params = object_hat,
+        t = temp.t[-1],
+        time.vec = time.segment,
+        latent.vec =
+          step.fun.est(time.segment)
+      )
+      est.intensity.events <- mmhpIntensityAtEvents(
+        params = object_hat,
+        t = temp.t,
+        latent_z =
+          event_state_est_lst[i, j][[1]]$zt_v
+      )
+    Lambda_model3_array[s, i, j] <-
+      sum(est.intensity) * (time.segment[2] - time.segment[1])
+    
+    }
+    if(clean_sim_data$N_count[i,j] < cut_off) {
+      PR_model3_array[s, i, j] <- 0
+    }
+    else {
+     PR_model3_array[s, i, j] <- sum(1 / sqrt(est.intensity.events)) -
+      sum(sqrt(est.intensity)) * (time.segment[2] - time.segment[1]) 
+    }
+
+    ## Under the true model
+    if(length(temp.t) > 2) {
+      Lambda.test.true <- mmhpCompensator(
+        params = object_true,
+        t = temp.t,
+        pzt = 2 -
+          test.mmhp$zt[2:length(test.mmhp$zt)],
+        if.pzt = FALSE
+      )
+      KS_true_array[s, i, j] <- ks.test(Lambda.test.true, "pexp")$statistic
+      KS_p_true_array[s, i, j] <- ks.test(Lambda.test.true, "pexp")$p.value
+      true.intensity <-
+        mmhpTrueIntensityNumeric(
+          params = object_true,
+          t = temp.t,
+          latent = list(
+            ## these are the truth
+            x = fixStateTransition(test.mmhp)$x,
+            z = fixStateTransition(test.mmhp)$z
+          ),
+          time.vec = time.segment
+        )
+      true.intensity.events <- mmhpIntensityAtEvents(
+        params = object_true,
+        t = temp.t,
+        latent_z = test.mmhp$zt
+      )
+      Lambda_true_array[s, i, j] <- sum(true.intensity$lambda.t) *
+        (time.segment[2] - time.segment[1])
+    }
+    
+    if(clean_sim_data$N_count[i,j] < cut_off) {
+      PR_true_array[s, i, j] <- 0
+    }
+    else{
+      PR_true_array[s, i, j] <- sum(1 / sqrt(true.intensity.events)) -
+      sum(sqrt(true.intensity$lambda.t)) * (time.segment[2] - time.segment[1])
+    }
+  }
+}
+```
+
+
+```{r diag-m3}
+
+tibble(ks = as.vector(KS_p_model3_array)) %>% 
+  filter(ks != 0) %>% 
+  mutate(log_p = -log(ks)) %>% 
+  ggplot(aes(x = log_p)) + 
+  # geom_freqpoly(binwidth = 20) +
+  geom_histogram(aes(y = ..density..)) +
+  # scale_fill_manual(values = cols_plot) +
+  labs(y = "Negative Log KS Statistic P Value", title = "C-MMHP") +
+  stat_function(fun = exp_fcn, colour = "red")
+
+
+
+tibble(ks = as.vector(KS_p_true_array)) %>% 
+  filter(ks != 0) %>% 
+  mutate(log_p = -log(ks)) %>% 
+  ggplot(aes(x = log_p)) + 
+  # geom_freqpoly(binwidth = 20) +
+  geom_histogram(aes(y = ..density..)) +
+  # scale_fill_manual(values = cols_plot) +
+  labs(y = "Negative Log KS Statistic P Value", title = "True Parameters") +
+  stat_function(fun = exp_fcn, colour = "red") 
+
+```
+
+
+```{r pr-histograms}
+hist(as.vector(PR_model1_array))
+hist(as.vector(PR_model2_array))
+hist(as.vector(PR_model3_array))
+hist(as.vector(PR_true_array))
+
+
+summary(as.vector(PR_model1_array))
+summary(as.vector(PR_model2_array))
+summary(as.vector(PR_model3_array))
+summary(as.vector(PR_true_array))
+```
+
+
+## Inferred against True Ranks
+
+
+```{r sim-ranks-plot}
+f_m1 <- sim_model3_stan_sim1 %>% select(starts_with("f"))
+m1_ranks <- apply(f_m1, 2, mean)
+
+f_m1_sims <- f_m1 %>% 
+  rename_with(~gsub("f[", "", .x, fixed = TRUE)) %>% 
+  rename_with(~gsub("]", "", .x, fixed = TRUE)) %>% 
+  pivot_longer(everything(),
+               names_to = "node",
+               values_to = "rank")
+f_m1_sims$model <- "C-HP"
+
+f_m2 <- sim_model3_stan_sim2 %>% select(starts_with("f"))
+m2_ranks <- apply(f_m2, 2, mean)
+
+f_m2_sims <- f_m2 %>% 
+  rename_with(~gsub("f[", "", .x, fixed = TRUE)) %>% 
+  rename_with(~gsub("]", "", .x, fixed = TRUE)) %>% 
+  pivot_longer(everything(),
+               names_to = "node",
+               values_to = "rank")
+
+f_m2_sims$model <- "C-DCHP"
+
+f_m3 <- sim_model3_stan_sim3 %>% select(starts_with("f"))
+m3_ranks <- apply(f_m1, 2, mean)
+
+f_m3_sims <- f_m3 %>% 
+  rename_with(~gsub("f[", "", .x, fixed = TRUE)) %>% 
+  rename_with(~gsub("]", "", .x, fixed = TRUE)) %>% 
+  pivot_longer(everything(),
+               names_to = "node",
+               values_to = "rank")
+
+f_m3_sims$model <- "C-MMHP"
+
+sim_ranks <- bind_rows(f_m1_sims, f_m2_sims, f_m3_sims)
+
+sim_ranks$node <- factor(sim_ranks$node, levels = 1:num_nodes)
+sim_ranks$model <- factor(sim_ranks$model, levels = c("C-HP", 
+                                                      "C-DCHP",
+                                                      "C-MMHP"))
+
+true_ranks <- tibble(node = 1:num_nodes, true_rank = object_par$f_vec_1)
+
+sim_ranks %>% 
+  ggplot(aes(node, rank)) +
+  geom_boxplot() +
+  facet_wrap(~model) +
+  geom_point(data = true_ranks, aes(node, true_rank, colour = "red"),
+             show.legend = FALSE)
+
+```
+
+
+# Diagnostics for all sims
+
+
+```{r all-diags}
+# sim_data_path <- here("output", "revisions", )
+
+n_sim <- 20
+
+num_nodes <- 10 #20
+cut_off <- 3
+obs_time <- 100 #100
+
+# object_par <- list(sim_lambda_1 = 0.4,
+#                    gamma_var = seq(from = 0.01,
+#                                     to = .2,
+#                                    length.out = num_nodes),
+#                    zeta_var = rep(0.1, num_nodes),
+#                    sim_eta_1 = 1, # from 3.5
+#                    sim_eta_2 = 2, # from 2.6
+#                    sim_eta_3 = 3, # this seems better
+#                    #sim_eta_3 = 7.5,
+#                    sim_beta = 1.5, # from 2
+#                    f_vec_1 = seq(from = 0.10,
+#                                  to = 0.9,
+#                                  length.out = num_nodes))
+
+
+## Initialize
+N_array <- array(0, dim = c(
+  n_sim, length(object_par$f_vec_1),
+  length(object_par$f_vec_1)
+))
+Lambda_model3_array <- array(0, dim = c(
+  n_sim, length(object_par$f_vec_1),
+  length(object_par$f_vec_1)
+))
+Lambda_model1_array <- array(0, dim = c(
+  n_sim, length(object_par$f_vec_1),
+  length(object_par$f_vec_1)
+))
+Lambda_model2_array <- array(0, dim = c(
+  n_sim, length(object_par$f_vec_1),
+  length(object_par$f_vec_1)
+))
+Lambda_true_array <- array(0, dim = c(
+  n_sim, length(object_par$f_vec_1),
+  length(object_par$f_vec_1)
+))
+PR_model1_array <- array(0, dim = c(
+  n_sim, length(object_par$f_vec_1),
+  length(object_par$f_vec_1)
+))
+PR_model2_array <- array(0, dim = c(
+  n_sim, length(object_par$f_vec_1),
+  length(object_par$f_vec_1)
+))
+PR_model3_array <- array(0, dim = c(
+  n_sim, length(object_par$f_vec_1),
+  length(object_par$f_vec_1)
+))
+PR_true_array <- array(0, dim = c(
+  n_sim, length(object_par$f_vec_1),
+  length(object_par$f_vec_1)
+))
+KS_model1_array <- array(0, dim = c(
+  n_sim, length(object_par$f_vec_1),
+  length(object_par$f_vec_1)
+))
+KS_model2_array <- array(0, dim = c(
+  n_sim, length(object_par$f_vec_1),
+  length(object_par$f_vec_1)
+))
+KS_model3_array <- array(0, dim = c(
+  n_sim, length(object_par$f_vec_1),
+  length(object_par$f_vec_1)
+))
+KS_true_array <- array(0, dim = c(
+  n_sim, length(object_par$f_vec_1),
+  length(object_par$f_vec_1)
+))
+KS_p_model1_array <- array(0, dim = c(
+  n_sim, length(object_par$f_vec_1),
+  length(object_par$f_vec_1)
+))
+KS_p_model2_array <- array(0, dim = c(
+  n_sim, length(object_par$f_vec_1),
+  length(object_par$f_vec_1)
+))
+KS_p_model3_array <- array(0, dim = c(
+  n_sim, length(object_par$f_vec_1),
+  length(object_par$f_vec_1)
+))
+KS_p_true_array <- array(0, dim = c(
+  n_sim, length(object_par$f_vec_1),
+  length(object_par$f_vec_1)
+))
+
+
+```
+
+
+
+```{r}
+## Iteration on 50 simulations
+
+sims <- 1:20
+sims <- sims[c(-9,-13,-19,-20)]
+
+for (s in sims) {
+  print(s)
+  load(paste0(sim_data_path, "sim_model3_fit123_", s, ".RData"))
+  load(paste(sim_data_path, "fit123_state_est_", s, ".RData", sep = ""))
+  clean_sim_data <- cleanSimulationData(
+    raw_data = sim_model3_data,
+    cut_off = cut_off,
+    N = length(object_par$f_vec_1)
+  )
+
+  N_array[s, , ] <- clean_sim_data$N_count
+
+  ## model 1
+  #########
+  ### transform from cmdstan here
+  f_draws <- sim_model3_stan_sim1 %>% 
+  select(starts_with("f"))
+  
+  ###
+  model1_par_est <- list(
+    lambda0 = mean(sim_model3_stan_sim1$lambda0),
+    eta_1 = mean(sim_model3_stan_sim1$eta_1),
+    eta_2 = mean(sim_model3_stan_sim1$eta_2),
+    eta_3 = mean(sim_model3_stan_sim1$eta_3),
+    beta = mean(sim_model3_stan_sim1$beta),
+    f = apply(f_draws, 2, mean)
+  )
+
+  for (i in c(1:num_nodes)) {
+    for (j in c(1:num_nodes)[-i]) {
+      current_t <- sim_model3_data$mmhp_matrix[i, j][[1]]$tau
+      m1_object <- list(
+        lambda0 = model1_par_est$lambda0,
+        alpha = model1_fn$alpha.fun(
+          model1_par_est$f[i],
+          model1_par_est$f[j],
+          model1_par_est$eta_1,
+          model1_par_est$eta_2,
+          model1_par_est$eta_3
+        ),
+        beta = model1_par_est$beta
+      )
+      Lambda_model1_array[s, i, j] <-
+        uniHawkesIntegralIntensity(
+          object = m1_object,
+          events = current_t,
+          termination = tail(current_t, 1)
+        )
+      Lambda_test <- uniHawkesCompensator(
+        object = m1_object,
+        events = current_t
+      )
+      KS_model1_array[s, i, j] <- ks.test(Lambda_test, "pexp")$statistic
+      KS_p_model1_array[s, i, j] <- ks.test(Lambda_test, "pexp")$p.value
+      PR_model1_array[s, i, j] <- uniHawkesPearsonResidual(
+        object = m1_object,
+        events = current_t,
+        termination =
+          tail(current_t, 1)
+      )
+    }
+  }
+
+  ## model2
+  #############
+  ### convert to cmdstan
+  gamma_draws <- sim_model3_stan_sim2 %>% 
+  select(starts_with("gamma"))
+  zeta_draws <- sim_model3_stan_sim2 %>% 
+  select(starts_with("zeta"))
+  f_draws <- sim_model3_stan_sim2 %>% 
+  select(starts_with("f"))
+  
+  model2_par_est <- list(
+    gamma = apply(gamma_draws, 2, mean),
+    zeta = apply(zeta_draws, 2, mean),
+    eta_1 = mean(sim_model3_stan_sim2$eta_1),
+    eta_2 = mean(sim_model3_stan_sim2$eta_2),
+    eta_3 = mean(sim_model3_stan_sim2$eta_3),
+    beta = mean(sim_model3_stan_sim2$beta),
+    f = apply(f_draws, 2, mean)
+  )
+
+  for (i in c(1:num_nodes)) {
+    for (j in c(1:num_nodes)[-i]) {
+      current_t <- sim_model3_data$mmhp_matrix[i, j][[1]]$tau
+      m2_object <- list(
+        lambda0 = model2_par_est$gamma[i] +
+          model2_par_est$zeta[j],
+        alpha = model1_fn$alpha.fun(
+          model2_par_est$f[i],
+          model2_par_est$f[j],
+          model2_par_est$eta_1,
+          model2_par_est$eta_2,
+          model2_par_est$eta_3
+        ),
+        beta = model2_par_est$beta
+      )
+      Lambda_model2_array[s, i, j] <-
+        uniHawkesIntegralIntensity(
+          object = m1_object,
+          events = current_t,
+          termination = tail(current_t, 1)
+        )
+      Lambda_test <- uniHawkesCompensator(
+        object = m2_object,
+        events = current_t
+      )
+      KS_model2_array[s, i, j] <- ks.test(Lambda_test, "pexp")$statistic
+      KS_p_model2_array[s, i, j] <- ks.test(Lambda_test, "pexp")$p.value
+      PR_model2_array[s, i, j] <-
+        uniHawkesPearsonResidual(
+          object = m2_object,
+          events = current_t,
+          termination = tail(current_t, 1)
+        )
+    }
+  }
+
+  ## Model3 & true model
+  ######
+  ### cmdstan part
+  lam0_draws <- sim_model3_stan_sim3 %>% 
+  select(starts_with("lambda0"))
+  lam1_draws <- sim_model3_stan_sim3 %>% 
+  select(starts_with("lambda1"))
+  f_draws <- sim_model3_stan_sim3 %>% 
+  select(starts_with("f"))
+  
+  if(ncol(lam0_draws) != sum(clean_sim_data$N_count >2)) {
+    stop("Mismatch between params and event pairs")
+  }
+  
+  lambda_0_est <- apply(lam0_draws, 2, mean)
+  lambda_1_est <- apply(lam1_draws, 2, mean)
+  ## then put these into a matrix
+  lam0_par_est <- matrix(0,
+    nrow = length(object_par$f_vec_1),
+    ncol = length(object_par$f_vec_1)
+  )
+  lam1_par_est <- matrix(0,
+    nrow = length(object_par$f_vec_1),
+    ncol = length(object_par$f_vec_1)
+  )
+  for (i in seq_along(lambda_0_est)) {
+    row_id <- clean_sim_data$I_fit[i]
+    col_id <- clean_sim_data$J_fit[i]
+    lam0_par_est[row_id, col_id] <- lambda_0_est[i]
+    lam1_par_est[row_id, col_id] <- lambda_1_est[i]
+  }
+  mmhp_par_est <- list(
+    lambda0 = lam0_par_est,
+    lambda1 = lam1_par_est,
+    eta_1 = mean(sim_model3_stan_sim3$eta_1),
+    eta_2 = mean(sim_model3_stan_sim3$eta_2),
+    eta_3 = mean(sim_model3_stan_sim3$eta_3),
+    beta = mean(sim_model3_stan_sim3$beta),
+    f = apply(f_draws, 2, mean)
+  )
+  clean_sim_data <- cleanSimulationData(
+    raw_data = sim_model3_data,
+    cut_off = cut_off,
+    N = length(object_par$f_vec_1)
+  )
+
+  for (i in c(1:num_nodes)) {
+    for (j in c(1:num_nodes)[-i]) {
+      test.mmhp <- sim_model3_data$mmhp_matrix[i, j][[1]]
+      temp.t <- test.mmhp$tau
+      current.n <- length(temp.t) - 1
+      time.segment <- seq(0, tail(temp.t, 1), length.out = 10000)
+
+      object_hat <- list(
+        lambda0 = mmhp_par_est$lambda0[i, j],
+        lambda1 = mmhp_par_est$lambda1[i, j],
+        alpha = model3_fn$alpha.fun(
+          mmhp_par_est$f[i],
+          mmhp_par_est$f[j],
+          mmhp_par_est$eta_1,
+          mmhp_par_est$eta_2
+        ),
+        beta = mmhp_par_est$beta,
+        q1 = model3_fn$q1.fun(
+          mmhp_par_est$f[i],
+          mmhp_par_est$f[j],
+          mmhp_par_est$eta_3
+        ),
+        q2 = model3_fn$q0.fun(
+          mmhp_par_est$f[i],
+          mmhp_par_est$f[j],
+          mmhp_par_est$eta_3
+        )
+      )
+
+      object_true <- lapply(object_matrix, function(x) x[i, j])
+      names(object_true) <- c("lambda0", "lambda1",
+                              "alpha", "beta", "q1", "q2")
+
+      ## est Lmabda and [R]
+      if(length(temp.t) > 2 ) {
+        Lambda.test <- mmhpCompensator(
+        params = object_hat,
+        t = temp.t,
+        pzt = 2 -
+          event_state_est_lst[i, j][[1]]$zt_v,
+        if.pzt = FALSE
+        )
+        KS_model3_array[s, i, j] <- ks.test(Lambda.test, "pexp")$statistic
+        KS_p_model3_array[s, i, j] <- ks.test(Lambda.test, "pexp")$p.value
+        state.est.latent.mmhp <- interpolate_state_est_lst[i, j][[1]]
+        step.fun.est <- stepfun(
+          state.est.latent.mmhp$x.hat,
+          2 - state.est.latent.mmhp$z.hat
+        )
+        est.intensity <- mmhpIntensityNumeric(
+          params = object_hat,
+          t = temp.t[-1],
+          time.vec = time.segment,
+          latent.vec =
+            step.fun.est(time.segment)
+        )
+        est.intensity.events <- mmhpIntensityAtEvents(
+          params = object_hat,
+          t = temp.t,
+          latent_z =
+            event_state_est_lst[i, j][[1]]$zt_v
+        )
+        Lambda_model3_array[s, i, j] <-
+          sum(est.intensity) * (time.segment[2] - time.segment[1])
+        PR_model3_array[s, i, j] <- sum(1 / sqrt(est.intensity.events)) -
+          sum(sqrt(est.intensity)) * (time.segment[2] - time.segment[1])
+        }
+      ## Under the true model
+      if(length(temp.t) > 2 ) {
+        Lambda.test.true <- mmhpCompensator(
+        params = object_true,
+        t = temp.t,
+        pzt = 2 -
+          test.mmhp$zt[2:length(test.mmhp$zt)],
+        if.pzt = FALSE
+        )
+        KS_true_array[s, i, j] <- ks.test(Lambda.test.true, "pexp")$statistic
+        KS_p_true_array[s, i, j] <- ks.test(Lambda.test.true, "pexp")$p.value
+        true.intensity <-
+          mmhpTrueIntensityNumeric(
+            params = object_true,
+            t = temp.t,
+            latent = list(
+              ## these are the truth
+              x = fixStateTransition(test.mmhp)$x,
+              z = fixStateTransition(test.mmhp)$z
+            ),
+            time.vec = time.segment
+          )
+        true.intensity.events <- mmhpIntensityAtEvents(
+          params = object_true,
+          t = temp.t,
+          latent_z = test.mmhp$zt
+        )
+        Lambda_true_array[s, i, j] <- sum(true.intensity$lambda.t) *
+          (time.segment[2] - time.segment[1])
+        PR_true_array[s, i, j] <- sum(1 / sqrt(true.intensity.events)) -
+          sum(sqrt(true.intensity$lambda.t)) * 
+          (time.segment[2] - time.segment[1])
+      }
+      
+    }
+  }
+  rm(sim_model3_data)
+}
+```
+
+
+```{r plot-diag-output}
+cols_plot <- col_df %>% 
+  filter(method %in% c("C-HP","C-DCHP","C-MMHP", "True")) %>%
+  arrange(factor(method, levels = c("C-HP", "C-DCHP", "C-MMHP", "True"))) %>%
+  pull(cols)
+
+
+m1_ks_p <- tibble(Method = "C-HP",
+                  ks = as.vector(KS_p_model1_array[sims, ,]))
+
+m2_ks_p <- tibble(Method = "C-DCHP",
+                  ks = as.vector(KS_p_model2_array[sims, ,]))
+
+m3_ks_p <- tibble(Method = "C-MMHP",
+                  ks = as.vector(KS_p_model3_array[sims, ,]))
+
+true_ks_p <- tibble(Method = "True",
+                    ks = as.vector(KS_p_true_array[sims, ,]))
+
+all_ks_p <- m1_ks_p %>% 
+  bind_rows(m2_ks_p) %>% 
+  bind_rows(m3_ks_p) %>% 
+  bind_rows(true_ks_p)
+
+all_ks_p$Method <- factor(all_ks_p$Method, levels = c("C-HP",
+                                                      "C-DCHP",
+                                                      "C-MMHP",
+                                                      "True") )
+
+exp_fcn <- function(x) exp(-x)
+
+all_ks_p %>% 
+  filter(ks != 0) %>% 
+  mutate(log_p = -log(ks)) %>% 
+  ggplot(aes(x = log_p)) + 
+  # geom_freqpoly(binwidth = 20) +
+  geom_histogram(aes(y = ..density.., fill = Method), bins = 50) +
+  scale_fill_manual(values = cols_plot) +
+  labs(y = "Negative Log KS Statistic P Value") +
+  stat_function(fun = exp_fcn, colour = "red") +
+  facet_wrap(~Method)
+```
+
+
+```{r pr-summary}
+summary(as.vector(PR_model1_array[sims, ,]))
+summary(as.vector(PR_model2_array[sims, ,]))
+summary(as.vector(PR_model3_array[sims, ,][is.finite(PR_model3_array[sims,
+                                                                     ,])]))
+summary(as.vector(PR_true_array[sims, ,]))
+```
+
+
+### Ranks from all Sims
+
+
+```{r}
+# sim_data_path <- here("output", "revisions", "sim_m3", "sim_2", "/")
+
+num_nodes <- 10
+
+object_par$f_vec_1
+
+sim_ranks_mean <- tibble()
+sim_ranks <- tibble()
+
+
+for(curr_sim in sims) {
+  load(paste0(sim_data_path,
+              "sim_model3_fit123_",
+              curr_sim,
+              ".RData"))
+  
+  f_m1 <- sim_model3_stan_sim1 %>% select(starts_with("f"))
+  m1_ranks <- apply(f_m1, 2, mean)
+  
+  f_m1_sims <- f_m1 %>% 
+    rename_with(~gsub("f[", "", .x, fixed = TRUE)) %>% 
+    rename_with(~gsub("]", "", .x, fixed = TRUE)) %>% 
+    pivot_longer(everything(),
+                 names_to = "node",
+                 values_to = "rank")
+  f_m1_sims$model <- "C-HP"
+  
+  f_m2 <- sim_model3_stan_sim2 %>% select(starts_with("f"))
+  m2_ranks <- apply(f_m2, 2, mean)
+  
+  f_m2_sims <- f_m2 %>% 
+    rename_with(~gsub("f[", "", .x, fixed = TRUE)) %>% 
+    rename_with(~gsub("]", "", .x, fixed = TRUE)) %>% 
+    pivot_longer(everything(),
+                 names_to = "node",
+                 values_to = "rank")
+  
+  f_m2_sims$model <- "C-DCHP"
+  
+  f_m3 <- sim_model3_stan_sim3 %>% select(starts_with("f"))
+  m3_ranks <- apply(f_m3, 2, mean)
+  
+  f_m3_sims <- f_m3 %>% 
+    rename_with(~gsub("f[", "", .x, fixed = TRUE)) %>% 
+    rename_with(~gsub("]", "", .x, fixed = TRUE)) %>% 
+    pivot_longer(everything(),
+                 names_to = "node",
+                 values_to = "rank")
+  
+  f_m3_sims$model <- "C-MMHP"
+
+  curr_mean_ranks <- tibble(model = c(rep("C-HP", num_nodes),
+                                 rep("C-DCHP", num_nodes),
+                                 rep("C-MMHP", num_nodes)),
+                       ranks = c(m1_ranks,
+                                 m2_ranks,
+                                 m3_ranks),
+                       node = rep(1:num_nodes, 3),
+                       true_rank = rep(object_par$f_vec_1, 3),
+                       sim_id = curr_sim)
+  sim_ranks_mean <- sim_ranks_mean %>% 
+    bind_rows(curr_mean_ranks)
+  
+  sim_ranks <- sim_ranks %>% 
+    bind_rows(f_m1_sims, f_m2_sims, f_m3_sims)
+  
+}
+
+
+sim_ranks$node <- factor(sim_ranks$node, levels = 1:num_nodes)
+sim_ranks_mean$node <- factor(sim_ranks_mean$node, levels = 1:num_nodes)
+sim_ranks_mean$model <- factor(sim_ranks_mean$model, 
+                               levels = c("C-HP", "C-DCHP", "C-MMHP"))
+# sim_ranks$node
+
+
+sim_ranks_mean %>% 
+  # filter(model == "C-MMHP") %>% 
+  ggplot(aes(node, ranks)) + 
+  geom_boxplot() +
+  facet_wrap(~model) +
+  geom_point(aes(node, true_rank, colour = "red"),
+             show.legend = FALSE) +
+  labs(title = "Mean rank from each simulation")
+
+## this is just the mean from each simulation, not the posterior draws
+
+true_ranks <- tibble(node = 1:num_nodes, true_rank = object_par$f_vec_1)
+true_ranks$node <- factor(true_ranks$node, levels = 1:num_nodes)
+
+sim_ranks %>% 
+  ggplot(aes(node, rank)) +
+  geom_boxplot() +
+  facet_wrap(~model) +
+  geom_point(data = true_ranks, aes(node, true_rank, colour = "red"),
+             show.legend = FALSE) +
+  labs(title = "All Posterior Draws")
+
+```
+
+```{r other-code, include=FALSE}
+col_df <- tibble(method = c("I&SI",
+                            "AggRank",
+                            "DSNL",
+                            "Glicko",
+                            "I-MMHP",
+                            "C-HP",
+                            "C-DCHP",
+                            "True",
+                            "C-MMHP"),
+                 cols = viridis(9))
+
+```
