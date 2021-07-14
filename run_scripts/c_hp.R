@@ -10,7 +10,7 @@ cohort_id <- jobid
 #cohort_id <- 1
 #####
 
-save_data_path <- "output/revision/"
+save_data_path <- "output/revisions/lapl_check/"
 
 library(cmdstanr)
 options(mc.cores = parallel::detectCores())
