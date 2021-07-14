@@ -13,7 +13,7 @@ cohort_id <- jobid
 #cohort_id <- 1
 #####
 
-save_data_path <- "output/revisions/"
+save_data_path <- "output/revisions/lapl_check/"
 
 no_segments <- 500
 

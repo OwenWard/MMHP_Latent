@@ -51,8 +51,10 @@ source("lib/residualStructureScore.R")
 
 full_data <- readRDS("data/mice.RData")
 # A=c9, B=c10, C=c12, D=c15, E=c16, F=c17, G=c18, H=c37, I=c38. J=c45
-cohort_names <- paste("cohort", c(9, 10, 12, 15, 16, 17, 18, 37, 38, 45), sep = "")
-cohort_short_names <- paste("C", c(9, 10, 12, 15, 16, 17, 18, 37, 38, 45), sep = "")
+cohort_names <- paste("cohort", c(9, 10, 12, 15, 16, 17, 18, 37, 38, 45),
+                      sep = "")
+cohort_short_names <- paste("C", c(9, 10, 12, 15, 16, 17, 18, 37, 38, 45),
+                            sep = "")
 cut_off <- 3
 mice_number <- 12
 
@@ -323,11 +325,21 @@ for (current_cohort in 1:10) {
       predict_day_mae_df[cur + 4, "mae"] <- mean(abs(real_N_matrix_list[[d_test]] -
         est_array_dsnl[d_test - 15, s, , ]))
 
-      predict_day_norm_df[c(cur:(cur + no_method - 1)), "day"] <- rep(d_test, no_method)
-      predict_day_norm_df[c(cur:(cur + no_method - 1)), "method"] <- c("m1", "m2", "m3", "mmhp", "dsnl")
+      predict_day_norm_df[c(cur:(cur + no_method - 1)), "day"] <- rep(d_test,
+                                                                      no_method)
+      predict_day_norm_df[c(cur:(cur + no_method - 1)), "method"] <- c("m1",
+                                                                       "m2",
+                                                                       "m3",
+                                                                       "mmhp",
+                                                                       "dsnl")
       ### MAE
-      predict_day_mae_df[c(cur:(cur + no_method - 1)), "day"] <- rep(d_test, no_method)
-      predict_day_mae_df[c(cur:(cur + no_method - 1)), "method"] <- c("m1", "m2", "m3", "mmhp", "dsnl")
+      predict_day_mae_df[c(cur:(cur + no_method - 1)), "day"] <- rep(d_test,
+                                                                     no_method)
+      predict_day_mae_df[c(cur:(cur + no_method - 1)), "method"] <- c("m1",
+                                                                      "m2",
+                                                                      "m3",
+                                                                      "mmhp",
+                                                                      "dsnl")
       cur <- cur + no_method
     }
     all_cohort_norm_df[cur_all, "norm"] <- sqrt(sum((real_N_matrix_list[[d_test]] -
@@ -340,9 +352,12 @@ for (current_cohort in 1:10) {
       apply(est_array_mmhp[d_test - 15, , , ], c(2, 3), median))^2))
     all_cohort_norm_df[cur_all + 4, "norm"] <- sqrt(sum((real_N_matrix_list[[d_test]] -
       apply(est_array_dsnl[d_test - 15, , , ], c(2, 3), median))^2))
-    all_cohort_norm_df[c(cur_all:(cur_all + no_method - 1)), "day"] <- rep(d_test, no_method)
-    all_cohort_norm_df[c(cur_all:(cur_all + no_method - 1)), "cohort"] <- rep(current_cohort, no_method)
-    all_cohort_norm_df[c(cur_all:(cur_all + no_method - 1)), "method"] <- c("m1", "m2", "m3", "mmhp", "dsnl")
+    all_cohort_norm_df[c(cur_all:(cur_all + no_method - 1)),
+                       "day"] <- rep(d_test, no_method)
+    all_cohort_norm_df[c(cur_all:(cur_all + no_method - 1)),
+                       "cohort"] <- rep(current_cohort, no_method)
+    all_cohort_norm_df[c(cur_all:(cur_all + no_method - 1)),
+                       "method"] <- c("m1", "m2", "m3", "mmhp", "dsnl")
     ### repeat for mae
     all_cohort_mae_df[cur_all, "norm"] <- mean(abs(real_N_matrix_list[[d_test]] -
       apply(est_array_m1[d_test - 15, , , ], c(2, 3), median)))
@@ -774,7 +789,8 @@ for (current_cohort in fit_cohorts) {
       # DSNL (not related to observation windows)
       ## updated here also
       dsnl_lambda <- sim_predict_dsnl %>% select(starts_with("lambda_d"))
-      dsnl_lambda_arr <- array(as.matrix(dsnl_lambda), dim = c(1000, 6, 12, 12))
+      dsnl_lambda_arr <- array(as.matrix(dsnl_lambda),
+                               dim = c(1000, 6, 12, 12))
       est_intensity_array_dsnl[d_test - 15, s, , ] <- 
         dsnl_lambda_arr[s, d_test - 15, , ]
       predict_day_rank_df[cur + 4, "spearman"] <- cor.test(real_gl_vec,
