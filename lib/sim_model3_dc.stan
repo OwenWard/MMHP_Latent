@@ -68,8 +68,8 @@ model{
   
   //priors
   //lambda0 ~ lognormal(0,2);
-  gamma ~ inv_gamma(3,0.5);
-  zeta ~ inv_gamma(3,0.5);
+  gamma ~ double_exponential(0, 0.1);//inv_gamma(3,0.5);
+  zeta ~ double_exponential(0, 0.1);//inv_gamma(3,0.5);
   r_lambda1 ~ lognormal(0,2);
   beta_delta ~ lognormal(0,2);
   eta_1 ~ lognormal(0,1);
