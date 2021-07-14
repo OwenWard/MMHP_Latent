@@ -60,9 +60,9 @@ model{
   //beta ~ lognormal(0,2);//(0,10);
   beta_delta ~ lognormal(0,1);
   //tilde_beta ~ normal(0,20);
-  gamma ~ double_exponential(0, 0.01);//
+  gamma ~ double_exponential(0, 0.1);//
   // inv_gamma(3,0.5);//double_exponential(0,scale); // sigma smaller, sparser
-  zeta ~ double_exponential(0, 0.01);//double_exponential(0,scale);
+  zeta ~ double_exponential(0, 0.1);//double_exponential(0,scale);
 
   for(i in 1:N_til){
     lambda_current = lambda0[i];//gamma[I_fit[i]]+zeta[J_fit[i]];
