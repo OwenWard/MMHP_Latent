@@ -10,7 +10,7 @@ source("/moto/stats/users/ogw2103/Code/MMHP_Latent/run_scripts/cluster_setup.R")
 # cohort_id <- jobid
 # cohort_id <- 1
 ####
-data_path <- "output/revisions/"
+data_path <- "output/revisions/sim_lapl/"
 
 # library(rstan)
 # options(mc.cores = parallel::detectCores())
