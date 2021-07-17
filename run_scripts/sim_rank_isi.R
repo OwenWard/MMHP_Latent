@@ -4,12 +4,13 @@ source("/moto/stats/users/ogw2103/Code/MMHP_Latent/run_scripts/cluster_setup.R")
 
 
 data_path <- "output/revisions/lapl_check/sim_rank/"
-
+print(data_path)
 
 jobid <- Sys.getenv("SLURM_ARRAY_TASK_ID")
 jobid <- as.numeric(jobid)
 sim_id <- jobid
 
+print(paste(data_path, "rank_sim", sim_id, ".RDS", sep = ""))
 library(here)
 library(tidyverse)
 library(cmdstanr)
@@ -291,7 +292,7 @@ output_rank <- tibble(
 )
 
 dir.create(data_path, recursive = TRUE, showWarnings = FALSE)
-
+print(paste(data_path, "rank_sim", sim_id, ".RDS", sep = ""))
 saveRDS(output_rank,
   file = paste(data_path, "rank_sim", sim_id, ".RDS", sep = "")
 )
