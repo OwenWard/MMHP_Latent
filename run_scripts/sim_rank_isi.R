@@ -3,7 +3,7 @@
 source("/moto/stats/users/ogw2103/Code/MMHP_Latent/run_scripts/cluster_setup.R")
 
 
-data_path <- "output/revisions/rank_sims/sim_4/"
+data_path <- "output/revisions/lapl_check/sim_rank/"
 
 
 jobid <- Sys.getenv("SLURM_ARRAY_TASK_ID")
