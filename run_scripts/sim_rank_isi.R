@@ -201,7 +201,7 @@ m2_rank <- order(stansims_m2$mean)
 
 
 #### model 3 ####
-model3 <- cmdstan_model(here("lib", "sim_model3.stan"))
+model3 <- cmdstan_model(here("lib", "sim_model3_dc.stan"))
 data_list <- list(
   max_Nm = max(clean_sim_data$N_count),
   N_til = length(clean_sim_data$I_fit),
