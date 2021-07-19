@@ -221,13 +221,13 @@ data_list <- list(
 
 
 
-# count_data <- get_wl_matrix(df = cbind(
-#   clean_sim_data$start,
-#   clean_sim_data$end
-# ))
-# isi.out <- compete::isi98(m = count_data, random = TRUE)
-# top_rank <- as.numeric(isi.out$best_order[1])
-# data_list$alpha_id <- top_rank
+count_data <- get_wl_matrix(df = cbind(
+  clean_sim_data$start,
+  clean_sim_data$end
+))
+isi.out <- compete::isi98(m = count_data, random = TRUE)
+top_rank <- as.numeric(isi.out$best_order[1])
+data_list$alpha_id <- top_rank
 
 
 model3_stan_fit <- model3$sample(
