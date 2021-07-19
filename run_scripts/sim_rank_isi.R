@@ -117,20 +117,20 @@ object_matrix <- list(
 
 
 # #### Adjust for degree corrected sim
-#
-# gamma_var <- c(0.01, 0.02, 0.03, 0.06, 0.07)
-# zeta_var <- c(0.075, 0.02, 0.03, 0.05, 0.08 )
-# w_lambda <- 0.4
-# lambda_matrix <- outer(gamma_var, zeta_var, "+")
-# # lambda_matrix
-#
-# object_matrix <- object_matrix
-# object_matrix$lambda0_matrix <- lambda_matrix
-#
-# max_lam <- max(lambda_matrix)
-# object_matrix$lambda1_matrix <- matrix(max_lam*(1 + w_lambda),
-#                                           nrow = length(object_par$f_vec_1),
-#                                           ncol = length(object_par$f_vec_1))
+
+gamma_var <- seq(from = 0.01, to = 0.15, length.out = num_nodes)
+zeta_var <- rep(c(0.075, 0.02, 0.03, 0.05, 0.08), num_nodes/5)
+w_lambda <- 0.4
+lambda_matrix <- outer(gamma_var, zeta_var, "+")
+# lambda_matrix
+
+object_matrix <- object_matrix
+object_matrix$lambda0_matrix <- lambda_matrix
+
+max_lam <- max(lambda_matrix)
+object_matrix$lambda1_matrix <- matrix(max_lam*(1 + w_lambda),
+                                          nrow = length(object_par$f_vec_1),
+                                          ncol = length(object_par$f_vec_1))
 
 
 sim_model3_data <- simulateLatentMMHP(
