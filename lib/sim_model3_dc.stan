@@ -75,7 +75,7 @@ model{
   eta_1 ~ lognormal(0,1);
   eta_2 ~ lognormal(0,1);
   eta_3 ~ lognormal(0,1);//normal(5,1);
-  f[alpha_id] ~ normal(1,0.1);
+  //f[alpha_id] ~ normal(1,0.1);
   
   
   for(i in 1:N_til){ //for each pair
