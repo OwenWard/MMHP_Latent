@@ -156,7 +156,7 @@ fit_dsnl_active <- dsnl_poisson$sample(
     c = 1,
     sigma = 1
   ),
-  iter_sampling = 1000,
+  iter_sampling = 5000,
   iter_warmup = 1000,
   chains = 4,
   adapt_delta = 0.95
@@ -180,9 +180,9 @@ fit_dsnl_inactive <- dsnl_poisson$sample(
                             c = 1,
                             sigma = 1
                           ),
-                          iter_sampling = 1000,
+                          iter_sampling = 5000,
                           chains = 4,
-                          adapt_delta = 0.99
+                          adapt_delta = 0.95
 )
 # print(fit_dsnl_inactive, pars = c("x"))
 # sim_dsnl_inactive <- rstan::extract(fit_dsnl_inactive)
