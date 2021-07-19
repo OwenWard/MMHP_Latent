@@ -5,7 +5,7 @@ data{
   int<lower=1,upper=N> I_fit[N_til];
   int<lower=1,upper=N> J_fit[N_til];
   int<lower=0,upper=max_Nm> Nm[N_til]; //number of events for each pair
-  int<lower=0,upper=N> alpha_id;
+  // int<lower=0,upper=N> alpha_id;
   vector[max_Nm] event_matrix[N_til];
   vector[max_Nm] interevent_time_matrix[N_til];
 }
