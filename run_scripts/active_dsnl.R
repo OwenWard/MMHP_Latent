@@ -145,6 +145,7 @@ for (cur_day in c(1:21)) {
     utility_state_day[cur_day, , ]
 }
 
+rm(interpolation_array_list)
 dsnl_poisson <- cmdstan_model("lib/dsnl_poisson_sep.stan")
 
 ## utility dsnl

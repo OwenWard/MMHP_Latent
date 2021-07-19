@@ -3,13 +3,14 @@ data{
   int<lower=0> Gt[day, 12, 12];
   //real<lower=0> rho; // 1
   real<lower=0> c; // 1
-  real<lower=0> sigma; // transition variance = 1
+  // real<lower=0> sigma; // transition variance = 1
 }
 parameters{
   vector[12] x[day]; // latent space
   vector<lower=0>[12] delta; // radius
   real<lower=0> rho;
-  // real<lower=0> sigma;
+  real<lower=0, upper=1> theta;
+  real<lower=0> sigma;
 }
 transformed parameters{
   real r[12,12];
@@ -49,7 +50,14 @@ model{
           }else{
             p_l = rho;
           }
-          Gt[t, i, j] ~ poisson(p_l);
+          // Gt[t, i, j] ~ poisson(p_l);
+          if (Gt[t, i, j] == 0)
+            target += log_sum_exp(bernoulli_lpmf(1 | theta),
+                            bernoulli_lpmf(0 | theta)
+                              + poisson_lpmf(Gt[t, i, j] | p_l));
+          else
+            target += bernoulli_lpmf(0 | theta)
+                  + poisson_lpmf(Gt[t, i, j] | p_l);
         }
       }
     }
