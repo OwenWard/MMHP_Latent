@@ -29,7 +29,7 @@ source(here("lib", "myGlicko.R"))
 source(here("lib", "naiveRankHierarchy.R"))
 source(here("lib", "expertRankHierarchy.R"))
 cut_off <- 3
-num_nodes <- 20
+num_nodes <- 10
 
 model1_fn <- list(alpha.fun = function(x, y, eta1, eta2, eta3) {
   return(eta1 * x * y * exp(-eta2 * abs(x - y)) / (1 + exp(-eta3 * (x - y))))
