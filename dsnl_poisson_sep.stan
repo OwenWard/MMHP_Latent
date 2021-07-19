@@ -27,8 +27,8 @@ model{
   real d_ij;
   real p_l;
   rho ~ inv_gamma(3, 1);
-  // sigma ~ inv_gamma(2, 1);
-  delta ~ lognormal(0,5);
+  sigma ~ inv_gamma(2, 1);
+  delta ~ lognormal(0, 1);
   for(t in 1:day){
     if(t==1){
       x[t] ~ normal(0,sigma);
@@ -38,7 +38,7 @@ model{
         x[t][i] ~ normal(x[t-1][i],sigma);
       }
     }
-      
+    
     for(i in 1:12){
       for(j in 1:12){
         if(i != j){
@@ -49,7 +49,7 @@ model{
           }else{
             p_l = rho;
           }
-        Gt[t, i, j] ~ poisson(p_l);
+          Gt[t, i, j] ~ poisson(p_l);
         }
       }
     }
