@@ -145,7 +145,7 @@ for (cur_day in c(1:21)) {
     utility_state_day[cur_day, , ]
 }
 
-dsnl_poisson <- cmdstan_model("../lib/dsnl_poisson.stan")
+dsnl_poisson <- cmdstan_model("lib/dsnl_poisson.stan")
 
 ## utility dsnl
 fit_dsnl_active <- dsnl_poisson$sample(
