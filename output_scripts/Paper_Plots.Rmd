@@ -30,12 +30,13 @@ original_plots <- FALSE
 current_cohort <- 5
 
 # don't write to this path
-data_path <- "../output/revisions/"
+data_path <- "../output/revisions/lapl_check/"
 
 func_dir <- "../lib/"
 
 library(here)
-library(rstan)
+# library(rstan)
+library(cmdstanr)
 Sys.setenv(LOCAL_CPPFLAGS = "-march=corei7 -mtune=corei7")
 options(mc.cores = parallel::detectCores())
 library(tidyverse)
@@ -68,6 +69,13 @@ cohort_short_names <- paste("C", c(9, 10, 12, 15, 16, 17, 18, 37, 38, 45),
                             sep = "")
 cut_off <- 3
 mice_number <- 12
+col_df <- tibble(
+  method = c(
+    "I&SI", "AggRank", "DSNL", "Glicko", "I-MMHP",
+    "C-HP", "C-DCHP", "True", "C-MMHP"
+  ),
+  cols = viridis(9)
+)
 ```
 
 
@@ -109,13 +117,13 @@ model3_fn <- list(
 
 
 ```{r creat colour df, eval=revision_plots, include=FALSE}
-col_df <- tibble(
-  method = c(
-    "I&SI", "AggRank", "DSNL", "Glicko", "I-MMHP",
-    "C-HP", "C-DCHP", "True", "C-MMHP"
-  ),
-  cols = viridis(9)
-)
+# col_df <- tibble(
+#   method = c(
+#     "I&SI", "AggRank", "DSNL", "Glicko", "I-MMHP",
+#     "C-HP", "C-DCHP", "True", "C-MMHP"
+#   ),
+#   cols = viridis(9)
+# )
 ```
 
 <!-- The aim of this notebook is a way to quickly and efficiently create all the plots -->
@@ -168,7 +176,7 @@ my.image.plot(seq(0, 1, 0.01), seq(0, 1, 0.01), z_plot,
 # current_cohort <- 5
 current_cohort <- 5
 
-data_path <- "../output/revisions/"
+data_path <- "../output/revisions/lapl_check/"
 
 load(paste(data_path, cohort_names[current_cohort],
   "/cohort_hp_stan_result_", cohort_names[current_cohort],
@@ -391,9 +399,8 @@ matrixPlotParameter(latent_social_matrix[
   expert_rank_10[[current_cohort]]
 ],
 xLabels = expert_rank_10[[current_cohort]],
-yLabels = rev(expert_rank_10[[current_cohort]])
-)
-# title = "(a)" )
+yLabels = rev(expert_rank_10[[current_cohort]]),
+title = "(a)" )
 # mtext(text=c(1,2,11,6,7,9), side=1, line=-0.35, outer=TRUE, cex=1.3,
 #       at=1/17.8*seq(2,12,2)+0.09)
 # dev.off()
@@ -597,7 +604,8 @@ for(current_cohort in 1:10) {
       observe.length = list(observe.time),
       no.events = list(no.events)
     )
-  unique_observe_win <- unique(return_df[, c("observe.id", "observe.time")])
+  unique_observe_win <- unique(return_df[,
+                                         c("observe.id", "observe.time")])
   
   ks.stat.matrix <- matrix(0, ncol = mice_number, nrow = mice_number)
   ks_pval_chp <- matrix(0, nrow = mice_number, ncol = mice_number)
@@ -776,7 +784,7 @@ bind_cols(M1_ks_p, M2_ks_p) %>%
 ```{r fig-3b-residual-structure, include=TRUE, eval=revision_plots}
 ### now to add Pearson residual matrices here for C-HP and C-DCHP from fig 7
 current_cohort <- 5
-data_path <- "../output/revisions/"
+data_path <- "../output/revisions/lapl_check/"
 ## 2 and 8 maybe look better
 ## 3 probably looks the best
 
@@ -885,7 +893,7 @@ ranking values included for each.
 Will need to update this with full final simulations but fully set up now.
 
 ```{r fig-4a, eval = revision_plots, message=FALSE, warning=FALSE}
-sim_data_path <- here("output", "revisions", "sim_m3", "sim_2", "/")
+sim_data_path <- here("output", "revisions", "lapl_check", "sim_lapl", "/")
 
 num_nodes <- 10
 
@@ -904,7 +912,7 @@ model_colors <- col_df %>%
   pull(cols)
 
 sims <- 1:50
-sims <- sims[c(-18)]
+sims <- sims[c(-37,-45,-46, -50)]
 
 for(curr_sim in sims) {
   load(paste0(sim_data_path,
@@ -1020,18 +1028,25 @@ mean_sims %>%
 Need to modify this after finally correctly formulating the 
 simulations.
 
-```{r prepare data for 4b,cache=TRUE, eval=FALSE}
-plot.s <- 7 # 7 is pretty good
-plot.i <- 4
-plot.j <- 5
+```{r prepare data for 4b,cache=TRUE, eval=TRUE}
+plot.s <- 26 # 8 is pretty good
+plot.i <- 10
+plot.j <- 9
 
-cur_i <- 4
-cur_j <- 5
+# 29 10 -> 9 also decent
+# 26 10 -> 9 also decent
+#17 10 -> 9 decent
+#1, 10 -> 8 not too bad
+#8 10 -> 9 also
 
-sim_data_path <- here("output", "revisions", "sim_m3", "june_18", "/")
+### only going up to 100 now
+cur_i <- plot.i
+cur_j <- plot.j
+
+sim_data_path <- here("output", "revisions", "lapl_check", "sim_lapl", "/")
 
 load(paste0(
-  sim_data_path, "/", "sim_model3_",
+  sim_data_path, "/", "sim_model3_fit123_",
   plot.s,
   ".RData"
 ))
@@ -1076,8 +1091,7 @@ lambda.m1 <- uniHawkesIntensityNumeric(
 )
 
 
-## model2
-#############
+## model2 ####
 gamma_draws <- sim_model3_stan_sim2 %>% 
   select(starts_with("gamma"))
 
@@ -1114,14 +1128,13 @@ lambda.m2 <- uniHawkesIntensityNumeric(
   time.vec = time.segment
 )
 
-## Model3
-###
+## Model3 ####
 
 lam0_draws <- sim_model3_stan_sim3 %>% 
-  select(starts_with("gamma"))
+  select(starts_with("lambda0"))
 
 lam1_draws <- sim_model3_stan_sim3 %>% 
-  select(starts_with("zeta"))
+  select(starts_with("lambda1"))
 
 gamma_draws <- sim_model3_stan_sim3 %>% 
   select(starts_with("gamma"))
@@ -1136,12 +1149,12 @@ f_draws <- sim_model3_stan_sim2 %>%
 lam0_vec <- apply(lam0_draws, 2, mean)
 lam1_vec <- apply(lam1_draws, 2, mean)
 lam0_par_est <- matrix(0,
-  nrow = length(object_par$f_vec_1),
-  ncol = length(object_par$f_vec_1)
+                       nrow = length(object_par$f_vec_1),
+                       ncol = length(object_par$f_vec_1)
 )
 lam1_par_est <- matrix(0,
-  nrow = length(object_par$f_vec_1),
-  ncol = length(object_par$f_vec_1)
+                       nrow = length(object_par$f_vec_1),
+                       ncol = length(object_par$f_vec_1)
 )
 
 clean_sim_data <- cleanSimulationData(
@@ -1157,7 +1170,7 @@ for (i in seq_along(lam0_vec)) {
   lam1_par_est[row_id, col_id] <- lam1_vec[i]
 }
 ###
-#############
+### model 3 ####
 mmhp_par_est <- list(
   lambda0 = lam0_par_est,
   lambda1 = lam1_par_est,
@@ -1205,8 +1218,7 @@ load(paste0(
 
 state.est.latent.mmhp <- interpolate_state_est_lst[plot.i, plot.j][[1]]
 state.est.latent.mmhp.new <- fixInterpolateState(state.est.latent.mmhp,
-  termination = 50 
-  ### TO DO update for longer sims
+                                                 termination = 100
 )
 
 step.fun.est <- stepfun(
@@ -1237,16 +1249,16 @@ lambda.true <- mmhpTrueIntensityNumeric(
 ```
 
 
-```{r fig-4b-recover-latent-states,fig.width=8,fig.height=4, eval=FALSE}
+```{r fig-4b-recover-latent-states,fig.width=8,fig.height=4, eval=TRUE}
 mmhp_lty <- 1
 
-y.ub <- c(8, 8, 8) # c(130,72,31)
-x_events <- 190 # 135#150
-my.xlim <- 200 # 160#200#130
-my.long.x <- 205 # 205#134.5
-legend.x <- c(100, 100, 100) # c(135,135,135)
+y.ub <- c(5, 5, 5) # c(130,72,31)
+x_events <- 90 # 135#150
+my.xlim <- 100 # 160#200#130
+my.long.x <- 100 # 205#134.5
+legend.x <- c(50, 50, 50) # c(135,135,135)
 legend.y <- # c(34,32,32)
-legend.y <- c(6, 6, 6) # c(15,12,15)#c(62,37,18)#c(22,22,22)
+legend.y <- c(3.5, 3.5, 3.5) # c(15,12,15)#c(62,37,18)#c(22,22,22)
 legend.cex <- 1.5 # 3
 line.alpha <- c(1, 0.5)
 line.wdth <- c(1.5, 2)
@@ -1265,15 +1277,14 @@ model_colors <- model_colors %>% pull(cols)
 # model1
 ############
 true.object <- object_true
-
 ```
 
 
 
-```{r actual-plot, eval=FALSE}
+```{r fig-4b, eval=TRUE}
 layout(matrix(c(1:6), 6, 1), heights = rep(c(7.5, 2.5), 3))
 par(
-  mar = c(0, 0.3, 0, 0.1), oma = c(0, 3.5, 4, 0),
+  mar = c(0.2, 0.3, 0, 0.1), oma = c(3, 3.5, 4, 2),
   tcl = 0.2, mgp = c(0.5, 0, 0), xpd = TRUE
 )
 
@@ -1344,10 +1355,10 @@ legend(legend.x[1] + 22, legend.y[1] + 1, c("C-HP"),
 )
 
 ## delta lambda
-par(mar = c(0, 0.3, 0, 0.1))
+par(mar = c(0.1, 0.3, 0, 0.1))
 plot(0, 0,
      xlim = c(0, my.xlim), 
-     ylim = c(-0.5, 4),
+     ylim = c(-1.5, 1.5),
      type = "n",
      bty = "n",
      xlab = "",
@@ -1357,6 +1368,7 @@ plot(0, 0,
      axes = FALSE
 )
 delta.lambda <- lambda.m1$lambda.t - lambda.true$lambda.t
+m1_diff <- delta.lambda
 delta.positive <- delta.lambda
 delta.positive[delta.positive < 0] <- 0
 delta.negative <- delta.lambda
@@ -1444,27 +1456,27 @@ axis(1,
 
 
 ## location of legend
-legend(legend.x[2] - 95,
-       legend.y[2] + 2, c("State 0/1 events", "State change point"),
+legend(legend.x[2] - 35,
+       legend.y[2] + 1.75, c("State 0/1 events", "State change point"),
        col = c(NA, "red"),
-       y.intersp = 0.85,
+       y.intersp = 0.75,
        x.intersp = -0,
        bty = "n",
        pch = c(NA, 4), pt.cex = c(NA, 2), cex = legend.cex,
        lty = c(NA, NA), lwd = c(NA, 2)
 )
-points(legend.x[2] - 89, legend.y[2], 
+points(legend.x[2] - 33, legend.y[2] + 0.5, 
        pch = 1, cex = 2, col = "blue")
-points(legend.x[2] - 85, legend.y[2],
+points(legend.x[2] - 31, legend.y[2] + 0.5,
        pch = 16, cex = 2, col = "blue")
 
 ## delta lambda
-par(mar = c(0, 0.3, 0, 0.1))
+par(mar = c(0.1, 0.3, 0, 0.1))
 delta.lambda <- lambda.m2$lambda.t - lambda.true$lambda.t
 
 plot(lambda.true$time.vec, delta.lambda,
      xlim = c(0, my.xlim),
-     ylim = c(-0.5, 4), type = "n",
+     ylim = c(-1.5, 1.5), type = "n",
      bty = "n",
      xlab = "",
      ylab = "",
@@ -1473,6 +1485,7 @@ plot(lambda.true$time.vec, delta.lambda,
      axes = FALSE
 )
 delta.lambda <- lambda.m2$lambda.t - lambda.true$lambda.t
+m2_diff <- delta.lambda
 delta.positive <- delta.lambda
 delta.positive[delta.positive < 0] <- 0
 delta.negative <- delta.lambda
@@ -1495,7 +1508,7 @@ axis(1,
 
 # model3
 ########
-par(mar = c(0, 0.3, 1, 0.1))
+par(mar = c(0.1, 0.3, 1, 0.1))
 drawUniMMHPIntensityPaper(true.object,
                           simulation = mmhp_est,
                           yupper = y.ub[3],
@@ -1518,17 +1531,17 @@ drawUniMMHPIntensityPaper(object_hat,
                           ),
                           line.width = line.wdth[2]
 )
-legend(legend.x[3] - 2, legend.y[3] + 1, c("True"),
+legend(legend.x[3] - 2, legend.y[3] + 1.75, c("True"),
        col = c("black"),
        y.intersp = 0.88, x.intersp = 0.65, bty = "n",
        lty = c(1), lwd = c(5), cex = legend.cex, seg.len = 1
 )
 
 
-legend(legend.x[3] + 22, legend.y[3] + 1, "C-MMHP",
+legend(legend.x[3] + 22, legend.y[3] + 1.75, "C-MMHP",
        col = model_colors[3],
        y.intersp = 0.88,
-       x.intersp = .65,
+       x.intersp = .25,
        bty = "n",
        lty = 1,
        lwd = 5,
@@ -1546,7 +1559,7 @@ axis(1,
      lwd.ticks = 0, lty = 3
 )
 
-legend(legend.x[3] - 95, legend.y[3] + 2,
+legend(legend.x[3] - 45, legend.y[3] + 2.5,
        c("Overestimation", "Underestimation"),
        col = c(positive.col, negative.col),
        y.intersp = 0.75, x.intersp = 0.5, bty = "n",
@@ -1554,14 +1567,15 @@ legend(legend.x[3] - 95, legend.y[3] + 2,
 )
 
 ## delta lambda
-par(mar = c(0, 0.3, 0, 0.1))
+par(mar = c(0.1, 0.3, 0, 0.1))
 plot(0, 0,
      xlim = c(0, my.xlim), 
-     ylim = c(-0.5, 4), type = "n",
+     ylim = c(-1.5, 1.5), type = "n",
      bty = "n", xlab = "", ylab = "", xaxt = "n", yaxt = "n",
      axes = FALSE
 )
 delta.lambda <- lambda.m3 - lambda.true$lambda.t
+m3_diff <- delta.lambda
 delta.positive <- delta.lambda
 delta.positive[delta.positive < 0] <- 0
 delta.negative <- delta.lambda
@@ -1584,10 +1598,10 @@ axis(1,
 
 
 ## top
-mtext(text = "(b)", side = 3, line = 0.8,
+mtext(text = "(b)", side = 3, line = 0.25,
       outer = TRUE, cex = 2.5, font = 2)
 ## bottom
-mtext(text = "Time", side = 1, line = 2,
+mtext(text = "Time", side = 1, line = 1.5,
       outer = TRUE, cex = 2.25)
 ## left
 mtext(text = "Intensity", side = 2,
@@ -2683,7 +2697,7 @@ num_nodes <- 10
 object_par <- list(f_vec_1 = seq(from = 0.2, to = 0.9,
                                  length.out = num_nodes))
 
-sim_data_path <- here("output", "revisions", "sim_m3", "sim_2", "/")
+sim_data_path <- here("output", "revisions", "lapl_check", "sim_lapl", "/")
 
 
 ## Initialize
@@ -2758,7 +2772,8 @@ KS_p_true_array <- array(0, dim = c(
 
 ## Iteration on 50 simulations
 sims <- 1:50
-sims <- sims[c(-18)]
+# sims <- sims[c(-18)]
+sims <- sims[c(-37,-45,-46, -50)]
 
 
 for (s in sims) {
@@ -3118,14 +3133,19 @@ Inferred ranking boxplots against true rankings.
 
 Need to update this again for the final simulation parameter setting.
 
-```{r fig-5b-spearman-sim, fig.height=7}
-sim_files <- list.files(here("output", "revisions", "rank_sims/"), 
+```{r fig-5b-spearman-sim, fig.height=5}
+sim_files <- list.files(here("output",
+                             "revisions",
+                             "lapl_check",
+                             "sim_rank/"), 
                         pattern = "rank_sim")
 
 all_sims <- list()
+
+
 for (i in seq_along(sim_files)) {
   single_fit <- readRDS(here(
-    "output", "revisions", "rank_sims",
+    "output", "revisions", "lapl_check", "sim_rank",
     sim_files[i]
   ))
   all_sims[[i]] <- single_fit
@@ -3183,7 +3203,8 @@ sim_data %>%
     axis.ticks.x = element_blank(),
     legend.position = "right"
   ) +
-  ggtitle("(b)")
+  # ggtitle("(b)")
+  NULL
 ```
 
 
@@ -3196,6 +3217,7 @@ sim_data %>%
 ```{r fig-6a-rank-vs-isi}
 ### Rank Comparison for Single Cohort ####
 # current_cohort <- 5
+# data_path 
 
 load(paste(data_path, cohort_names[current_cohort],
   "/agg_rank_stan_result_", cohort_names[current_cohort],
@@ -3282,7 +3304,7 @@ p1
 ## Figure 6b: Spearman rank correlation
 
 ```{r fig-6b-overall-rank-correlation}
-load("../output/revisions/weighted_rank_data.RData")
+load("../output/revisions/lapl_check/weighted_rank_data.RData")
 # png(paste(plot_path,"real_rank_all_cohort.png",sep=""),width=600,height=300)
 no_method <- 4
 plot_cor_df <- data.frame(
@@ -3318,7 +3340,7 @@ No longer including this figure in the paper
 
 ```{r fig-7-prMatrix-Cohort3, fig.width=7, fig.height=7}
 current_cohort <- 5
-data_path <- "../output/revisions/"
+data_path <- "../output/revisions/lapl_check/"
 ## 2 and 8 maybe look better
 ## 3 probably looks the best
 
@@ -3507,8 +3529,8 @@ struct_plot %>%
 
 ## Figure 8a: MAE of interaction predictions, single cohort
 
-```{r fig-8a-frob-norm-cohort5, fig.width=8,fig.height=4,eval=TRUE}
-load("../output/revisions/plot_N_predict_revision.RData")
+```{r fig-8a-mae-norm-cohort5, fig.width=8,fig.height=4,eval=TRUE}
+load("../output/revisions/lapl_check/plot_N_predict_revision.RData")
 current_cohort <- 5 # cohort 1 looks worse than rest
 
 temp_plot_df <- predict_day_mae_df_lst[[current_cohort]]
@@ -3556,9 +3578,9 @@ p3 + labs(fill = "Method", title = "Single Cohort")
 ## Figure 8b: Same plot aggregated for all cohorts
 
 
-```{r fig-7a-pred-all-cohorts-box-mae}
+```{r fig-7a-pred-all-cohorts-box-mae, fig.width=8,fig.height=4,eval=TRUE}
 ### updated to revision
-load("../output/revisions/plot_N_predict_revision.RData")
+load("../output/revisions/lapl_check/plot_N_predict_revision.RData")
 
 all_cohort_box <- all_cohort_mae_df
 
@@ -3616,7 +3638,10 @@ all_cohort_box %>%
 This has not finished for new simulation setting yet.
 
 ```{r fig-9a-spearman-rank-cohort1, eval=FALSE}
-load(here("output", "plot_rank_predict.RData"))
+load(here("output",
+          "revisions",
+          "lapl_check",
+          "plot_rank_predict.RData"))
 # current_cohort <- 5
 temp_plot_df <- predict_day_rank_df_lst[[current_cohort]]
 temp_plot_df$method <- factor(temp_plot_df$method,
@@ -3656,7 +3681,7 @@ p5 + labs(fill = "Method")
 ## Figure 9b: Predicted Spearman rank for all cohorts
 
 ```{r fig-7b-pred-rank-spearman-all-cohorts}
-load("../output/plot_rank_predict.RData")
+load("../output/revisions/lapl_check/plot_rank_predict.RData")
 
 all_cohort_rank_df$method <- factor(all_cohort_rank_df$method,
   levels = c("mmhp", "dsnl", "m1", "m2", "m3"),
@@ -3826,6 +3851,8 @@ rm(fit_cohort_mmhp)
 
 ## Fig 10b
 
+No longer need to run this.
+
 ```{r process for state separation cohort1,eval=FALSE}
 # only run this once and save the results
 # this doesn't need to be rerun ever, even if the stan fits change
@@ -3840,6 +3867,7 @@ clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
 return_df <- cleanObservationPeriod(current_cohort,
                                     full_data[[cohort_names[current_cohort]]],
                                     clean_data)
+
 unique_pairs_df <- return_df %>%
   group_by(initiator, recipient) %>%
   dplyr::summarize(
@@ -3848,8 +3876,11 @@ unique_pairs_df <- return_df %>%
     observe.length = list(observe.time),
     no.events = list(no.events)
   )
+
 unique_observe_win <- unique(return_df[,
-                                       c("day", "observe.id", "observe.time")])
+                                       c("day",
+                                         "observe.id",
+                                         "observe.time")])
 
 ## 5.  find how many 1s for each pair
 print(".......state separation plot........")
@@ -3882,6 +3913,7 @@ for (i in 1:mice_number) {
 
 utility_state_day <- array(0, dim = c(21, mice_number, mice_number))
 social_state_day <- array(0, dim = c(21, mice_number, mice_number))
+
 for (cur_day in c(1:21)) {
   cur_wins <- which(unique_observe_win$day == cur_day)
   utility_state_day[cur_day, , ] <- apply(
@@ -3895,17 +3927,26 @@ for (cur_day in c(1:21)) {
     utility_state_day[cur_day, , ]
 }
 
+dsnl_poisson <- cmdstan_model("../lib/dsnl_poisson.stan")
 
 ## utility dsnl
-fit_dsnl_active <- stan("../lib/dsnl_poisson.stan",
+fit_dsnl_active <- dsnl_poisson$sample(
   data = list(
     day = 21,
     Gt = utility_state_day,
     c = 1,
-    sigma = 0.5
+    sigma = 1
   ),
-  iter = 1000, chains = 4, control = list(adapt_delta = 0.99)
+  iter_sampling = 500,
+  iter_warmup = 500,
+  chains = 4,
+  adapt_delta = 0.95
 )
+
+active_fit <- fit_dsnl_active$draws()
+sim_dsnl_active <- posterior::as_draws_df(active_fit)
+
+
 print(fit_dsnl_active, pars = c("x"))
 sim_dsnl_active <- rstan::extract(fit_dsnl_active)
 
@@ -3937,11 +3978,12 @@ rm(termination_state_list)
 rm(initial_state_list)
 ```
 
+Need to update this to read in cmdstan results.
 
 ```{r process data for plot 10b, cache=TRUE}
 library(PlayerRatings)
-# current_cohort <- 5
-current_cohort <- 1
+current_cohort <- 5
+# current_cohort <- 1
 load(paste(data_path, cohort_names[current_cohort],
   "/dsnl_poisson_stan_result_", cohort_names[current_cohort],
   ".RData",
@@ -3993,12 +4035,15 @@ for (t in 1:length(task.types)) {
   data.tbl$data.value[(1:1000) + (t - 1) * 1000] <- temp_vec
 }
 
+dsnl_act_sims <- sim_dsnl_active %>% select(starts_with("x"))
+dsnl_act_arr <- array(as.matrix(dsnl_act_sims), dim = c(1000, 21, 12))
+
 ## Utility aggregate
 for (t in 1:length(task.types)) {
   temp_vec <- rep(NA, 1000)
   cur_real_rank <- real.gl$history[, day_end_idx[t], 1]
   for (s in c(1:1000)) {
-    temp_result <- cor.test(-sim_dsnl_active$x[s, t, ], cur_real_rank,
+    temp_result <- cor.test(-dsnl_act_arr[s, t, ], cur_real_rank,
                             method = "spearman")
     temp_vec[s] <- temp_result$estimate
   }
@@ -4007,12 +4052,15 @@ for (t in 1:length(task.types)) {
   data.tbl$data.value[(1:1000) + (t - 1) * 1000 + 21000] <- temp_vec
 }
 
+dsnl_inac_sims <- sim_dsnl_inactive %>% select(starts_with("x"))
+dsnl_inac_arr <- array(as.matrix(dsnl_inac_sims), dim = c(1000, 21, 12))
+
 ## Social aggregate
 for (t in 1:length(task.types)) {
   temp_vec <- rep(NA, 1000)
   cur_real_rank <- real.gl$history[, day_end_idx[t], 1]
   for (s in c(1:1000)) {
-    temp_result <- cor.test(sim_dsnl_inactive$x[s, t, ],
+    temp_result <- cor.test(dsnl_inac_arr[s, t, ],
       cur_real_rank,
       method = "spearman"
     )

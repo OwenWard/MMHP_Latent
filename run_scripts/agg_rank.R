@@ -101,7 +101,7 @@ fit_agg_rank <- agg_model$sample(
   data = list(n_matrix = clean_data$N_count),
   iter_sampling = 1000,
   chains = 4,
-  thin = 4,
+  # thin = 4,
   adapt_delta = 0.99
 )
 
