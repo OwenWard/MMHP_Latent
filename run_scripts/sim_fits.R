@@ -4,7 +4,7 @@
 #### if running on cluster ####
 source("/moto/stats/users/ogw2103/Code/MMHP_Latent/run_scripts/cluster_setup.R")
 
-data_path <- "output/revisions/lapl_check/plot_lapl/"
+data_path <- "output/revisions/lapl_check/param_recov/"
 
 library(cmdstanr)
 library(R.utils)
@@ -51,10 +51,10 @@ object_fn <- list(alpha.fun = function(x,y,eta1,eta2){
                   q0.fun = function(x,y,eta3){return(exp(-eta3*y))})
 
 object_par <- list(sim_lambda_1 = 0.6,
-                   gamma_var = seq(from = 0.01, to = 0.2,
+                   gamma_var = seq(from = 0.2, to = 0.8,
                                    length.out = num_nodes),
                    zeta_var = rep(0.1, num_nodes),
-                   sim_eta_1 = 3, # from 3.5
+                   sim_eta_1 = 1.5, # from 3.5
                    sim_eta_2 = 2,#1.5, # from 2.6
                    sim_eta_3 = 2.5, # 
                    #sim_eta_3 = 7.5,
