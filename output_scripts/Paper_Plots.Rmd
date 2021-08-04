@@ -14,7 +14,7 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(
   echo = TRUE, fig.path = "paper_figure/revision/",
-  dev = "png", fig.height = 4.5, fig.width = 7,
+  dev = "png", fig.height = 5, fig.width = 7,
   warning = FALSE, cache = TRUE
 )
 
@@ -137,7 +137,7 @@ This is not effected by the final model.
 
 ## Figure 2a: Contour Plot
 
-```{r fig-2a-contour-plot, eval=revision_plots}
+```{r fig-2a-contour-plot, eval=revision_plots, fig.width=6, fig.height=6}
 current_cohort <- 5
 # png(paste(plot_path,"contour.png",sep=""),width=480,height=480)
 load(paste(data_path, cohort_names[current_cohort],
@@ -172,7 +172,7 @@ my.image.plot(seq(0, 1, 0.01), seq(0, 1, 0.01), z_plot,
 <!-- This is using the correct form of the compensator for a Hawkes process. -->
 
 
-```{r fig-2b-diag-plot,echo=FALSE,warning=FALSE, eval=revision_plots}
+```{r fig-2b-diag-plot-c5,echo=FALSE,warning=FALSE, eval=revision_plots, fig.width=6, fig.height=6}
 # current_cohort <- 5
 current_cohort <- 5
 
@@ -363,7 +363,7 @@ mtext(
 )
 # dev.off()
 ks_chp <- ks.stat.matrix
-
+current_cohort <- 6
 ```
 
 # Figure 3: Comparison of C-HP and C-DCHP
@@ -371,8 +371,9 @@ ks_chp <- ks.stat.matrix
 ## Figure 3a: Baseline rates
 
 
-```{r fig-3a-baseline-rate, eval=revision_plots}
+```{r fig-3a-baseline-rate, fig.width=5, fig.height=5, eval=revision_plots}
 current_cohort <- 5
+## this looks better
 # current_cohort <- 6 # 3 is maybe ok, 6/7 is interesting
 
 load(paste(data_path, cohort_names[current_cohort],
@@ -781,7 +782,8 @@ bind_cols(M1_ks_p, M2_ks_p) %>%
 
 ## Figure 3b: Residual Structure
 
-```{r fig-3b-residual-structure, include=TRUE, eval=revision_plots}
+```{r fig-3b-residual-structure, include=TRUE, fig.width=10, fig.height=5, eval=revision_plots}
+### this looks better
 ### now to add Pearson residual matrices here for C-HP and C-DCHP from fig 7
 current_cohort <- 5
 data_path <- "../output/revisions/lapl_check/"
@@ -850,8 +852,9 @@ mtext(text="(b)",side=3,line=0.5,outer=TRUE,cex=2.5,font=2)
 Add this below figure to the response to show how different cohorts 
 result in different response.
 
-```{r fig3-cohort-response}
+```{r fig3-cohort-response, fig.width=5, fig.height=5}
 current_cohort <- 6
+### this looks good
 
 load(paste(data_path, cohort_names[current_cohort],
   "/cohort_dchp_stan_result_", cohort_names[current_cohort],
@@ -879,7 +882,7 @@ matrixPlotParameter(latent_social_matrix[
 xLabels = expert_rank_10[[current_cohort]],
 yLabels = rev(expert_rank_10[[current_cohort]])
 )
-
+current_cohort <- 5
 ```
 
 
@@ -1608,6 +1611,166 @@ mtext(text = "Intensity", side = 2,
       line = 0.6, outer = TRUE, cex = 2.25)
 
 ```
+
+
+## Fig 5 Param Recovery
+
+Confirm parameter recovery for some of the simulation settings, as 
+a potential figure 5a also.
+
+```{r param-recov}
+## param recovery for some lambda0, lambda1, alpha, beta,
+## eta1, eta2, eta3
+model1_fn <- list(alpha.fun = function(x, y, eta1, eta2, eta3){
+  return(eta1 * x * y * exp(-eta2 * abs(x-y))/(1 + exp(-eta3 *(x-y))))})
+
+model3_fn <- list(alpha.fun = function(x, y, eta1, eta2){
+  return(eta1*x*y*exp(-eta2*abs(x-y)))},
+                  q1.fun = function(x,y,eta3){return(exp(-eta3*x))},
+                  q0.fun = function(x,y,eta3){return(exp(-eta3*y))})
+
+
+#### Save the simulation parameters ####
+
+object_fn <- list(alpha.fun = function(x,y,eta1,eta2){
+  return(eta1*x*y*exp(-eta2*abs(x-y)))},
+                  q1.fun = function(x,y,eta3){return(exp(-eta3*x))},
+                  q0.fun = function(x,y,eta3){return(exp(-eta3*y))})
+
+
+num_nodes <- 10
+object_par <- list(sim_lambda_1 = 0.6,
+                   gamma_var = seq(from = 0.01, to = 0.2,
+                                   length.out = num_nodes),
+                   zeta_var = rep(0.1, num_nodes),
+                   sim_eta_1 = 3, # from 3.5
+                   sim_eta_2 = 2,#1.5, # from 2.6
+                   sim_eta_3 = 2.5, # 
+                   #sim_eta_3 = 7.5,
+                   sim_beta = 1.5, # from 2
+                   f_vec_1 = seq(from = 0.2,
+                                 to = 0.9,
+                                 length.out = num_nodes))
+object_matrix <- list(
+  lambda0_matrix = outer(
+    object_par$gamma_var,
+    object_par$zeta_var, "+"
+  ),
+  lambda1_matrix = 1.5*outer(
+    object_par$gamma_var,
+    object_par$zeta_var, "+"
+  ),
+  alpha_matrix = formMatrix(
+    function(x, y) {
+      object_fn$alpha.fun(
+        x, y, object_par$sim_eta_1,
+        object_par$sim_eta_2
+      )
+    },
+    object_par$f_vec_1
+  ),
+  beta_matrix = matrix(object_par$sim_beta,
+    nrow = length(object_par$f_vec_1),
+    ncol = length(object_par$f_vec_1)
+  ),
+  q1_matrix = formMatrix(
+    function(x, y) {
+      object_fn$q1.fun(
+        x, y,
+        object_par$sim_eta_3
+      )
+    },
+    object_par$f_vec_1
+  ),
+  q2_matrix = formMatrix(
+    function(x, y) {
+      object_fn$q0.fun(
+        x, y,
+        object_par$sim_eta_3
+      )
+    },
+    object_par$f_vec_1
+  )
+)
+
+```
+
+```{r process-sims}
+### load in sims, take mean of each parameter from each simulation 
+### setting, add to tibble?
+sim_data_path <- here("output", "revisions", "lapl_check", "sim_lapl", "/")
+
+sim_files <- list.files(here("output",
+                             "revisions",
+                             "lapl_check",
+                             "sim_lapl",
+                             "/"), 
+                        pattern = "sim_model3_fit123_")
+
+par_ests <- tibble()
+
+for(i in seq_along(sim_files)) {
+  load(here(
+    "output",
+    "revisions", 
+    "lapl_check",
+    "sim_lapl",
+    sim_files[i]
+  ))
+  #then get the ests
+  m1_est <- sim_model3_stan_sim1 %>%
+    select(beta, eta_1, eta_2, eta_3) %>% 
+    summarise(across(.cols = everything(), median)) %>%
+    pivot_longer(cols = everything()) %>% 
+    mutate(sim_id = i, model = "C-HP")
+  
+  m2_est <- sim_model3_stan_sim2 %>%
+    select(beta, eta_1, eta_2, eta_3,
+           starts_with("gamma"),
+           starts_with("zeta")) %>% 
+    summarise(across(.cols = everything(), median)) %>%
+    pivot_longer(cols = everything()) %>% 
+    mutate(sim_id = i, model = "C-DCHP")
+  
+  m3_est <- sim_model3_stan_sim3 %>%
+    select(beta, eta_1, eta_2, eta_3, 
+           starts_with("gamma"),
+           starts_with("zeta")) %>% 
+    summarise(across(.cols = everything(), median)) %>%
+    # rename(w_lambda = r_lambda1) %>% 
+    pivot_longer(cols = everything()) %>% 
+    mutate(sim_id = i, model = "C-MMHP")
+  par_ests <- par_ests %>% bind_rows(m1_est, m2_est, m3_est)
+}
+
+par_ests
+
+true_pars <- tibble(name = c("beta", "eta_1", "eta_2", "eta_3",
+                             paste0("gamma[", 1:10, "]"),
+                             paste0("zeta[", 1:10, "]")),
+                    value = c(1.5, 3, 2, 2.5, seq(from = 0.01, to = 0.2,
+                                   length.out = num_nodes),
+                              rep(0.1, num_nodes)))
+
+par_ests %>% 
+  filter(name %in% c("beta", "eta_1", "eta_2", "eta_3")) %>% 
+  ggplot(aes(model, value)) + geom_boxplot() +
+  geom_hline(data = true_pars %>% 
+               filter(name %in% c("beta", "eta_1", "eta_2", "eta_3")),
+             aes(yintercept = value)) +
+  facet_wrap(vars(name), scales = "free") 
+
+par_ests %>% 
+  filter(!name %in% c("beta", "eta_1", "eta_2", "eta_3")) %>% 
+  ggplot(aes(model, value)) + geom_boxplot() +
+  geom_hline(data = true_pars %>%
+               filter(!name %in% c("beta", "eta_1", "eta_2", "eta_3")),
+             aes(yintercept = value)) +
+  facet_wrap(vars(name), scales = "free") 
+
+
+```
+
 
 ## Fig 4 repeated for data generated from other models
 
@@ -3145,7 +3308,10 @@ all_sims <- list()
 
 for (i in seq_along(sim_files)) {
   single_fit <- readRDS(here(
-    "output", "revisions", "lapl_check", "sim_rank",
+    "output",
+    "revisions", 
+    "lapl_check",
+    "sim_rank",
     sim_files[i]
   ))
   all_sims[[i]] <- single_fit
@@ -3216,7 +3382,7 @@ sim_data %>%
 
 ```{r fig-6a-rank-vs-isi}
 ### Rank Comparison for Single Cohort ####
-# current_cohort <- 5
+current_cohort <- 5
 # data_path 
 
 load(paste(data_path, cohort_names[current_cohort],
@@ -3330,6 +3496,492 @@ p2 <- ggplot(plot_cor_df, aes(x = "", y = cor, fill = Method)) +
   facet_grid(cols = vars(Method)) +
   ylab("Spearman rank correlation")
 p2
+```
+
+
+
+# Further results on latent ranks
+
+Wish to investigate some further properties of the
+latent states for these animals, in the context of the above latent rank
+plot.
+
+```{r prop-active-inactive, eval=FALSE}
+### think need to run this
+current_cohort <- 6
+clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
+return_df <- cleanObservationPeriod(current_cohort,
+  raw_df =
+    full_data[[cohort_names[current_cohort]]],
+  clean_data
+)
+unique_pairs_df <- return_df %>%
+  group_by(initiator, recipient) %>%
+  dplyr::summarize(
+    count = n(),
+    observe = list(observe.id),
+    observe.length = list(observe.time),
+    no.events = list(no.events)
+  )
+unique_observe_win <- unique(return_df[, c("observe.id", "observe.time")])
+
+
+
+load(paste(data_path, cohort_names[current_cohort],
+  "/cmmhp_est_zt_", cohort_names[current_cohort],
+  ".RData",
+  sep = ""
+))
+
+### then look at these pairwise
+length(interpolation_array_list)
+
+dim(interpolation_array_list[[1]][[1]]) # each column here is a simulation
+num_pairs <- length(interpolation_array_list)
+num_winds <- length(interpolation_array_list[[4]])
+
+## 500 for each window
+
+mean_state <- matrix(NA, nrow = num_pairs, ncol = num_winds)
+
+for(i in seq_along(1:num_pairs)) {
+  for(j in seq_along(1:num_winds)) {
+    if(i != 19) { # self directed event, remove
+      curr_mean_vec <- apply(interpolation_array_list[[i]][[j]],
+                                    1, mean)
+      mean_state[i,j] <- mean(curr_mean_vec)
+    }
+  }
+}
+# apply(interpolation_array_list[[i]][[j]], 1, mean)
+# dim(interpolation_array_list[[i]][[j]])
+
+# then just take mean state, multiply by length of the window...
+dim(unique_observe_win)
+
+
+### this is the expected amount of time in the active state?
+prop_active <- mean_state %*% 
+  unique_observe_win$observe.time# /sum(unique_observe_win$observe.time)
+
+prop_active[is.na(prop_active)] <- 0
+
+pairs_tibble <- unique_pairs_df
+pairs_tibble$prop_active <- prop_active
+
+init_act <- pairs_tibble %>% group_by(initiator) %>% 
+  summarise(mean_active = sum(prop_active)) %>% 
+  arrange(desc(mean_active))
+
+rec_act <- pairs_tibble %>% group_by(recipient) %>% 
+  summarise(mean_active = sum(prop_active)) %>% 
+  arrange(desc(mean_active))
+
+bind_rows(init_act %>% rename(start = initiator),
+          rec_act %>% rename(start = recipient)) %>% 
+  group_by(start) %>% 
+  summarise(total_active = sum(mean_active)) %>% 
+  arrange(total_active)
+
+```
+
+
+```{r rerun-isi, eval=FALSE}
+num_tries <- 100 
+result <- matrix(NA, nrow = num_tries, ncol = 12)
+for(i in 1:num_tries){
+  print(i)
+  raw_data <- full_data[[cohort_names[current_cohort]]]
+  win_lost_df <- raw_data[-which(raw_data[,
+                                        "Actor"]=="Start"|raw_data[,
+                                                              "Actor"]=="End"),
+                          c("Actor","Recipient")]
+  win_lost_matrix <- get_wl_matrix(win_lost_df)
+  sample
+  # problem is that the initial rank the same the whole time.
+  win_lost_matrix
+  out <- isi98(win_lost_matrix[gtools::permute(1:12), gtools::permute(1:12)])
+  a <- as.numeric(out$best_order)
+
+  result[i, ] <- a
+}
+
+result[ ,12]
+
+```
+
+```{r explore-cohort, eval=FALSE}
+unique_pairs_df %>% 
+  group_by(initiator) %>% 
+  summarise(start = sum(count)) %>% 
+  arrange(start)
+
+unique_pairs_df %>% 
+  group_by(recipient) %>% 
+  summarise(receive = sum(count)) %>% 
+  arrange(receive)
+
+### look at out degree estimates also
+sim_cohort_mmhp %>% 
+  select(starts_with("gamma")) %>% 
+  summarise(across(everything(), mean)) %>% 
+  pivot_longer(everything())
+
+sim_cohort_mmhp %>% 
+  select(starts_with("zeta")) %>% 
+  summarise(across(everything(), mean)) %>% 
+  pivot_longer(everything())
+
+### get sd for each of the 3 models
+
+m1 <- sim_cohort_hp %>% 
+  select(starts_with("f")) %>% 
+  summarise(across(everything(), sd)) %>% 
+  pivot_longer(everything()) %>% 
+  mutate(model = "C-HP")
+
+m2 <- sim_cohort_dchp %>% 
+  select(starts_with("f")) %>% 
+  summarise(across(everything(), sd)) %>% 
+  pivot_longer(everything()) %>% 
+  mutate(model = "C-DCHP")
+
+m3 <- sim_cohort_mmhp %>% 
+  select(starts_with("f")) %>% 
+  summarise(across(everything(), sd)) %>% 
+  pivot_longer(everything()) %>% 
+  mutate(model = "C-MMHP")
+
+
+bind_rows(m1, m2, m3) %>% 
+  left_join(m3, by = "name") %>% 
+  rename(mmhp_var = value.y, var = value.x) %>% 
+  select(-model.y) %>% 
+  group_by(name) %>%
+  summarise(per_var = var/mmhp_var, model = model.x) %>% 
+  filter(model != "C-MMHP") %>% 
+  # ungroup() %>% 
+  # pull(per_var)
+  mutate(per_var_cmmhp = scales::percent(per_var)) %>% 
+  select(-per_var)
+```
+
+## Further rank information
+
+
+```{r compute-isi-using-cmmhp-ranking, eval=FALSE}
+f_med <- sim_cohort_mmhp %>% 
+  select(starts_with("f")) %>% 
+  summarise(across(everything(), median)) %>% 
+  pivot_longer(everything())
+
+isi_ord <- order(f_med$value,decreasing = TRUE)
+
+df <- win_lost_df
+df[, 1] <- factor(df[, 1], levels = 1:12)
+df[, 2] <- factor(df[, 2], levels = 1:12)
+df$result <- 1
+m1 <- stats::xtabs(result ~ ., data = df)
+
+result <- isi98(m1[isi_ord,isi_ord])
+```
+
+```{r investigate-bursty, eval=FALSE}
+# inter_8_10 <- 
+
+theme_set(theme_minimal())
+
+return_df %>% 
+  filter(initiator == 7) %>% 
+  select(initiator, 
+         recipient,
+         observe.id,
+         observe.start,
+         observe.end,
+         event.times) %>% 
+  unnest_longer(event.times) %>% 
+  group_by(observe.id, initiator) %>% 
+  arrange(event.times, .by_group = TRUE) %>% 
+  mutate(inter = event.times - lag(event.times, default = 0)) %>% 
+  ggplot(aes(inter)) + geom_histogram() +
+  labs(title = "Fights from animal 12")
+
+
+return_df %>% 
+  filter(recipient == 7) %>% 
+  select(initiator, 
+         recipient,
+         observe.id,
+         observe.start,
+         observe.end,
+         event.times) %>% 
+  unnest_longer(event.times) %>% 
+  group_by(observe.id, initiator) %>% 
+  arrange(event.times, .by_group = TRUE) %>% 
+  mutate(inter = event.times - lag(event.times, default = 0)) %>% 
+  ggplot(aes(inter)) + geom_histogram() +
+  labs(title = "Fights to animal 12")
+
+
+
+return_df %>% 
+  filter(initiator %in% c(3) | recipient == 3) %>% 
+  select(initiator, 
+         recipient,
+         observe.id,
+         observe.start,
+         observe.end,
+         event.times) %>% 
+  unnest_longer(event.times) %>% 
+  group_by(observe.id, initiator) %>% 
+  arrange(event.times, .by_group = TRUE) %>% 
+  mutate(inter = event.times - lag(event.times, default = 0)) %>% 
+  ggplot(aes(inter)) + geom_histogram() + 
+  labs(title = "Top Ranked Animals")
+
+```
+
+
+```{r investigate-animal-12, eval=FALSE}
+### want to try establish what proportion of its fights occur in inactive
+### periods compared to other animals, etc
+cur_node <- 12
+
+
+pairs <- unique_pairs_df %>% 
+  ungroup() %>% 
+  mutate(index = row_number()) %>% 
+  filter(initiator == cur_node) %>% 
+  select(index, initiator, recipient, observe) %>%
+  # observe gives the window its in
+  # unnest_wider(observe) %>%
+  pull(index)
+
+observe_winds <- unique_pairs_df %>% 
+  ungroup() %>% 
+  mutate(index = row_number()) %>% 
+  filter(initiator == cur_node) %>% 
+  select(index, initiator, recipient, observe)
+
+## need to somehow get the corresponding entries of the matrix 
+## for these
+for(i in seq_along(1:nrow(observe_winds))) {
+  curr_winds <- observe_winds$observe[[i]]
+  print(mean_state[pairs, ][i, curr_winds])
+}
+
+### how do these differ?
+
+
+###
+### this is the mean state across all observation windows, compared
+### to the mean state for windows where events are observed above
+apply(mean_state[pairs, ], 1, mean)
+
+###  
+act_vec <- mean_state %*% 
+  unique_observe_win$observe.time
+act_vec[pairs] /sum(unique_observe_win$observe.time)
+```
+
+### Explore Latent States
+
+Look at fights from/to a given animal and plot the inferred latent 
+states for each window.
+
+```{r plot-latent-given-animal, eval=FALSE}
+# dim(interpolation_array_list[[1]][[1]])
+# ### pair then window then segment times simulation
+# 
+# interpolation_array_list[[1]][[1]][1 , ] %>% 
+#   map_dbl(., mean)
+# 
+# ### need a function to take a given
+# 
+# ### this is what I want
+# dim(interpolation_array_list[[1]][[1]])
+# apply(interpolation_array_list[[1]][[1]], 1, mean) 
+# # want to do this for each pair
+
+mean_states <- function(df) {
+  return(apply(df, 1, mean))
+}
+
+pair_list <- unique_pairs_df %>% 
+  ungroup() %>% 
+  mutate(index = row_number()) %>% 
+  filter(initiator == 12) %>% 
+  pull(index)
+
+pair_list
+
+num_pairs <- nrow(unique_pairs_df)
+pair_result <- vector(mode = "list", length = num_pairs)
+
+for(i in seq_along(1:num_pairs)) {
+  if(i != 19) {
+    print(i)
+    pair_result[[i]] <- interpolation_array_list[[i]] %>% 
+    map(~mean_states((.x))) %>% 
+    set_names(paste0("window_", 1:34)) %>% 
+    as_tibble()
+  }
+}
+
+pair_result # has for each pair in each element
+saveRDS(pair_result, file = "pair_result.RDS")
+```
+
+
+Look at the output from this process, plot these, etc.
+
+```{r look-at-pair-result, eval=FALSE}
+pair_result <- readRDS("../pair_result.RDS")
+theme_set(theme_minimal())
+
+### need to get the event times within windows also...
+# return_df %>% 
+#   select(observe.id, initiator, recipient, event.times)
+# 
+# unique_observe_win
+# ## this is everything I need for the plots then...
+# unique_pairs_df %>% 
+#   ungroup() %>% 
+#   mutate(index = row_number()) %>% 
+#   filter(initiator == init & recipient == rec) %>% 
+#   pull(index)
+
+plot_window <- function(init, rec) {
+  res_state_tibb <- tibble()
+  res_event_tibb <- tibble()
+  pair <- unique_pairs_df %>% 
+            ungroup() %>% 
+            mutate(index = row_number()) %>% 
+            filter(initiator == init & recipient == rec) %>% 
+            pull(index)
+  if(length(pair) == 0) {
+    stop("No interactions")
+  }
+  for(window in 1:34) {
+    state_vec <- pair_result[[pair]][, window] 
+    state_vec <- state_vec %>% pull(names(state_vec))
+    length_wind <- unique_observe_win$observe.time[window]
+    init <- unique_pairs_df$initiator[pair]
+    rec <- unique_pairs_df$recipient[pair]
+    events <- return_df %>% 
+      filter(initiator == init) %>% 
+      filter(recipient == rec) %>% 
+      filter(observe.id == window) 
+    if(nrow(events) > 0 ) {
+      event_times <- unlist(events$event.times)
+      event_tibb <- tibble(x = event_times, y = 0, wind = window)
+      res_event_tibb <- res_event_tibb %>% 
+        bind_rows(event_tibb)
+      
+      state_tibb <- tibble(x = seq(from = 0,
+                                   to = length_wind,
+                                   length.out = 500),
+                           mean_state = state_vec,
+                           wind = window)
+      res_state_tibb <- res_state_tibb %>% 
+      bind_rows(state_tibb)
+    } 
+  }
+  ### could do a facet wrap by window! 
+  plt <- res_state_tibb %>% 
+  ggplot(aes(x, mean_state)) +
+  geom_line(aes(colour = "Mean State")) +
+  geom_point(data = res_event_tibb, mapping = aes(x,y)) +
+  facet_wrap(~wind, scales = "free_x") +
+  scale_y_continuous(breaks = c(0, 1)) +
+  # scale_x_continuous(breaks = c(1, 2)) +
+  theme(legend.title = element_blank(), axis.text.x = element_blank()) +
+  labs(x = "Time", y = "Latent State",
+       title = paste("From", init, "to", rec))
+  print(plt)
+}
+
+```
+
+We can then look at some of these for some pairs of interest.
+
+```{r from-12, eval=FALSE}
+## make sure correct return_df loaded here
+plot_window(12, 1)
+plot_window(12, 2)
+plot_window(12, 3)
+plot_window(12, 4)
+plot_window(12, 5)
+plot_window(12, 6)
+plot_window(12, 7)
+plot_window(12, 8)
+plot_window(12, 9)
+plot_window(12, 10)
+plot_window(12, 11)
+```
+
+```{r to-animal-12, eval=FALSE}
+# plot_window(1, 12)
+# plot_window(2, 12)
+plot_window(3, 12)
+plot_window(4, 12)
+plot_window(5, 12)
+# plot_window(6, 12)
+# plot_window(7, 12)
+plot_window(8, 12)
+plot_window(9, 12)
+plot_window(10, 12)
+plot_window(11, 12)
+```
+
+Similarly, we can look at the breakdown of events that are classified as
+active as opposed to inactive.
+
+```{r classify-events, eval=FALSE}
+total_event_array <- array(0,
+                           dim = c(mice_number, mice_number,
+                                   max(return_df$observe.id)))
+active_event_array <- array(0,
+                            dim = c(mice_number, mice_number,
+                                    max(return_df$observe.id)))
+
+for (i in 1:mice_number) {
+  for (j in 1:mice_number) {
+    if(i != j) {
+      pair <- which(unique_pairs_df$initiator == i & 
+                      unique_pairs_df$recipient == j)
+      if (length(pair) > 0) {
+        current_window_vec <- unique_pairs_df$observe[[pair]]
+        for (cur_win in current_window_vec) {
+          row_indicator <- (return_df$initiator == i) &
+            (return_df$recipient == j) &
+            (return_df$observe.id == cur_win)
+          total_event_array[i, j, cur_win] <- length(return_df[row_indicator,
+                                                            "event.times"][[1]])
+          active_event_array[i, j, cur_win] <- sum(apply(2 -
+                                           state_array_list[[pair]][[cur_win]],
+                                           1, mean) > 0.5)
+        }
+      }
+    }
+  }
+}
+
+total_matrix <- apply(total_event_array, c(1,2), sum)
+active_matrix <- apply(active_event_array, c(1,2), sum)
+
+inact_matrix <- total_matrix - active_matrix
+
+### compute isi for each
+names(active_matrix) <- 1:12
+colnames(active_matrix) <- 1:12
+rownames(active_matrix) <- 1:12
+isi98(active_matrix)
+
+names(inact_matrix) <- 1:12
+colnames(inact_matrix) <- 1:12
+rownames(inact_matrix) <- 1:12
+isi98(inact_matrix)
 ```
 
 
@@ -3578,7 +4230,7 @@ p3 + labs(fill = "Method", title = "Single Cohort")
 ## Figure 8b: Same plot aggregated for all cohorts
 
 
-```{r fig-7a-pred-all-cohorts-box-mae, fig.width=8,fig.height=4,eval=TRUE}
+```{r fig-7a-pred-all-cohorts-box-mae,eval=TRUE, fig.width=8, fig.height=4}
 ### updated to revision
 load("../output/revisions/lapl_check/plot_N_predict_revision.RData")
 
