@@ -236,13 +236,13 @@ sim_model3_fit2_draws <- posterior::as_draws_df(sim_model3_fit_2)
 print("model3")
 ## Fit in model 3
 
-count_data <- get_wl_matrix(df = cbind(
-  clean_sim_data$start,
-  clean_sim_data$end
-))
-isi.out <- compete::isi98(m = count_data, random = TRUE)
-top_rank <- as.numeric(isi.out$best_order[1])
-data_list$alpha_id <- top_rank
+# count_data <- get_wl_matrix(df = cbind(
+#   clean_sim_data$start,
+#   clean_sim_data$end
+# ))
+# isi.out <- compete::isi98(m = count_data, random = TRUE)
+# top_rank <- as.numeric(isi.out$best_order[1])
+# data_list$alpha_id <- top_rank
 
 sim_model3_stan_fit3 <- model3$sample(data = data_list,
                                       iter_warmup = 1000,
