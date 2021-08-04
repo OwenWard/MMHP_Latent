@@ -4,7 +4,7 @@
 #### if running on cluster ####
 source("/moto/stats/users/ogw2103/Code/MMHP_Latent/run_scripts/cluster_setup.R")
 
-data_path <- "output/revisions/lapl_check/param_recov/"
+data_path <- "output/revisions/lapl_check/real_recov/"
 
 library(cmdstanr)
 library(R.utils)
@@ -30,9 +30,11 @@ source('lib/drawIntensity.R')
 #source('lib/cleanData.R')
 # Define global variable
 n_sim <- 1
-num_nodes <- 10
+num_nodes <- 12
 cut_off <- 3
 obs_time <- 100
+
+cohort_ests <- readRDS("output/sim_ests.RDS")
 
 model1_fn <- list(alpha.fun = function(x, y, eta1, eta2, eta3){
   return(eta1 * x * y * exp(-eta2 * abs(x-y))/(1 + exp(-eta3 *(x-y))))})
@@ -50,18 +52,51 @@ object_fn <- list(alpha.fun = function(x,y,eta1,eta2){
                   q1.fun = function(x,y,eta3){return(exp(-eta3*x))},
                   q0.fun = function(x,y,eta3){return(exp(-eta3*y))})
 
-object_par <- list(sim_lambda_1 = 0.6,
-                   gamma_var = seq(from = 0.2, to = 0.8,
-                                   length.out = num_nodes),
-                   zeta_var = rep(0.1, num_nodes),
-                   sim_eta_1 = 1.5, # from 3.5
-                   sim_eta_2 = 2,#1.5, # from 2.6
-                   sim_eta_3 = 2.5, # 
-                   #sim_eta_3 = 7.5,
-                   sim_beta = 1.5, # from 2
-                   f_vec_1 = seq(from = 0.2,
-                                 to = 0.9,
-                                 length.out = num_nodes))
+mean_values <- cohort_ests %>% select(variable, mean)
+
+beta_est <- mean_values %>%
+  filter(variable == "beta") %>% 
+  pull(mean)
+
+eta_1_est <- mean_values %>% 
+  filter(variable == "eta_1") %>% 
+  pull(mean)
+
+eta_2_est <- mean_values %>% 
+  filter(variable == "eta_2") %>% 
+  pull(mean)
+
+eta_3_est <- mean_values %>% 
+  filter(variable == "eta_3") %>% 
+  pull(mean)
+
+w_lam_est <- mean_values %>% 
+  filter(variable == "w_lambda") %>% 
+  pull(mean)
+
+gamma_est <- mean_values %>% 
+  pivot_wider(names_from = variable, values_from = mean) %>% 
+  select(starts_with("gamma")) %>% 
+  as.numeric()
+
+zeta_est <- mean_values %>% 
+  pivot_wider(names_from = variable, values_from = mean) %>% 
+  select(starts_with("zeta")) %>% 
+  as.numeric()
+
+f_est <- mean_values %>% 
+  pivot_wider(names_from = variable, values_from = mean) %>% 
+  select(starts_with("f")) %>% 
+  as.numeric()
+
+
+object_par <- list(gamma_var = gamma_est,
+                   zeta_var = zeta_est,
+                   sim_eta_1 = eta_1_est, # from 3.5
+                   sim_eta_2 = eta_2_est,#1.5, # from 2.6
+                   sim_eta_3 = eta_3_est, 
+                   sim_beta = beta_est, # from 2
+                   f_vec_1 = f_est)
 
 
 object_matrix <- list(
@@ -73,7 +108,7 @@ object_matrix <- list(
   #   nrow = length(object_par$f_vec_1),
   #   ncol = length(object_par$f_vec_1)
   # ),
-  lambda1_matrix = 1.5*outer(
+  lambda1_matrix = w_lam_est * outer(
     object_par$gamma_var,
     object_par$zeta_var, "+"
   ),
