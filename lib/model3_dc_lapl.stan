@@ -18,7 +18,7 @@ data{
   real<lower=0> finishing_time[no_observations]; 
   //for each pair, each observation window, what is the finishing time
   int<lower=0,upper=12> alpha_id;
-  vector<lower=0,upper=1>[N_til] delta_1;
+  //vector<lower=0,upper=1>[N_til] delta_1;
 }
 parameters{
   //real<lower=0.01> lambda0; //baseline rate for each pair
@@ -33,15 +33,15 @@ parameters{
   real<lower=0> beta_delta;
   //real<lower=0,upper=1> delta_1; // P(initial state = 1)
   //real<lower=0> tilde_beta;
-  //vector<lower=0,upper=1>[N_til] delta_1; // P(initial state = 1)
+  vector<lower=0,upper=1>[N_til] delta_1; // P(initial state = 1)
 }
 transformed parameters{
   vector<lower=0>[N_til] lambda1;
   vector<lower=0>[N_til] lambda0;
   //vector<lower=0,upper=1>[N_til] delta_1; // P(initial state = 1)
-  vector[N_til] q1; // P(initial state = 1)
-  vector[N_til] q2; // P(initial state = 1)
-  vector[N_til] alpha; // P(initial state = 1)
+  vector[N_til] q1; 
+  vector[N_til] q2; 
+  vector[N_til] alpha; 
   row_vector[2] log_delta[N_til];
   real alpha_max;
   real beta;
