@@ -8,6 +8,7 @@ data_path <- "output/revisions/lapl_check/real_recov/"
 
 library(cmdstanr)
 library(R.utils)
+library(tidyr)
 library(dplyr)
 library(compete)
 options(mc.cores = parallel::detectCores())
