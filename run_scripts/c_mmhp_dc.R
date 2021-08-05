@@ -27,6 +27,7 @@ library(compete)
 # library(wCorr)
 # library(tidyverse)
 library(dplyr)
+library(posterior)
 # library(R.utils)
 # library(fields)
 
