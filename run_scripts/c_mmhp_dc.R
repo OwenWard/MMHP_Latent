@@ -108,10 +108,10 @@ stan_input_lst$delta_1 <- rep(0.5, stan_input_lst$N_til)
 
 fit_cohort_mmhp <- dc_model$sample(
   data = stan_input_lst,
-  iter_warmup = 200,
-  iter_sampling = 500,
+  iter_warmup = 1000,
+  iter_sampling = 1000,
   chains = 4,
-  # thin = 4,
+  thin = 4,
   adapt_delta = 0.9,
   # max_treedepth = 15,
   refresh = 100
@@ -122,7 +122,9 @@ cmmhp_fit <- fit_cohort_mmhp$draws()
 sampler_diag <- fit_cohort_mmhp$sampler_diagnostics()
 sim_cohort_mmhp <- posterior::as_draws_df(cmmhp_fit)
 
-
+fit_draws <- as_draws_array(sim_cohort_mmhp)
+rhat_fit <- apply(fit_draws, 3, posterior::rhat)
+summary(rhat_fit)
 
 # sim_cohort_mmhp <- rstan::extract(fit_cohort_mmhp)
 dir.create(paste(save_data_path, cohort_names[current_cohort], sep = ""),
