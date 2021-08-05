@@ -100,7 +100,7 @@ print(paste("Cohort", current_cohort))
 #### fit the stan model ####
 print(paste("Cohort", current_cohort))
 
-dc_model <- cmdstan_model("lib/model3_dc_lapl.stan")
+dc_model <- cmdstan_model("lib/model3_dc_lapl_check.stan")
 
 stan_input_lst <- prepareDataStan(current_cohort)
 stan_input_lst$alpha_id <- expert_rank_10[[current_cohort]][1]
