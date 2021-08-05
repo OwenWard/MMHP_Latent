@@ -111,7 +111,7 @@ fit_cohort_mmhp <- dc_model$sample(
   iter_warmup = 200,
   iter_sampling = 500,
   chains = 4,
-  thin = 4,
+  # thin = 4,
   adapt_delta = 0.9,
   # max_treedepth = 15,
   refresh = 100
