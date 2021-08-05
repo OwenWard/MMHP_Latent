@@ -17,7 +17,7 @@ data{
   //length of non-observation period 
   real<lower=0> finishing_time[no_observations]; 
   //for each pair, each observation window, what is the finishing time
-  int<lower=0,upper=12> alpha_id;
+  //int<lower=0,upper=12> alpha_id;
   //vector<lower=0,upper=1>[N_til] delta_1;
 }
 parameters{
@@ -101,7 +101,7 @@ model{
   eta_2 ~ lognormal(0,1);
   eta_3 ~ lognormal(0,1);
   beta_delta ~ lognormal(0,2);
-  f[alpha_id] ~ normal(1,0.05);
+  //f[alpha_id] ~ normal(1,0.05);
   
   for(i in 1:N_til){ //for each pair
     temp_lambda0 = lambda0[i];
