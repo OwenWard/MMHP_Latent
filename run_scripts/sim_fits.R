@@ -215,7 +215,7 @@ print(paste(i,"model1"))
 sim_model3_stan_fit1 <- model1$sample(data = data_list,
                                       iter_sampling = 1000,
                                       # iter_warmup = 25,
-                                      refresh = 200,
+                                      refresh = 100,
                                       chains = 4)
 
 sim_model3_fit_1 <- sim_model3_stan_fit1$draws()
@@ -338,32 +338,35 @@ clean_sim_data <- cleanSimulationData(raw_data = sim_model3_data,
 for(cur_i in c(1:length(object_par$f_vec_1))){
   for(cur_j in c(1:length(object_par$f_vec_1))[-cur_i]){
     test.mmhp <- sim_model3_data$mmhp_matrix[cur_i, cur_j][[1]]
-    object_hat <- list(lambda0 = mmhp_par_est$lambda0[cur_i, cur_j],
-                       lambda1 = mmhp_par_est$lambda1[cur_i, cur_j],
-                       alpha = model3_fn$alpha.fun(mmhp_par_est$f[cur_i],
-                                                 mmhp_par_est$f[cur_j],
-                                                 mmhp_par_est$eta_1,
-                                                 mmhp_par_est$eta_2),
-                       beta = mmhp_par_est$beta,
-                       q1 = model3_fn$q1.fun(mmhp_par_est$f[cur_i],
+    ### only do those longer than cutoff
+    if(length(test.mmhp$tau) > cut_off) {
+      object_hat <- list(lambda0 = mmhp_par_est$lambda0[cur_i, cur_j],
+                         lambda1 = mmhp_par_est$lambda1[cur_i, cur_j],
+                         alpha = model3_fn$alpha.fun(mmhp_par_est$f[cur_i],
+                                                     mmhp_par_est$f[cur_j],
+                                                     mmhp_par_est$eta_1,
+                                                     mmhp_par_est$eta_2),
+                         beta = mmhp_par_est$beta,
+                         q1 = model3_fn$q1.fun(mmhp_par_est$f[cur_i],
+                                               mmhp_par_est$f[cur_j],
+                                               mmhp_par_est$eta_3),
+                         q2=model3_fn$q0.fun(mmhp_par_est$f[cur_i],
                                              mmhp_par_est$f[cur_j],
-                                             mmhp_par_est$eta_3),
-                       q2=model3_fn$q0.fun(mmhp_par_est$f[cur_i],
-                                           mmhp_par_est$f[cur_j],
-                                           mmhp_par_est$eta_3))
-    viterbi_result <- myViterbi(events = test.mmhp$tau[-1], 
-                                param = object_hat,
-                                termination = obs_time)
-    latent_inter <- interpolateLatentTrajectory(object_hat, 
-                                                test.mmhp$tau[-1], 
-                                                viterbi_result$zt_v,
-                                                initial.state = 
-                                                  viterbi_result$initial_state,
-                                                termination.time = obs_time,
-                                                termination.state = 
-                                                  viterbi_result$termination_state)
-    event_state_est_lst[cur_i,cur_j][[1]] <- viterbi_result
-    interpolate_state_est_lst[cur_i,cur_j][[1]] <- latent_inter
+                                             mmhp_par_est$eta_3))
+      viterbi_result <- myViterbi(events = test.mmhp$tau[-1], 
+                                  param = object_hat,
+                                  termination = obs_time)
+      latent_inter <- interpolateLatentTrajectory(object_hat, 
+                                                  test.mmhp$tau[-1], 
+                                                  viterbi_result$zt_v,
+                                                  initial.state = 
+                                                    viterbi_result$initial_state,
+                                                  termination.time = obs_time,
+                                                  termination.state = 
+                                                    viterbi_result$termination_state)
+      event_state_est_lst[cur_i,cur_j][[1]] <- viterbi_result
+      interpolate_state_est_lst[cur_i,cur_j][[1]] <- latent_inter
+    }
   }
 }
 # }
