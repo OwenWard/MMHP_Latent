@@ -68,11 +68,11 @@ model3_fn <- list(
   alpha.fun = function(x, y, eta1, eta2) {
     return(eta1 * x * y * exp(-eta2 * abs(x - y)))
   },
-  q1.fun = function(x, y, eta3) {
-    return(exp(-eta3 * x))
+  q1.fun = function(x, y) {
+    return(exp(- x))
   },
-  q0.fun = function(x, y, eta3) {
-    return(exp(-eta3 * y))
+  q0.fun = function(x, y) {
+    return(exp(- y))
   }
 )
 
@@ -195,7 +195,7 @@ for (s in 1:1000) {
     zeta = as.numeric(zeta_draws[s, ]),
     eta_1 = sim_cohort_mmhp$eta_1[s],
     eta_2 = sim_cohort_mmhp$eta_2[s],
-    eta_3 = sim_cohort_mmhp$eta_3[s],
+    # eta_3 = sim_cohort_mmhp$eta_3[s],
     beta = sim_cohort_mmhp$beta[s],
     w_lambda = sim_cohort_mmhp$w_lambda[s],
     f = as.numeric(f_draws[s, ])
@@ -227,11 +227,11 @@ for (s in 1:1000) {
       nrow = mice_number, ncol = mice_number
     ),
     q1_matrix = formMatrix(
-      function(x, y) model3_fn$q1.fun(x, y, model3_par_est$eta_3),
+      function(x, y) model3_fn$q1.fun(x, y),
       model3_par_est$f
     ),
     q2_matrix = formMatrix(
-      function(x, y) model3_fn$q0.fun(x, y, model3_par_est$eta_3),
+      function(x, y) model3_fn$q0.fun(x, y),
       model3_par_est$f
     )
   )
@@ -353,7 +353,7 @@ model3_par_est <- list(
   # lambda1=mean(sim_cohort_mmhp$lambda1),
   eta_1 = mean(sim_cohort_mmhp$eta_1),
   eta_2 = mean(sim_cohort_mmhp$eta_2),
-  eta_3 = mean(sim_cohort_mmhp$eta_3),
+  #eta_3 = mean(sim_cohort_mmhp$eta_3),
   beta = mean(sim_cohort_mmhp$beta),
   w_lambda = mean(sim_cohort_mmhp$w_lambda),
   f = apply(f_draws, 2, mean)
@@ -385,11 +385,11 @@ model3_par_matrix <- list(
     nrow = mice_number, ncol = mice_number
   ),
   q1_matrix = formMatrix(
-    function(x, y) model3_fn$q1.fun(x, y, model3_par_est$eta_3),
+    function(x, y) model3_fn$q1.fun(x, y),
     model3_par_est$f
   ),
   q2_matrix = formMatrix(
-    function(x, y) model3_fn$q0.fun(x, y, model3_par_est$eta_3),
+    function(x, y) model3_fn$q0.fun(x, y),
     model3_par_est$f
   )
 )
