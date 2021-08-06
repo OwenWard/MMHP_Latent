@@ -11,7 +11,7 @@ jobid <- as.numeric(jobid)
 cohort_id <- jobid
 # cohort_id <- 1
 ####
-save_data_path <- "output/revisions/lapl_check/prior_check/" # "output_june30/"
+save_data_path <- "output/revisions/lapl_check/ident_check/" # "output_june30/"
 
 ### specify the number of segments here
 no_segments <- 500
@@ -101,51 +101,51 @@ print(paste("Cohort", current_cohort))
 #### fit the stan model ####
 # print(paste("Cohort", current_cohort))
 # 
-dc_model <- cmdstan_model("lib/model3_dc_lapl_check.stan")
+dc_model <- cmdstan_model("lib/model3_dc_lapl_ident.stan")
 # 
-# stan_input_lst <- prepareDataStan(current_cohort)
-# stan_input_lst$alpha_id <- expert_rank_10[[current_cohort]][1]
-# stan_input_lst$delta_1 <- rep(0.5, stan_input_lst$N_til)
-# 
-# fit_cohort_mmhp <- dc_model$sample(
-#   data = stan_input_lst,
-#   iter_warmup = 1000,
-#   iter_sampling = 1000,
-#   chains = 4,
-#   thin = 4,
-#   adapt_delta = 0.9,
-#   # max_treedepth = 15,
-#   refresh = 100
-# )
-# 
-# 
-# cmmhp_fit <- fit_cohort_mmhp$draws()
-# sampler_diag <- fit_cohort_mmhp$sampler_diagnostics()
-# sim_cohort_mmhp <- posterior::as_draws_df(cmmhp_fit)
-# 
-# fit_draws <- as_draws_array(sim_cohort_mmhp)
-# rhat_fit <- apply(fit_draws, 3, posterior::rhat)
-# summary(rhat_fit)
-# 
-# # sim_cohort_mmhp <- rstan::extract(fit_cohort_mmhp)
-# dir.create(paste(save_data_path, cohort_names[current_cohort], sep = ""),
-#   recursive = TRUE, showWarnings = FALSE
-# )
-# 
-# fit_cohort_mmhp$save_object(file = paste(save_data_path,
-#                                          cohort_names[current_cohort],
-#                                          "/stan_save.RDS", sep = ""))
-# 
-# save(sim_cohort_mmhp, fit_cohort_mmhp,
-#      sampler_diag,
-#   file = paste(save_data_path,
-#     cohort_names[current_cohort],
-#     "/cohort_mmhp_stan_result_",
-#     cohort_names[current_cohort],
-#     ".RData",
-#     sep = ""
-#   )
-# )
+stan_input_lst <- prepareDataStan(current_cohort)
+stan_input_lst$alpha_id <- expert_rank_10[[current_cohort]][1]
+stan_input_lst$delta_1 <- rep(0.5, stan_input_lst$N_til)
+
+fit_cohort_mmhp <- dc_model$sample(
+  data = stan_input_lst,
+  iter_warmup = 1000,
+  iter_sampling = 1000,
+  chains = 4,
+  thin = 4,
+  adapt_delta = 0.9,
+  # max_treedepth = 15,
+  refresh = 100
+)
+
+
+cmmhp_fit <- fit_cohort_mmhp$draws()
+sampler_diag <- fit_cohort_mmhp$sampler_diagnostics()
+sim_cohort_mmhp <- posterior::as_draws_df(cmmhp_fit)
+
+fit_draws <- as_draws_array(sim_cohort_mmhp)
+rhat_fit <- apply(fit_draws, 3, posterior::rhat)
+summary(rhat_fit)
+
+# sim_cohort_mmhp <- rstan::extract(fit_cohort_mmhp)
+dir.create(paste(save_data_path, cohort_names[current_cohort], sep = ""),
+  recursive = TRUE, showWarnings = FALSE
+)
+
+fit_cohort_mmhp$save_object(file = paste(save_data_path,
+                                         cohort_names[current_cohort],
+                                         "/stan_save.RDS", sep = ""))
+
+save(sim_cohort_mmhp, fit_cohort_mmhp,
+     sampler_diag,
+  file = paste(save_data_path,
+    cohort_names[current_cohort],
+    "/cohort_mmhp_stan_result_",
+    cohort_names[current_cohort],
+    ".RData",
+    sep = ""
+  )
+)
 
 #### Interpolate Latent States ####
 
