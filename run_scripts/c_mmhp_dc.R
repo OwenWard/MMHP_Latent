@@ -102,6 +102,7 @@ print(paste("Cohort", current_cohort))
 # print(paste("Cohort", current_cohort))
 # 
 dc_model <- cmdstan_model("lib/model3_dc_lapl_ident.stan")
+model_code <- dc_model$print()
 # 
 stan_input_lst <- prepareDataStan(current_cohort)
 stan_input_lst$alpha_id <- expert_rank_10[[current_cohort]][1]
@@ -138,6 +139,7 @@ dir.create(paste(save_data_path, cohort_names[current_cohort], sep = ""),
 
 save(sim_cohort_mmhp, fit_cohort_mmhp,
      sampler_diag,
+     model_code,
   file = paste(save_data_path,
     cohort_names[current_cohort],
     "/cohort_mmhp_stan_result_",
