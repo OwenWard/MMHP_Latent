@@ -27,9 +27,9 @@ parameters{
   //real<lower = 0> scale;
   real<lower=0> w_lambda;
   vector<lower=0, upper=1>[12] f;
-  real<lower=0> eta_1;
+  //real<lower=0> eta_1;
   real<lower=0> eta_2;
-  //real<lower=0> eta_3;
+  real<lower=0> eta_3;
   real<lower=0> beta_delta;
   //real<lower=0,upper=1> delta_1; // P(initial state = 1)
   //real<lower=0> tilde_beta;
@@ -50,14 +50,14 @@ transformed parameters{
     lambda0[i] = gamma[I_fit[i]]+zeta[J_fit[i]];  
     lambda1[i] = lambda0[i]*(1+w_lambda);
     alpha[i] = exp(-eta_2*fabs(f[I_fit[i]]-f[J_fit[i]])) * 
-    f[I_fit[i]]*f[J_fit[i]]*eta_1;
+    f[I_fit[i]]*f[J_fit[i]];//*eta_1;
     ///(1+exp(-eta_3*(f[I_fit[i]]-f[J_fit[i]])));
     //eta_1*f[I_fit[i]]*f[J_fit[i]];
     //f_max = (f[I_fit[i]]+f[J_fit[i]]+fabs(f[I_fit[i]]-f[J_fit[i]]))/2;
     //f_min = (f[I_fit[i]]+f[J_fit[i]]-fabs(f[I_fit[i]]-f[J_fit[i]]))/2;
-    q1[i] = exp(- f[I_fit[i]]);
+    q1[i] = exp(- eta_3 * f[I_fit[i]]);
     //exp(-(f_max+eta_2*(f[I_fit[i]]-f[J_fit[i]])));
-    q2[i] = exp(- f[J_fit[i]]);
+    q2[i] = exp(- eta_3 * f[J_fit[i]]);
     //exp((f_min-eta_3*(f[I_fit[i]]+f[J_fit[i]])));
     //delta_1[i] = q2[i]/(q1[i]+q2[i]);
     log_delta[i][1] = log(delta_1[i]);
@@ -97,9 +97,9 @@ model{
   gamma ~ double_exponential(0, 1);
   zeta ~ double_exponential(0, 1);
   w_lambda ~ normal(0,1);
-  eta_1 ~ normal(0, 1);
+  //eta_1 ~ normal(0, 1);
   eta_2 ~ normal(0, 1);
-  //eta_3 ~ normal(0, 1);
+  eta_3 ~ normal(0, 1);
   beta_delta ~ normal(0, 1);
   //f[alpha_id] ~ normal(1,0.05);
   f ~ normal(0, 1);
