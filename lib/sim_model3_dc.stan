@@ -19,11 +19,12 @@ parameters{
   real<lower=0> eta_2;
   real<lower=0> eta_3;
   real<lower=0> beta_delta;
+  vector<lower=0,upper=1>[N_til] delta_1; // P(initial state = 1)
 }
 transformed parameters{
   vector<lower=0>[N_til] lambda0;
   vector<lower=0>[N_til] lambda1;
-  row_vector[2] log_delta;
+  row_vector[2] log_delta[N_til];
   vector[N_til] q1; // P(initial state = 1)
   vector[N_til] q2; // P(initial state = 1)
   vector[N_til] alpha; // P(initial state = 1)
@@ -31,15 +32,19 @@ transformed parameters{
   real beta;
 
   // lambda1 = lambda0*(1+r_lambda1);
-  log_delta[1] = log(0.5);
-  log_delta[2] = log(0.5);
+  // log_delta[1] = log(0.5);
+  // log_delta[2] = log(0.5);
 
   for(i in 1:N_til){
     lambda0[i] = gamma[I_fit[i]]+zeta[J_fit[i]];
     lambda1[i] = lambda0[i]*(1+r_lambda1);
-    alpha[i] = exp(-eta_2*fabs(f[I_fit[i]]-f[J_fit[i]]))*f[I_fit[i]]*f[J_fit[i]]*eta_1;
+    alpha[i] = exp(-eta_2*fabs(f[I_fit[i]]-f[J_fit[i]])) * 
+      f[I_fit[i]]*f[J_fit[i]]*eta_1;
     q1[i] = exp(-eta_3*f[I_fit[i]]);
     q2[i] = exp(-eta_3*f[J_fit[i]]);
+    log_delta[i][1] = log(delta_1[i]);
+    log_delta[i][2] = log(1-delta_1[i]);
+    
   }
   alpha_max = max(alpha);
   beta = alpha_max*(1+beta_delta);
@@ -70,12 +75,13 @@ model{
   //lambda0 ~ lognormal(0,2);
   gamma ~ double_exponential(0, 1);//inv_gamma(3,0.5);
   zeta ~ double_exponential(0, 1);//inv_gamma(3,0.5);
-  r_lambda1 ~ lognormal(0,2);
-  beta_delta ~ lognormal(0,2);
-  eta_1 ~ lognormal(0,1);
-  eta_2 ~ lognormal(0,1);
-  eta_3 ~ lognormal(0,1);//normal(5,1);
+  r_lambda1 ~ normal(0,1);
+  beta_delta ~ normal(0,1);
+  eta_1 ~ normal(0,1);
+  eta_2 ~ normal(0,1);
+  eta_3 ~ normal(0,1);//normal(5,1);
   //f[alpha_id] ~ normal(1,0.1);
+  delta_1 ~ normal(0,1);
   
   
   for(i in 1:N_til){ //for each pair
@@ -88,7 +94,7 @@ model{
       temp_beta = beta;
       temp_q1 = q1[i];
       temp_q2 = q2[i];
-      temp_log_delta = log_delta;
+      temp_log_delta = log_delta[i];
       
       // --- log probability of Markov transition logP_ij(t)
       for(n in 1:Nm[i]){
