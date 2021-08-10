@@ -30,7 +30,7 @@ original_plots <- FALSE
 current_cohort <- 5
 
 # don't write to this path
-data_path <- "../output/revisions/lapl_check/"
+data_path <- "../output/revisions/lapl_check/prior_check/"
 
 func_dir <- "../lib/"
 
@@ -2940,7 +2940,7 @@ sims <- sims[c(-37,-45,-46, -50)]
 
 
 for (s in sims) {
-  print(s)
+  # print(s)
   load(paste0(sim_data_path, "sim_model3_fit123_", s, ".RData"))
   load(paste(sim_data_path, "fit123_state_est_", s, ".RData", sep = ""))
   clean_sim_data <- cleanSimulationData(
@@ -3212,7 +3212,7 @@ for (s in sims) {
 New potential Figure 5a plots. Need to improve this figure based on the newly
 chosen simulation parameters above.
 
-```{r log-p-value}
+```{r log-p-value, eval=FALSE}
 cols_plot <- col_df %>% 
   filter(method %in% c("C-HP","C-DCHP","C-MMHP", "True")) %>%
   arrange(factor(method, levels = c("C-HP", "C-DCHP", "C-MMHP", "True"))) %>%
@@ -3383,6 +3383,7 @@ sim_data %>%
 ```{r fig-6a-rank-vs-isi}
 ### Rank Comparison for Single Cohort ####
 current_cohort <- 5
+# want to update this now
 # data_path 
 
 load(paste(data_path, cohort_names[current_cohort],
@@ -4287,7 +4288,6 @@ all_cohort_box %>%
 
 ## Figure 9a: Predicted Spearman rank for single cohort
 
-This has not finished for new simulation setting yet.
 
 ```{r fig-9a-spearman-rank-cohort1, eval=FALSE}
 load(here("output",
