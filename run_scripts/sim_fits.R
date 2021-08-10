@@ -97,9 +97,10 @@ object_par <- list(gamma_var = gamma_est,
                    sim_eta_2 = eta_2_est, #1.5, # from 2.6
                    sim_eta_3 = eta_3_est, 
                    sim_beta = beta_est, # from 2
-                   f_vec_1 = seq(from = 0.1,
-                                 to = 0.9,
-                                 length.out = num_nodes))
+                   f_vec_1 = f_est)
+                   # seq(from = 0.1,
+                   #               to = 0.9,
+                   #               length.out = num_nodes))
 
 
 object_matrix <- list(
