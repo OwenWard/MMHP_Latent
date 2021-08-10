@@ -149,41 +149,41 @@ for(current_cohort in 1:10) {
 
 
 
-# Ranking and Events
+<!-- # Ranking and Events -->
 
-We first modify the priors from the C-MMHP model which leads to
-much improved MCMC performance.
+<!-- We first modify the priors from the C-MMHP model which leads to -->
+<!-- much improved MCMC performance. -->
 
-We want to look at the relationship between the inferred variability
-of the ranking and the number of interactions a given animal is involved in.
+<!-- We want to look at the relationship between the inferred variability -->
+<!-- of the ranking and the number of interactions a given animal is involved in. -->
 
-We plot the inferred ranks arranged by decreasing number
-of total interactions for all 4 of the comparison models, as in Fig6a.
+<!-- We plot the inferred ranks arranged by decreasing number -->
+<!-- of total interactions for all 4 of the comparison models, as in Fig6a. -->
 
-```{r plot-rank-total-interactions, eval=FALSE}
- for(current_cohort in 1:10) {
-   clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
-   load(paste(data_path,
-              cohort_names[current_cohort],
-              "/cohort_mmhp_stan_result_",
-              cohort_names[current_cohort],
-              ".RData",
-              sep = ""
-              ))
-   total_inter <- rowSums(clean_data$N_count) + colSums(clean_data$N_count)
-   f_ranks <- paste("f[", order(total_inter, decreasing = TRUE),
-                    "]", sep = "")
-   f_draws <- sim_cohort_mmhp %>% select(starts_with("f")) %>%
-   pivot_longer(everything())
-   f_draws$name <- factor(f_draws$name, levels = f_ranks)
-   plot_f <- f_draws %>%
-   ggplot(aes(name, value)) +
-   geom_boxplot() +
-   labs(title = paste("Cohort ", current_cohort, sep = ""),
-        subtitle = "Ordered by total interactions")
-   print(plot_f)
- }
-```
+<!-- ```{r plot-rank-total-interactions, eval=FALSE} -->
+<!--  for(current_cohort in 1:10) { -->
+<!--    clean_data <- cleanData(full_data[[cohort_names[current_cohort]]]) -->
+<!--    load(paste(data_path, -->
+<!--               cohort_names[current_cohort], -->
+<!--               "/cohort_mmhp_stan_result_", -->
+<!--               cohort_names[current_cohort], -->
+<!--               ".RData", -->
+<!--               sep = "" -->
+<!--               )) -->
+<!--    total_inter <- rowSums(clean_data$N_count) + colSums(clean_data$N_count) -->
+<!--    f_ranks <- paste("f[", order(total_inter, decreasing = TRUE), -->
+<!--                     "]", sep = "") -->
+<!--    f_draws <- sim_cohort_mmhp %>% select(starts_with("f")) %>% -->
+<!--    pivot_longer(everything()) -->
+<!--    f_draws$name <- factor(f_draws$name, levels = f_ranks) -->
+<!--    plot_f <- f_draws %>% -->
+<!--    ggplot(aes(name, value)) + -->
+<!--    geom_boxplot() + -->
+<!--    labs(title = paste("Cohort ", current_cohort, sep = ""), -->
+<!--         subtitle = "Ordered by total interactions") -->
+<!--    print(plot_f) -->
+<!--  } -->
+<!-- ``` -->
 
 
 <!-- ```{r all-4-models, warning=FALSE} -->
@@ -1033,7 +1033,199 @@ of total interactions for all 4 of the comparison models, as in Fig6a.
 <!-- ``` -->
 
 
+# Examine new simulation results
+
+```{r inferred-rankings}
+sim_data_path <- here("output",
+                      "revisions",
+                      "lapl_check",
+                      "real_recov", "/")
+
+sim_files <- list.files(sim_data_path, pattern = "sim_model3_fit")
+
+num_nodes <- 12
+
+cohort_est <- readRDS(here("output", "sim_ests.RDS"))
+
+f_vec <- mean_values %>% 
+  pivot_wider(names_from = variable, values_from = mean) %>% 
+  select(starts_with("f")) %>% 
+  as.numeric()
+
+sim_ranks_mean <- tibble()
+sim_ranks <- tibble()
+
+model_colors <- col_df %>%
+  filter(method %in% c(
+    "C-HP",
+    "C-DCHP", "C-MMHP"
+  )) %>%
+  pull(cols)
+
+for(curr_sim in seq_along(sim_files)) {
+  load(paste0(sim_data_path,
+              sim_files[curr_sim]))
+  
+  f_m1 <- sim_model3_stan_sim1 %>% select(starts_with("f"))
+  m1_ranks <- apply(f_m1, 2, mean)
+  
+  f_m1_sims <- f_m1 %>% 
+    rename_with(~gsub("f[", "", .x, fixed = TRUE)) %>% 
+    rename_with(~gsub("]", "", .x, fixed = TRUE)) %>% 
+    pivot_longer(everything(),
+                 names_to = "node",
+                 values_to = "rank")
+  f_m1_sims$model <- "C-HP"
+  
+  f_m2 <- sim_model3_stan_sim2 %>% select(starts_with("f"))
+  m2_ranks <- apply(f_m2, 2, mean)
+  
+  f_m2_sims <- f_m2 %>% 
+    rename_with(~gsub("f[", "", .x, fixed = TRUE)) %>% 
+    rename_with(~gsub("]", "", .x, fixed = TRUE)) %>% 
+    pivot_longer(everything(),
+                 names_to = "node",
+                 values_to = "rank")
+  
+  f_m2_sims$model <- "C-DCHP"
+  
+  f_m3 <- sim_model3_stan_sim3 %>% select(starts_with("f"))
+  m3_ranks <- apply(f_m3, 2, mean)
+  
+  f_m3_sims <- f_m3 %>% 
+    rename_with(~gsub("f[", "", .x, fixed = TRUE)) %>% 
+    rename_with(~gsub("]", "", .x, fixed = TRUE)) %>% 
+    pivot_longer(everything(),
+                 names_to = "node",
+                 values_to = "rank")
+  
+  f_m3_sims$model <- "C-MMHP"
+
+  curr_mean_ranks <- tibble(model = c(rep("C-HP", num_nodes),
+                                 rep("C-DCHP", num_nodes),
+                                 rep("C-MMHP", num_nodes)),
+                       ranks = c(m1_ranks,
+                                 m2_ranks,
+                                 m3_ranks),
+                       node = rep(1:num_nodes, 3),
+                       true_rank = rep(f_vec, 3),
+                       sim_id = curr_sim)
+  sim_ranks_mean <- sim_ranks_mean %>% 
+    bind_rows(curr_mean_ranks)
+  
+  sim_ranks <- sim_ranks %>% 
+    bind_rows(f_m1_sims, f_m2_sims, f_m3_sims)
+  
+}
 
 
+sim_ranks$node <- factor(sim_ranks$node, levels = 1:num_nodes)
+sim_ranks_mean$node <- factor(sim_ranks_mean$node, levels = 1:num_nodes)
+
+# sim_ranks$node
+
+sim_ranks_mean$model <- factor(sim_ranks_mean$model, 
+                               levels = c( "C-HP", "C-DCHP", "C-MMHP"))
+
+mean_sims <- sim_ranks_mean %>% 
+  left_join(col_df, by = c("model" = "method")) 
+
+mean_sims$model <- factor(mean_sims$model, levels = c("C-HP", "C-DCHP",
+                                                      "C-MMHP"))
+
+
+true_ranks <- tibble(node = rep(1:num_nodes,3),
+                     true_rank = rep(f_vec,3),
+                     model = c(rep("C-HP", num_nodes),
+                               rep("C-DCHP", num_nodes),
+                               rep("C-MMHP", num_nodes)))
+true_ranks$node <- factor(true_ranks$node, levels = 1:num_nodes)
+
+true_ranks$model <- factor(true_ranks$model, 
+                           levels = c("C-HP", "C-DCHP","C-MMHP"))
+
+mean_sims %>% 
+  # filter(model == "C-MMHP") %>% 
+  ggplot(aes(node, ranks, fill = model)) + 
+  geom_boxplot(show.legend = FALSE) +
+  scale_fill_manual(values = model_colors, guide = FALSE) +
+  # geom_point(aes(node, true_rank, colour = "red")) +
+  ylim(c(0,1)) +
+  labs(title = "(a)",
+       subtitle = "Mean rank from each simulation", 
+       y = "Posterior Mean Rank", x = "Node") +
+  facet_wrap(~model) +
+  geom_point(data = true_ranks,
+             aes(node, true_rank, colour = "True Value")) +
+  scale_shape_discrete(name = "True Value") +
+  theme_minimal() +
+  theme(legend.title = element_blank(),
+        legend.position = "bottom",
+        plot.title = element_text(hjust = 0.5, size = 26),
+        text = element_text(size = 18),
+        legend.text = element_text(size = 18)) 
+   
+```
+
+What about the recovery of the other parameters?
+
+```{r eta_recovery}
+
+eta_ests <- tibble()
+
+for(curr_sim in seq_along(sim_files)) {
+  load(paste0(sim_data_path,
+              sim_files[curr_sim]))
+  
+  eta_m1 <- sim_model3_stan_sim1 %>% 
+    select(starts_with("eta")) %>% 
+    pivot_longer(everything()) %>% 
+    group_by(name) %>% 
+    summarise(mean_est = mean(value)) %>% 
+    mutate(model = "C-HP")
+  
+  
+  
+  eta_m2 <- sim_model3_stan_sim2 %>%
+    select(starts_with("eta")) %>% 
+    pivot_longer(everything()) %>% 
+    group_by(name) %>% 
+    summarise(mean_est = mean(value)) %>% 
+    mutate(model = "C-DCHP")
+  
+  eta_m3 <- sim_model3_stan_sim3 %>%
+    select(starts_with("eta")) %>% 
+    pivot_longer(everything()) %>% 
+    group_by(name) %>% 
+    summarise(mean_est = mean(value)) %>% 
+    mutate(model = "C-MMHP")
+  
+  curr_sim_ests <- bind_rows(eta_m1,
+                             eta_m2,
+                             eta_m3)
+
+  eta_ests <- eta_ests %>% 
+    bind_rows(curr_sim_ests)
+  
+}
+
+
+eta_ests$model <- factor(eta_ests$model, levels = c("C-HP",
+                                                    "C-DCHP",
+                                                    "C-MMHP"))
+
+tru_values <- tibble(name = c("eta_1", "eta_2", "eta_3"),
+                     mean_est = c(object_par$sim_eta_1,
+                                  object_par$sim_eta_2,
+                                  object_par$sim_eta_3))
+
+eta_ests %>% 
+  ggplot(aes(name, mean_est)) +
+  geom_boxplot(aes(fill = model)) +
+  geom_hline(mapping = aes(yintercept = mean_est),
+             tru_values, colour = "red") +
+  facet_wrap(~name)
+
+```
 
 
