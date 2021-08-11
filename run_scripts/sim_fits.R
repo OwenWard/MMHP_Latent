@@ -99,7 +99,7 @@ object_par <- list(gamma_var = gamma_est,
                    sim_beta = beta_est, # from 2
                    sim_w_lam = w_lam_est,
                    # f_vec_1 = f_est)
-                   seq(from = 0.1,
+                   f_vec_1 = seq(from = 0.1,
                                  to = 0.9,
                                  length.out = num_nodes))
 
