@@ -1047,10 +1047,14 @@ num_nodes <- 12
 
 cohort_est <- readRDS(here("output", "sim_ests.RDS"))
 
+mean_values <- cohort_est %>% select(variable, mean)
+
 f_vec <- mean_values %>% 
   pivot_wider(names_from = variable, values_from = mean) %>% 
   select(starts_with("f")) %>% 
   as.numeric()
+
+f_vec <- seq(from = 0.2, to = 0.9, length.out = num_nodes)
 
 sim_ranks_mean <- tibble()
 sim_ranks <- tibble()
@@ -1067,7 +1071,7 @@ for(curr_sim in seq_along(sim_files)) {
               sim_files[curr_sim]))
   
   f_m1 <- sim_model3_stan_sim1 %>% select(starts_with("f"))
-  m1_ranks <- apply(f_m1, 2, mean)
+  m1_ranks <- apply(f_m1, 2, median)
   
   f_m1_sims <- f_m1 %>% 
     rename_with(~gsub("f[", "", .x, fixed = TRUE)) %>% 
@@ -1078,7 +1082,7 @@ for(curr_sim in seq_along(sim_files)) {
   f_m1_sims$model <- "C-HP"
   
   f_m2 <- sim_model3_stan_sim2 %>% select(starts_with("f"))
-  m2_ranks <- apply(f_m2, 2, mean)
+  m2_ranks <- apply(f_m2, 2, median)
   
   f_m2_sims <- f_m2 %>% 
     rename_with(~gsub("f[", "", .x, fixed = TRUE)) %>% 
@@ -1090,7 +1094,7 @@ for(curr_sim in seq_along(sim_files)) {
   f_m2_sims$model <- "C-DCHP"
   
   f_m3 <- sim_model3_stan_sim3 %>% select(starts_with("f"))
-  m3_ranks <- apply(f_m3, 2, mean)
+  m3_ranks <- apply(f_m3, 2, median)
   
   f_m3_sims <- f_m3 %>% 
     rename_with(~gsub("f[", "", .x, fixed = TRUE)) %>% 
@@ -1170,7 +1174,6 @@ mean_sims %>%
 What about the recovery of the other parameters?
 
 ```{r eta_recovery}
-
 eta_ests <- tibble()
 
 for(curr_sim in seq_along(sim_files)) {
@@ -1178,35 +1181,37 @@ for(curr_sim in seq_along(sim_files)) {
               sim_files[curr_sim]))
   
   eta_m1 <- sim_model3_stan_sim1 %>% 
-    select(starts_with("eta")) %>% 
+    select(starts_with("eta") | starts_with("beta") |
+             starts_with("r_lam")) %>% 
     pivot_longer(everything()) %>% 
     group_by(name) %>% 
-    summarise(mean_est = mean(value)) %>% 
-    mutate(model = "C-HP")
-  
-  
+    summarise(mean_est = median(value)) %>% 
+    mutate(model = "C-HP") %>% 
+    filter(name != "beta_delta")
   
   eta_m2 <- sim_model3_stan_sim2 %>%
-    select(starts_with("eta")) %>% 
+    select(starts_with("eta") | starts_with("beta") |
+             starts_with("r_lam")) %>% 
     pivot_longer(everything()) %>% 
     group_by(name) %>% 
-    summarise(mean_est = mean(value)) %>% 
-    mutate(model = "C-DCHP")
+    summarise(mean_est = median(value)) %>% 
+    mutate(model = "C-DCHP") %>% 
+    filter(name != "beta_delta")
   
   eta_m3 <- sim_model3_stan_sim3 %>%
-    select(starts_with("eta")) %>% 
+    select(starts_with("eta") | starts_with("beta") |
+             starts_with("r_lam")) %>% 
     pivot_longer(everything()) %>% 
     group_by(name) %>% 
-    summarise(mean_est = mean(value)) %>% 
-    mutate(model = "C-MMHP")
+    summarise(mean_est = median(value)) %>% 
+    mutate(model = "C-MMHP") %>% 
+    filter(name != "beta_delta")
   
   curr_sim_ests <- bind_rows(eta_m1,
                              eta_m2,
                              eta_m3)
-
   eta_ests <- eta_ests %>% 
     bind_rows(curr_sim_ests)
-  
 }
 
 
@@ -1214,18 +1219,108 @@ eta_ests$model <- factor(eta_ests$model, levels = c("C-HP",
                                                     "C-DCHP",
                                                     "C-MMHP"))
 
-tru_values <- tibble(name = c("eta_1", "eta_2", "eta_3"),
+tru_values <- tibble(name = c("eta_1", "eta_2", "eta_3",
+                              "r_lambda1", "beta"),
                      mean_est = c(object_par$sim_eta_1,
                                   object_par$sim_eta_2,
-                                  object_par$sim_eta_3))
+                                  object_par$sim_eta_3,
+                                  object_par$sim_w_lam,
+                                  object_par$sim_beta))
 
 eta_ests %>% 
   ggplot(aes(name, mean_est)) +
   geom_boxplot(aes(fill = model)) +
   geom_hline(mapping = aes(yintercept = mean_est),
              tru_values, colour = "red") +
-  facet_wrap(~name)
+  facet_wrap(~name, scales = "free")
 
 ```
 
 
+Similarly, we can check the degree parameters.
+
+```{r gamma-estimates}
+gamma_ests <- tibble()
+
+for(curr_sim in seq_along(sim_files)) {
+  load(paste0(sim_data_path,
+              sim_files[curr_sim]))
+  
+  gamm_m2 <- sim_model3_stan_sim2 %>%
+    select(starts_with("gamma") ) %>% 
+    pivot_longer(everything()) %>% 
+    group_by(name) %>% 
+    summarise(mean_est = median(value)) %>% 
+    mutate(model = "C-DCHP") 
+  
+  gamm_m3 <- sim_model3_stan_sim3 %>%
+    select(starts_with("gamma") ) %>% 
+    pivot_longer(everything()) %>% 
+    group_by(name) %>% 
+    summarise(mean_est = median(value)) %>% 
+    mutate(model = "C-MMHP") 
+  
+  curr_sim_ests <- bind_rows(gamm_m2,
+                             gamm_m3)
+  gamma_ests <- gamma_ests %>% 
+    bind_rows(curr_sim_ests)
+}
+
+
+gamma_ests$model <- factor(gamma_ests$model, levels = c("C-HP",
+                                                    "C-DCHP",
+                                                    "C-MMHP"))
+
+tru_values <- tibble(name = paste0("gamma[", 1:num_nodes, "]"),
+                     mean_est = object_par$gamma_var)
+
+gamma_ests %>% 
+  ggplot(aes(name, mean_est)) +
+  geom_boxplot(aes(fill = model)) +
+  geom_hline(mapping = aes(yintercept = mean_est),
+             tru_values, colour = "red") +
+  facet_wrap(~name, scales = "free")
+```
+
+```{r gamma-estimates}
+zeta_ests <- tibble()
+
+for(curr_sim in seq_along(sim_files)) {
+  load(paste0(sim_data_path,
+              sim_files[curr_sim]))
+  
+  zeta_m2 <- sim_model3_stan_sim2 %>%
+    select(starts_with("zeta") ) %>% 
+    pivot_longer(everything()) %>% 
+    group_by(name) %>% 
+    summarise(mean_est = median(value)) %>% 
+    mutate(model = "C-DCHP") 
+  
+  zeta_m3 <- sim_model3_stan_sim3 %>%
+    select(starts_with("zeta") ) %>% 
+    pivot_longer(everything()) %>% 
+    group_by(name) %>% 
+    summarise(mean_est = median(value)) %>% 
+    mutate(model = "C-MMHP") 
+  
+  curr_sim_ests <- bind_rows(zeta_m2,
+                             zeta_m3)
+  zeta_ests <- zeta_ests %>% 
+    bind_rows(curr_sim_ests)
+}
+
+
+zeta_ests$model <- factor(zeta_ests$model, levels = c("C-HP",
+                                                    "C-DCHP",
+                                                    "C-MMHP"))
+
+tru_values <- tibble(name = paste0("zeta[", 1:num_nodes, "]"),
+                     mean_est = object_par$zeta_var)
+
+zeta_ests %>% 
+  ggplot(aes(name, mean_est)) +
+  geom_boxplot(aes(fill = model)) +
+  geom_hline(mapping = aes(yintercept = mean_est),
+             tru_values, colour = "red") +
+  facet_wrap(~name, scales = "free")
+```
