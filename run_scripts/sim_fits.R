@@ -33,7 +33,7 @@ source('lib/drawIntensity.R')
 n_sim <- 1
 num_nodes <- 12
 cut_off <- 3
-obs_time <- 100
+obs_time <- 200
 
 cohort_ests <- readRDS("output/sim_ests.RDS")
 
@@ -97,10 +97,11 @@ object_par <- list(gamma_var = gamma_est,
                    sim_eta_2 = eta_2_est, #1.5, # from 2.6
                    sim_eta_3 = eta_3_est, 
                    sim_beta = beta_est, # from 2
-                   f_vec_1 = f_est)
-                   # seq(from = 0.1,
-                   #               to = 0.9,
-                   #               length.out = num_nodes))
+                   sim_w_lam = w_lam_est,
+                   # f_vec_1 = f_est)
+                   seq(from = 0.1,
+                                 to = 0.9,
+                                 length.out = num_nodes))
 
 
 object_matrix <- list(
@@ -112,7 +113,7 @@ object_matrix <- list(
   #   nrow = length(object_par$f_vec_1),
   #   ncol = length(object_par$f_vec_1)
   # ),
-  lambda1_matrix = w_lam_est * outer(
+  lambda1_matrix = object_par$sim_w_lam * outer(
     object_par$gamma_var,
     object_par$zeta_var, "+"
   ),
