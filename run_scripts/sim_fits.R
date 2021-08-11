@@ -33,7 +33,7 @@ source('lib/drawIntensity.R')
 n_sim <- 1
 num_nodes <- 12
 cut_off <- 3
-obs_time <- 200
+obs_time <- 150
 
 cohort_ests <- readRDS("output/sim_ests.RDS")
 
