@@ -10,7 +10,7 @@ jobid <- as.numeric(jobid)
 cohort_id <- jobid
 # cohort_id <- 1
 ####
-save_data_path <- "output/revisions/lapl_check/"
+save_data_path <- "output/revisions/aug_run/"
 
 library(cmdstanr)
 options(mc.cores = parallel::detectCores())

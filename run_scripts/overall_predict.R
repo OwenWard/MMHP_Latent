@@ -11,7 +11,7 @@ source("/moto/stats/users/ogw2103/Code/MMHP_Latent/run_scripts/cluster_setup.R")
 # cohort_id <- 1
 ####
 
-data_path <- "output/revisions/lapl_check/prior_check/"
+data_path <- "output/revisions/aug_run/"
 
 # library(rstan)
 # options(mc.cores = parallel::detectCores())

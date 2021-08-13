@@ -10,7 +10,7 @@ jobid <- as.numeric(jobid)
 cohort_id <- jobid
 # cohort_id <- 1
 ####
-data_path <- "output/revisions/lapl_check/prior_check/"
+data_path <- "output/revisions/aug_run/"
 
 
 library(cmdstanr)
