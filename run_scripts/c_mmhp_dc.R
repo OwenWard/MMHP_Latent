@@ -11,7 +11,7 @@ jobid <- as.numeric(jobid)
 cohort_id <- jobid
 # cohort_id <- 1
 ####
-save_data_path <- "output/revisions/lapl_check/ident_check/" # "output_june30/"
+save_data_path <- "output/revisions/aug_run/" # "output_june30/"
 
 ### specify the number of segments here
 no_segments <- 500
@@ -101,7 +101,7 @@ print(paste("Cohort", current_cohort))
 #### fit the stan model ####
 # print(paste("Cohort", current_cohort))
 # 
-dc_model <- cmdstan_model("lib/model3_dc_lapl_ident.stan")
+dc_model <- cmdstan_model("lib/model3_dc_lapl_aug.stan")
 # 
 stan_input_lst <- prepareDataStan(current_cohort)
 stan_input_lst$alpha_id <- expert_rank_10[[current_cohort]][1]
