@@ -42,11 +42,11 @@ model{
   vector[max_Nm+1] interevent;
   vector[max_Nm] event;
   
-  beta_delta ~ lognormal(0,1);
-  lambda0 ~ lognormal(0,0.5);
-  eta_1 ~ lognormal(0,1);
-  eta_2 ~ lognormal(0,1);
-  eta_3 ~ lognormal(0,1);
+  beta_delta ~ normal(0,1);
+  lambda0 ~ normal(0,1);
+  eta_1 ~ normal(0,1);
+  eta_2 ~ normal(0,1);
+  eta_3 ~ normal(0,1);
   //beta ~  lognormal(0,2);
   //tilde_beta ~ normal(0,20);
 

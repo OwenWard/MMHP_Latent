@@ -8,7 +8,7 @@ jobid <- Sys.getenv("SLURM_ARRAY_TASK_ID")
 jobid <- as.numeric(jobid)
 cohort_id <- jobid
 
-save_data_path <- "output/revisions/lapl_check/"
+save_data_path <- "output/revisions/lapl_check/ident_check/"
 library(cmdstanr)
 options(mc.cores = parallel::detectCores())
 

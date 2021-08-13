@@ -46,22 +46,17 @@ transformed parameters{
 
 model{
   real r[max_Nm+1]; // record variable for Hawkes process
-  //real alpha;
   real lambda_current;
   real tilde_lambda0;
   //real intensity_end_window[N_til,no_observations]; 
   //intensity by and of observation window
   vector[max_Nm+1] interevent;
   vector[max_Nm] event;
-  
-  eta_1 ~ lognormal(0,1);
-  eta_2 ~ lognormal(0,1);
-  eta_3 ~ lognormal(0,1);
-  //beta ~ lognormal(0,2);//(0,10);
-  beta_delta ~ lognormal(0,1);
-  //tilde_beta ~ normal(0,20);
+  eta_1 ~ normal(0,1);
+  eta_2 ~ normal(0,1);
+  eta_3 ~ normal(0,1);
+  beta_delta ~ normal(0,1);
   gamma ~ double_exponential(0, 0.1);//
-  // inv_gamma(3,0.5);//double_exponential(0,scale); // sigma smaller, sparser
   zeta ~ double_exponential(0, 0.1);//double_exponential(0,scale);
 
   for(i in 1:N_til){
