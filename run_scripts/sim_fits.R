@@ -97,7 +97,7 @@ object_par <- list(gamma_var = seq(from = 0.01, to = 0.2,
                    sim_eta_1 = 3, # from 3.5
                    sim_eta_2 = 2, # from 2.6
                    sim_eta_3 = 2.5, 
-                   sim_beta = beta_est, # from 2
+                   sim_beta = 1.5, # from 2
                    sim_w_lam = 1.5,
                    # f_vec_1 = f_est)
                    f_vec_1 = seq(from = 0.1,
@@ -219,7 +219,7 @@ print(paste(i,"model1"))
 # start_time <- Sys.time()
 sim_model3_stan_fit1 <- model1$sample(data = data_list,
                                       iter_sampling = 1000,
-                                      # iter_warmup = 25,
+                                      thin = 4,
                                       refresh = 100,
                                       chains = 4)
 
@@ -232,6 +232,7 @@ sim_model3_fit1_draws <- posterior::as_draws_df(sim_model3_fit_1)
 # start_time <- Sys.time()
 sim_model3_stan_fit2 <- model2$sample(data = data_list,
                                       iter_sampling = 1000,
+                                      thin = 4,
                                       refresh = 100,
                                       chains = 4)
 # m2_time <- Sys.time() - start_time
@@ -254,6 +255,7 @@ sim_model3_stan_fit3 <- model3$sample(data = data_list,
                                       iter_warmup = 1000,
                                       iter_sampling = 1000,
                                       chains = 4,
+                                      thin = 4,
                                       refresh = 100)
 
 sim_model3_fit_3 <- sim_model3_stan_fit3$draws()
