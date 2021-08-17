@@ -97,7 +97,7 @@ object_par <- list(gamma_var = seq(from = 0.01, to = 0.2,
                    sim_eta_1 = 3, # from 3.5
                    sim_eta_2 = 2, # from 2.6
                    sim_eta_3 = 2.5, 
-                   sim_beta = beta_est, # from 2
+                   sim_beta = 1.5, # from 2
                    sim_w_lam = 1.5,
                    # f_vec_1 = f_est)
                    f_vec_1 = seq(from = 0.1,
