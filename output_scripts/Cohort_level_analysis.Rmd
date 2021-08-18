@@ -19,22 +19,15 @@ knitr::opts_chunk$set(
   warning = FALSE, cache = TRUE
 )
 
-slides_plots <- FALSE
-extra_plots <- FALSE
-
-
-revision_plots <- TRUE
-original_plots <- FALSE
-### original plots for plots which are no longer needed, 
-### revision plots are what required
-
-# current_cohort <- 5
+## cache_options for individual output types here? maybe?
+cache_table <- FALSE
+cache_corr <- FALSE
+cache_pars <- FALSE
 
 # don't write to this path
-data_path <- "../output/revisions/lapl_check/prior_check/"
-no_eta_3_data_path <- "../output/revisions/lapl_check/ident_check/"
-no_eta_1_data_path <- "../output/revisions/lapl_check/ident_check_no_eta1/"
+data_path <- "../output/revisions/aug_run/"
 
+options(digits = 3)
 
 func_dir <- "../lib/"
 
@@ -51,7 +44,9 @@ library(posterior)
 library(bayesplot)
 library(viridis)
 library(here)
+library(corrplot)
 library(compete)
+library(kableExtra)
 library(colorspace)
 source(paste(func_dir, "naiveRankHierarchy.R", sep = ""))
 source(paste(func_dir, "expertRankHierarchy.R", sep = ""))
@@ -84,9 +79,43 @@ col_df <- tibble(
 theme_set(theme_minimal())
 ```
 
+```{css, echo=FALSE, cache=FALSE}
+.header-section-number {
+  display: none;
+}
+
+body {
+  counter-reset: counter-level-1;
+}
+
+h1:not(.title) {
+  counter-increment: counter-level-1;
+  counter-reset: counter-level-2;
+}
 
 
-```{r load rankings, echo=FALSE, results='hide', cache=TRUE}
+h2 {
+  counter-increment: counter-level-1;
+  counter-increment: counter-level-2;
+  # counter-reset: counter-level-3;
+}
+
+h2::before {
+  counter-increment: counter-level-1;
+}
+
+h3 {
+  counter-increment: counter-level-3;
+  counter-increment: counter-level-2;
+}
+
+
+h3::before {
+  content: counter(counter-level-2) " ";
+}
+```
+
+```{r load rankings, echo=FALSE, results='hide'}
 full_data <- readRDS("../data/mice.RData")
 # A=c9, B=c10, C=c12, D=c15, E=c16, F=c17, G=c18, H=c37, I=c38. J=c45
 
@@ -120,7 +149,6 @@ model3_fn <- list(
   }
 )
 ```
-
 
 
 ```{r define_plot_functions}
@@ -207,9 +235,6 @@ total_events_active <- function(current_cohort) {
   return(active_matrix)
 }
 
-
-
-###
 print_total_less_windows <- function(current_cohort) {
   cat(paste("Cohort ", current_cohort, "\n", sep = ""))
   clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
@@ -557,6 +582,9 @@ param_ests <- function(current_cohort){
                 mutate(Model = "C-HP"))
   all_data$Model <- factor(all_data$Model,
                            levels = c("C-HP", "C-DCHP", "C-MMHP"))
+  w_lam_est <- all_data %>% 
+    filter(name == "w_lambda") %>% 
+    summarise(median(value)) %>% pull()
   comp_plot <- ggplot(all_data, aes(name, value, fill = Model)) +
     geom_boxplot() +
     scale_fill_manual(values = plot_cols) +
@@ -571,7 +599,8 @@ param_ests <- function(current_cohort){
   all_data <- sim_cohort_mmhp %>%
     select(starts_with("gamma")) %>%
     pivot_longer(everything()) %>%
-    mutate(Model = "C-MMHP") %>%
+    mutate(Model = "C-MMHP",
+           value = value * w_lam_est) %>%
     bind_rows(sim_cohort_dchp %>%
                 select(starts_with("gamma")) %>%
                 pivot_longer(everything()) %>%
@@ -592,7 +621,8 @@ param_ests <- function(current_cohort){
   all_data <- sim_cohort_mmhp %>%
     select(starts_with("zeta") ) %>%
     pivot_longer(everything()) %>%
-    mutate(Model = "C-MMHP") %>%
+    mutate(Model = "C-MMHP",
+           value = value * w_lam_est) %>%
     bind_rows(sim_cohort_dchp %>%
                 select(starts_with("zeta")) %>%
                 pivot_longer(everything()) %>%
@@ -611,16 +641,195 @@ param_ests <- function(current_cohort){
   print(comp_plot)
 }
 
+fights_table <- function(current_cohort) {
+  clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
+  return_df <- cleanObservationPeriod(current_cohort,
+                                      raw_df =
+                                full_data[[cohort_names[current_cohort]]],
+                                      clean_data
+  )
+  total_events <- clean_data$N_count
+  active_events <- total_events_active(current_cohort)
+  active_out <- rowSums(active_events)
+  active_in <- colSums(active_events)
+  out_fights <- rowSums(total_events)
+  in_fights <- colSums(total_events)
+  fight_data <- tibble(node = 1:12,
+                       out_fights = out_fights,
+                       in_fights = in_fights,
+                       out_act_perc = active_out/out_fights,
+                       in_act_perc = active_in/in_fights)
+  
+  isi_rank <- expert_rank_10[[current_cohort]]
+  # this orders from best to worst
+  ## load cmmhp rank
+  load(paste(data_path,
+             cohort_names[current_cohort],
+             "/cohort_mmhp_stan_result_",
+             cohort_names[current_cohort],
+             ".RData",
+             sep = ""
+  ))
+  cmmhp_rank <- sim_cohort_mmhp %>% 
+    select(starts_with("f")) %>% 
+    pivot_longer(everything()) %>% 
+    group_by(name) %>% 
+    summarise(cmmhp_rank = median(value))
+  out_degrees <- sim_cohort_mmhp %>% 
+    select(starts_with("gamma")) %>% 
+    pivot_longer(everything()) %>% 
+    group_by(name) %>% 
+    summarise(out_degree = median(value)) %>% 
+    mutate(node = stringr::str_extract(name,
+                                       pattern = "[:digit:]+")) %>%
+    mutate(node = as.integer(node)) %>% 
+    select(node, out_degree)
+  in_degrees <- sim_cohort_mmhp %>% 
+    select(starts_with("zeta")) %>% 
+    pivot_longer(everything()) %>% 
+    group_by(name) %>% 
+    summarise(in_degree = median(value)) %>% 
+    mutate(node = stringr::str_extract(name,
+                                       pattern = "[:digit:]+")) %>% 
+    mutate(node = as.integer(node)) %>% 
+    select(node, in_degree)
+  cmmhp_names <- stringr::str_extract(cmmhp_rank$name,
+                                      pattern = "[:digit:]+")
+  cmmhp_ranks <- tibble(node = cmmhp_names, 
+                        rank = cmmhp_rank$cmmhp_rank) %>% 
+    arrange(desc(rank)) %>% 
+    mutate(node = as.integer(node), num_rank_cmmhp = 1:12)
+  isi_ranks <- tibble(node = isi_rank, 
+                      num_rank_isi = 1:length(cmmhp_names))
+  ## don't need isi or cmmhp ranks here
+  
+  summary_data <- fight_data %>% 
+    left_join(cmmhp_ranks, by = "node") %>% 
+    left_join(isi_ranks, by = "node") %>% 
+    left_join(out_degrees, by = "node") %>% 
+    left_join(in_degrees, by = "node") %>% 
+    # this will
+    mutate(isi_less_cmmhp = num_rank_isi - num_rank_cmmhp) %>% 
+    select(-c(rank,num_rank_isi, num_rank_cmmhp)) %>% 
+    pivot_longer(cols = out_fights:isi_less_cmmhp)
+  
+  # knitr::kable(summary_data)
+  summary_data
+}
+
+corr_matrices <- function(current_cohort) {
+  load(paste(data_path,
+             cohort_names[current_cohort],
+             "/cohort_mmhp_stan_result_",
+             cohort_names[current_cohort],
+             ".RData",
+             sep = ""
+  ))
+  
+  m3_ranks <- sim_cohort_mmhp %>% 
+    select(starts_with("f")) %>% 
+    pivot_longer(everything()) %>% 
+    group_by(name) %>% 
+    summarise("C-MMHP" = median(value))
+  
+  load(paste(data_path,
+             cohort_names[current_cohort],
+             "/cohort_hp_stan_result_",
+             cohort_names[current_cohort],
+             ".RData",
+             sep = ""
+  ))
+  
+  m1_ranks <- sim_cohort_hp %>% 
+    select(starts_with("f")) %>% 
+    pivot_longer(everything()) %>% 
+    group_by(name) %>% 
+    summarise("C-HP" = median(value))
+  
+  load(paste(data_path,
+             cohort_names[current_cohort],
+             "/cohort_dchp_stan_result_",
+             cohort_names[current_cohort],
+             ".RData",
+             sep = ""
+  ))
+  
+  m2_ranks <- sim_cohort_dchp %>% 
+    select(starts_with("f")) %>% 
+    pivot_longer(everything()) %>% 
+    group_by(name) %>% 
+    summarise("C-DCHP" = median(value))
+  
+  ranks <- m1_ranks %>% 
+    left_join(m2_ranks, by = "name") %>% 
+    left_join(m3_ranks, by = "name")
+  
+  cor_matrix <- cor(ranks[,2:4])
+  # col3 = colorRampPalette(c('red', 'white', 'blue'))
+  corrplot(cor_matrix,
+           type = "upper",
+           tl.col = "black",
+           col.lim = c(0,1),
+        title = "Pearson Correlation median ranks",
+        mar = c(0, 0, 1, 0), diag = FALSE)
+  
+  ## same think for spearman rank correlation
+  m1_num <- m1_ranks %>% 
+    rename(value = "C-HP") %>% 
+    arrange(desc(value)) %>% 
+    mutate(chp = 1:12) %>% 
+    mutate(node = stringr::str_extract(name,
+                                       pattern = "[:digit:]+")) %>%
+    mutate(node = as.integer(node)) %>% 
+    select(node, chp)
+  
+  m2_num <- m2_ranks %>% 
+    rename(value = "C-DCHP") %>% 
+    arrange(desc(value)) %>% 
+    mutate(cdchp = 1:12) %>% 
+    mutate(node = stringr::str_extract(name,
+                                       pattern = "[:digit:]+")) %>%
+    mutate(node = as.integer(node)) %>% 
+    select(node, cdchp)
+  
+  m3_num <- m3_ranks %>% 
+    rename(value = "C-MMHP") %>% 
+    arrange(desc(value)) %>% 
+    mutate(cmmhp = 1:12) %>% 
+    mutate(node = stringr::str_extract(name,
+                                       pattern = "[:digit:]+")) %>%
+    mutate(node = as.integer(node)) %>% 
+    select(node, cmmhp)
+
+  isi_ranks <- tibble(node = expert_rank_10[[current_cohort]],
+                      isi = 1:12)
+  ###
+  rank_df <- m1_num %>% 
+    left_join(m2_num, by = "node") %>% 
+    left_join(m3_num, by = "node") %>% 
+    left_join(isi_ranks, by = "node")
+
+  spear_cor <- cor(rank_df[,2:5], method = "spearman")
+  
+  corrplot(spear_cor,
+           type = "upper",
+           tl.col = "black",
+           col.lim = c(0,1),
+           title = "Spearman Rank Correlation",
+           mar = c(0, 0, 1, 0), diag = FALSE)
+}
 ```
 
 
 
 # Results {.tabset .unnumbered #sec1} 
 
-## Cohort 1
+## Cohort 1 {-}
 
 ```{r set_cohort}
 current_cohort <- 1
+clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
+# the clean_data is handy for other intermediate analyses
 ```
 
 
@@ -630,10 +839,115 @@ current_cohort <- 1
 print_total_events(current_cohort)
 ```
 
-### Total Events less Number of Windows containing events ordered by I&SI
+### Total Active Events ordered by I&SI
+
+Here all events which are classified as inactive by the C-MMHP model
+originate from the top ranked animal. As such there is strong
+agreement between the win/loss matrix of all events and
+those ocurring in active periods, with the 
+restriction to only active events
+slightly decreasing the 
+influence of the top ranked animal.
 
 ```{r total-events-less-active-windows, message=FALSE}
 active_events <- total_events_active(current_cohort)
+active_events <- active_events[expert_rank_10[[current_cohort]],
+                               expert_rank_10[[current_cohort]]]
+colnames(active_events) <- expert_rank_10[[current_cohort]]
+rownames(active_events) <- expert_rank_10[[current_cohort]]
+print(active_events)
+```
+
+
+### Correlation Matrices
+
+Examing the correlation matrices of both the median ranks for
+each of our cohort models and the Spearman rank correlations,
+we see that the C-HP most agrees with the I&SI ranking,
+with the C-DCHP and C-MMHP models showing progressively less agreement.
+
+```{r corr-plots, message=FALSE}
+corr_matrices(current_cohort)
+```
+
+
+### Inferred ranking ordered by I&SI score
+
+We next plot the inferred posterior rank estimates from 
+each of our cohort models and the comparison AggRank model,
+where we order the animals by the estimated I&SI ranking.
+
+```{r ranked-by-isi}
+rankings_by_isi(current_cohort)
+```
+
+
+### Inferred ranking order by C-MMHP median ranking
+
+Similarly, to show how this rank differs from that obtained by the C-MMHP
+model, we order the animals by the inferred ranking from that
+model.
+
+```{r ranked-by-cmmhp}
+rankings_by_cmmhp(current_cohort)
+```
+
+### Parameter Estimates
+
+For each of our three proposed models, we show the parameter
+estimates for the non rank parameters, including the in and
+out degree estimates for the models which incorporate degree
+corrections.
+
+```{r param-ests, message=FALSE}
+param_ests(current_cohort)
+```
+
+### Summary Table
+
+Finally, for each animal in this cohort, we summarise
+
+```{r summ_tabls, message=FALSE}
+c1_summ <- fights_table(current_cohort)
+# c1_summ %>% 
+#   kbl() %>% 
+#   kable_styling()
+
+c1_summ %>% 
+  pivot_wider(id_cols = node) %>% 
+  rename(out_deg = out_degree, in_deg = in_degree,
+         "Out Events" = out_fights,
+         "In Events" = in_fights,
+         "% In Active" = in_act_perc, "% Out Active" = out_act_perc,
+         "Out Degree" = out_degree,
+         "In Degree" = in_degree,
+         "I&SI to C-MMHP change" = isi_less_cmmhp,
+         "Animal" = node) %>% 
+  kbl() %>% 
+  kable_styling()
+```
+
+
+
+## Cohort 2 {-}
+
+```{r set_cohort2}
+current_cohort <- 2
+```
+
+
+### Total Events ordered by I&SI ranking
+
+```{r total-events_2, message=FALSE}
+print_total_events(current_cohort)
+```
+
+### Total Active Events ordered by I&SI
+
+```{r total-events-less-active-windows2, message=FALSE}
+active_events <- total_events_active(current_cohort)
+active_events <- active_events[expert_rank_10[[current_cohort]],
+                               expert_rank_10[[current_cohort]]]
 colnames(active_events) <- expert_rank_10[[current_cohort]]
 rownames(active_events) <- expert_rank_10[[current_cohort]]
 print(active_events)
@@ -643,471 +957,831 @@ print(active_events)
 ### Correlation Matrices
 
 
+```{r corr-plots2, message=FALSE}
+corr_matrices(current_cohort)
+```
+
 
 ### Inferred ranking ordered by I&SI score
 
-```{r ranked-by-isi}
+```{r ranked-by-isi2}
 rankings_by_isi(current_cohort)
 ```
 
 
 ### Inferred ranking order by C-MMHP median ranking
 
-```{r ranked-by-cmmhp}
+```{r ranked-by-cmmhp2}
 rankings_by_cmmhp(current_cohort)
 ```
 
 ### Parameter Estimates
 
-```{r param-ests, message=FALSE}
+```{r param-ests2, message=FALSE}
 param_ests(current_cohort)
 ```
 
-<!-- ## Cohort 2 -->
+### Summary Table
 
-<!-- ```{r set_cohort-2} -->
-<!-- current_cohort <- 2 -->
-<!-- ``` -->
+```{r summ_tabls2, message=FALSE}
+c2_summ <- fights_table(current_cohort)
 
+c2_summ %>% 
+  pivot_wider(id_cols = node) %>% 
+  rename(out_deg = out_degree, in_deg = in_degree,
+         "Out Events" = out_fights,
+         "In Events" = in_fights,
+         "% In Active" = in_act_perc, "% Out Active" = out_act_perc,
+         "Out Degree" = out_degree,
+         "In Degree" = in_degree,
+         "I&SI to C-MMHP change" = isi_less_cmmhp,
+         "Animal" = node) %>% 
+  kbl() %>% 
+  kable_styling()
+```
 
-<!-- ### Total Events ordered by I&SI ranking -->
 
-<!-- ```{r total-events_2, message=FALSE} -->
-<!-- print_total_events(current_cohort) -->
-<!-- ``` -->
 
-<!-- ### Total Events less Number of Windows containing events ordered by I&SI -->
+## Cohort 3 {-}
 
-<!-- ```{r total-events-less-active-windows-c2, message=FALSE} -->
-<!-- print_total_less_windows(current_cohort) -->
-<!-- ``` -->
+```{r set_cohort3}
+current_cohort <- 3
+```
 
 
-<!-- ### Inferred ranking, ordered by total interactions -->
+### Total Events ordered by I&SI ranking
 
-<!-- ```{r all-4-models-c2, warning=FALSE} -->
-<!-- rankings_by_total(current_cohort) -->
-<!-- ``` -->
+```{r total-events_3, message=FALSE}
+print_total_events(current_cohort)
+```
 
-<!-- <!-- Similarly, here are the corresponding plots with the animals ranked by --> 
-<!-- <!-- I&SI score instead. --> 
+### Total Active Events ordered by I&SI
 
-<!-- ### Inferred ranking ordered by I&SI score -->
+```{r total-events-less-active-windows3, message=FALSE}
+active_events <- total_events_active(current_cohort)
+active_events <- active_events[expert_rank_10[[current_cohort]],
+                               expert_rank_10[[current_cohort]]]
+colnames(active_events) <- expert_rank_10[[current_cohort]]
+rownames(active_events) <- expert_rank_10[[current_cohort]]
+print(active_events)
+```
 
-<!-- ```{r ranked-by-isi-c2} -->
-<!-- rankings_by_isi(current_cohort) -->
-<!-- ``` -->
 
+### Correlation Matrices
 
 
-<!-- ## C 3  -->
+```{r corr-plots3, message=FALSE}
+corr_matrices(current_cohort)
+```
 
-<!-- ```{r set_cohort-3} -->
-<!-- current_cohort <- 3 -->
-<!-- ``` -->
 
+### Inferred ranking ordered by I&SI score
 
-<!-- ### Total Events ordered by I&SI ranking -->
+```{r ranked-by-isi3}
+rankings_by_isi(current_cohort)
+```
 
-<!-- ```{r total-events_3, message=FALSE} -->
-<!-- print_total_events(current_cohort) -->
-<!-- ``` -->
 
-<!-- ### Total Events less Number of Windows containing events ordered by I&SI -->
+### Inferred ranking order by C-MMHP median ranking
 
-<!-- ```{r total-events-less-active-windows-c3, message=FALSE} -->
-<!-- print_total_less_windows(current_cohort) -->
-<!-- ``` -->
+```{r ranked-by-cmmhp3}
+rankings_by_cmmhp(current_cohort)
+```
 
+### Parameter Estimates
 
-<!-- ### Inferred ranking, ordered by total interactions -->
+```{r param-ests3, message=FALSE}
+param_ests(current_cohort)
+```
 
-<!-- ```{r all-4-models-c3, warning=FALSE} -->
-<!-- rankings_by_total(current_cohort) -->
-<!-- ``` -->
+### Summary Table
 
-<!-- <!-- Similarly, here are the corresponding plots with the animals ranked by --> 
-<!-- <!-- I&SI score instead. --> 
+```{r summ_tabls3, message=FALSE}
+c3_summ <- fights_table(current_cohort)
 
-<!-- ### Inferred ranking ordered by I&SI score -->
+c3_summ %>% 
+  pivot_wider(id_cols = node) %>% 
+  rename(out_deg = out_degree, in_deg = in_degree,
+         "Out Events" = out_fights,
+         "In Events" = in_fights,
+         "% In Active" = in_act_perc, "% Out Active" = out_act_perc,
+         "Out Degree" = out_degree,
+         "In Degree" = in_degree,
+         "I&SI to C-MMHP change" = isi_less_cmmhp,
+         "Animal" = node) %>% 
+  kbl() %>% 
+  kable_styling()
+```
 
-<!-- ```{r ranked-by-isi-c3} -->
-<!-- rankings_by_isi(current_cohort) -->
-<!-- ``` -->
 
 
-<!-- ### Compare parameter estimates with/without eta_3 -->
+## Cohort 4 {-}
 
+```{r set_cohort4}
+current_cohort <- 4
+```
 
-<!-- ```{r plot-rankings-both-models-no-eta3-c3, message=FALSE} -->
-<!-- ests_without_eta_3(current_cohort) -->
-<!-- ``` -->
 
+### Total Events ordered by I&SI ranking
 
-<!-- ### Compare parameter estimates with/without eta_1 -->
+```{r total-events_4, message=FALSE}
+print_total_events(current_cohort)
+```
 
+### Total Active Events ordered by I&SI
 
-<!-- ```{r plot-rankings-both-models-no-eta-1-c3, message=FALSE} -->
-<!-- ests_without_eta_1(current_cohort) -->
-<!-- ``` -->
+```{r total-events-less-active-windows4, message=FALSE}
+active_events <- total_events_active(current_cohort)
+active_events <- active_events[expert_rank_10[[current_cohort]],
+                               expert_rank_10[[current_cohort]]]
+colnames(active_events) <- expert_rank_10[[current_cohort]]
+rownames(active_events) <- expert_rank_10[[current_cohort]]
+print(active_events)
+```
 
-<!-- ## C 4 -->
 
-<!-- ```{r set_cohort-4} -->
-<!-- current_cohort <- 4 -->
-<!-- ``` -->
+### Correlation Matrices
 
 
-<!-- ### Total Events ordered by I&SI ranking -->
+```{r corr-plots4, message=FALSE}
+corr_matrices(current_cohort)
+```
 
-<!-- ```{r total-events_4, message=FALSE} -->
-<!-- print_total_events(current_cohort) -->
-<!-- ``` -->
 
-<!-- ### Total Events less Number of Windows containing events ordered by I&SI -->
+### Inferred ranking ordered by I&SI score
 
-<!-- ```{r total-events-less-active-windows-c4, message=FALSE} -->
-<!-- print_total_less_windows(current_cohort) -->
-<!-- ``` -->
+```{r ranked-by-isi4}
+rankings_by_isi(current_cohort)
+```
 
 
-<!-- ### Inferred ranking, ordered by total interactions -->
+### Inferred ranking order by C-MMHP median ranking
 
-<!-- ```{r all-4-models-c4, warning=FALSE} -->
-<!-- rankings_by_total(current_cohort) -->
-<!-- ``` -->
+```{r ranked-by-cmmhp4}
+rankings_by_cmmhp(current_cohort)
+```
 
-<!-- <!-- Similarly, here are the corresponding plots with the animals ranked by --> 
-<!-- <!-- I&SI score instead. --> 
+### Parameter Estimates
 
-<!-- ### Inferred ranking ordered by I&SI score -->
+```{r param-ests4, message=FALSE}
+param_ests(current_cohort)
+```
 
-<!-- ```{r ranked-by-isi-c4} -->
-<!-- rankings_by_isi(current_cohort) -->
-<!-- ``` -->
+### Summary Table
 
+```{r summ_tabls4, message=FALSE}
+c4_summ <- fights_table(current_cohort)
 
-<!-- ### Compare parameter estimates with/without eta_3 -->
+c4_summ %>% 
+  pivot_wider(id_cols = node) %>% 
+  rename(out_deg = out_degree, in_deg = in_degree,
+         "Out Events" = out_fights,
+         "In Events" = in_fights,
+         "% In Active" = in_act_perc, "% Out Active" = out_act_perc,
+         "Out Degree" = out_degree,
+         "In Degree" = in_degree,
+         "I&SI to C-MMHP change" = isi_less_cmmhp,
+         "Animal" = node) %>% 
+  kbl() %>% 
+  kable_styling()
+```
 
 
-<!-- ```{r plot-rankings-both-models-no-eta3-c4, message=FALSE} -->
-<!-- ests_without_eta_3(current_cohort) -->
-<!-- ``` -->
 
+## Cohort 5 {-}
 
-<!-- ### Compare parameter estimates with/without eta_1 -->
+```{r set_cohort5}
+current_cohort <- 5
+```
 
 
-<!-- ```{r plot-rankings-both-models-no-eta-1-c4, message=FALSE} -->
-<!-- ests_without_eta_1(current_cohort) -->
-<!-- ``` -->
+### Total Events ordered by I&SI ranking
 
-<!-- ## C 5 -->
+```{r total-events_5, message=FALSE}
+print_total_events(current_cohort)
+```
 
-<!-- ```{r set_cohort-5} -->
-<!-- current_cohort <- 5 -->
-<!-- ``` -->
+### Total Active Events ordered by I&SI
 
+```{r total-events-less-active-windows5, message=FALSE}
+active_events <- total_events_active(current_cohort)
+active_events <- active_events[expert_rank_10[[current_cohort]],
+                               expert_rank_10[[current_cohort]]]
 
-<!-- ### Total Events ordered by I&SI ranking -->
+colnames(active_events) <- expert_rank_10[[current_cohort]]
+rownames(active_events) <- expert_rank_10[[current_cohort]]
+print(active_events)
+```
 
-<!-- ```{r total-events_5, message=FALSE} -->
-<!-- print_total_events(current_cohort) -->
-<!-- ``` -->
 
-<!-- ### Total Events less Number of Windows containing events ordered by I&SI -->
+### Correlation Matrices
 
-<!-- ```{r total-events-less-active-windows-c5, message=FALSE} -->
-<!-- print_total_less_windows(current_cohort) -->
-<!-- ``` -->
 
+```{r corr-plots5, message=FALSE}
+corr_matrices(current_cohort)
+```
 
-<!-- ### Inferred ranking, ordered by total interactions -->
 
-<!-- ```{r all-4-models-c5, warning=FALSE} -->
-<!-- rankings_by_total(current_cohort) -->
-<!-- ``` -->
+### Inferred ranking ordered by I&SI score
 
-<!-- <!-- Similarly, here are the corresponding plots with the animals ranked by --> 
-<!-- <!-- I&SI score instead. --> 
+```{r ranked-by-isi5}
+rankings_by_isi(current_cohort)
+```
 
-<!-- ### Inferred ranking ordered by I&SI score -->
 
-<!-- ```{r ranked-by-isi-c5} -->
-<!-- rankings_by_isi(current_cohort) -->
-<!-- ``` -->
+### Inferred ranking order by C-MMHP median ranking
 
+```{r ranked-by-cmmhp5}
+rankings_by_cmmhp(current_cohort)
+```
 
-<!-- ### Compare parameter estimates with/without eta_3 -->
+### Parameter Estimates
 
+```{r param-ests5, message=FALSE}
+param_ests(current_cohort)
+```
 
-<!-- ```{r plot-rankings-both-models-no-eta3-c5, message=FALSE} -->
-<!-- ests_without_eta_3(current_cohort) -->
-<!-- ``` -->
+### Summary Table
 
+```{r summ_tabls5, message=FALSE}
+c5_summ <- fights_table(current_cohort)
 
-<!-- ### Compare parameter estimates with/without eta_1 -->
+c5_summ %>% 
+  pivot_wider(id_cols = node) %>% 
+  rename(out_deg = out_degree, in_deg = in_degree,
+         "Out Events" = out_fights,
+         "In Events" = in_fights,
+         "% In Active" = in_act_perc, "% Out Active" = out_act_perc,
+         "Out Degree" = out_degree,
+         "In Degree" = in_degree,
+         "I&SI to C-MMHP change" = isi_less_cmmhp,
+         "Animal" = node) %>% 
+  kbl() %>% 
+  kable_styling()
+```
 
 
-<!-- ```{r plot-rankings-both-models-no-eta-1-c5, message=FALSE} -->
-<!-- ests_without_eta_1(current_cohort) -->
-<!-- ``` -->
 
+## Cohort 6 {-}
 
-<!-- ## C 6 -->
+```{r set_cohort6}
+current_cohort <- 6
+```
 
-<!-- ```{r set_cohort-6} -->
-<!-- current_cohort <- 6 -->
-<!-- ``` -->
 
+### Total Events ordered by I&SI ranking
 
-<!-- ### Total Events ordered by I&SI ranking -->
+```{r total-events_6, message=FALSE}
+print_total_events(current_cohort)
+```
 
-<!-- ```{r total-events_6, message=FALSE} -->
-<!-- print_total_events(current_cohort) -->
-<!-- ``` -->
+### Total Active Events ordered by I&SI
 
-<!-- ### Total Events less Number of Windows containing events ordered by I&SI -->
+```{r total-events-less-active-windows6, message=FALSE}
+active_events <- total_events_active(current_cohort)
+active_events <- active_events[expert_rank_10[[current_cohort]],
+                               expert_rank_10[[current_cohort]]]
 
-<!-- ```{r total-events-less-active-windows-c6, message=FALSE} -->
-<!-- print_total_less_windows(current_cohort) -->
-<!-- ``` -->
+colnames(active_events) <- expert_rank_10[[current_cohort]]
+rownames(active_events) <- expert_rank_10[[current_cohort]]
+print(active_events)
+```
 
 
-<!-- ### Inferred ranking, ordered by total interactions -->
+### Correlation Matrices
 
-<!-- ```{r all-4-models-c6, warning=FALSE} -->
-<!-- rankings_by_total(current_cohort) -->
-<!-- ``` -->
 
-<!-- <!-- Similarly, here are the corresponding plots with the animals ranked by --> 
-<!-- <!-- I&SI score instead. --> 
+```{r corr-plots6, message=FALSE}
+corr_matrices(current_cohort)
+```
 
-<!-- ### Inferred ranking ordered by I&SI score -->
 
-<!-- ```{r ranked-by-isi-c6} -->
-<!-- rankings_by_isi(current_cohort) -->
-<!-- ``` -->
+### Inferred ranking ordered by I&SI score
 
+```{r ranked-by-isi6}
+rankings_by_isi(current_cohort)
+```
 
-<!-- ### Compare parameter estimates with/without eta_3 -->
 
+### Inferred ranking order by C-MMHP median ranking
 
-<!-- ```{r plot-rankings-both-models-no-eta3-c6, message=FALSE} -->
-<!-- ests_without_eta_3(current_cohort) -->
-<!-- ``` -->
+```{r ranked-by-cmmhp6}
+rankings_by_cmmhp(current_cohort)
+```
 
+### Parameter Estimates
 
-<!-- ### Compare parameter estimates with/without eta_1 -->
+```{r param-ests6, message=FALSE}
+param_ests(current_cohort)
+```
 
+### Summary Table
 
-<!-- ```{r plot-rankings-both-models-no-eta-1-c6, message=FALSE} -->
-<!-- ests_without_eta_1(current_cohort) -->
-<!-- ``` -->
+```{r summ_tabls6, message=FALSE}
+c6_summ <- fights_table(current_cohort)
 
+c6_summ %>% 
+  pivot_wider(id_cols = node) %>% 
+  rename(out_deg = out_degree, in_deg = in_degree,
+         "Out Events" = out_fights,
+         "In Events" = in_fights,
+         "% In Active" = in_act_perc, "% Out Active" = out_act_perc,
+         "Out Degree" = out_degree,
+         "In Degree" = in_degree,
+         "I&SI to C-MMHP change" = isi_less_cmmhp,
+         "Animal" = node) %>% 
+  kbl() %>% 
+  kable_styling()
 
-<!-- ## C 7 -->
+```
 
-<!-- ```{r set_cohort-7} -->
-<!-- current_cohort <- 7 -->
-<!-- ``` -->
 
 
-<!-- ### Total Events ordered by I&SI ranking -->
+## Cohort 7 {-}
 
-<!-- ```{r total-events_7, message=FALSE} -->
-<!-- print_total_events(current_cohort) -->
-<!-- ``` -->
+```{r set_cohort7}
+current_cohort <- 7
+```
 
-<!-- ### Total Events less Number of Windows containing events ordered by I&SI -->
 
-<!-- ```{r total-events-less-active-windows-c7, message=FALSE} -->
-<!-- print_total_less_windows(current_cohort) -->
-<!-- ``` -->
+### Total Events ordered by I&SI ranking
 
+```{r total-events_7, message=FALSE}
+print_total_events(current_cohort)
+```
 
-<!-- ### Inferred ranking, ordered by total interactions -->
+### Total Active Events ordered by I&SI
 
-<!-- ```{r all-4-models-c7, warning=FALSE} -->
-<!-- rankings_by_total(current_cohort) -->
-<!-- ``` -->
+```{r total-events-less-active-windows7, message=FALSE}
+active_events <- total_events_active(current_cohort)
+active_events <- active_events[expert_rank_10[[current_cohort]],
+                               expert_rank_10[[current_cohort]]]
 
-<!-- <!-- Similarly, here are the corresponding plots with the animals ranked by --> 
-<!-- <!-- I&SI score instead. --> 
+colnames(active_events) <- expert_rank_10[[current_cohort]]
+rownames(active_events) <- expert_rank_10[[current_cohort]]
+print(active_events)
+```
 
-<!-- ### Inferred ranking ordered by I&SI score -->
 
-<!-- ```{r ranked-by-isi-c7} -->
-<!-- rankings_by_isi(current_cohort) -->
-<!-- ``` -->
+### Correlation Matrices
 
 
-<!-- ### Compare parameter estimates with/without eta_3 -->
+```{r corr-plots7, message=FALSE}
+corr_matrices(current_cohort)
+```
 
 
-<!-- ```{r plot-rankings-both-models-no-eta3-c7, message=FALSE} -->
-<!-- ests_without_eta_3(current_cohort) -->
-<!-- ``` -->
+### Inferred ranking ordered by I&SI score
 
+```{r ranked-by-isi7}
+rankings_by_isi(current_cohort)
+```
 
-<!-- ### Compare parameter estimates with/without eta_1 -->
 
+### Inferred ranking order by C-MMHP median ranking
 
-<!-- ```{r plot-rankings-both-models-no-eta-1-c7, message=FALSE} -->
-<!-- ests_without_eta_1(current_cohort) -->
-<!-- ``` -->
+```{r ranked-by-cmmhp7}
+rankings_by_cmmhp(current_cohort)
+```
 
-<!-- ## C 8 -->
+### Parameter Estimates
 
-<!-- ```{r set_cohort-8} -->
-<!-- current_cohort <- 8 -->
-<!-- ``` -->
+```{r param-ests7, message=FALSE}
+param_ests(current_cohort)
+```
 
+### Summary Table
 
-<!-- ### Total Events ordered by I&SI ranking -->
+```{r summ_tabls7, message=FALSE}
+c7_summ <- fights_table(current_cohort)
+c7_summ %>% 
+  pivot_wider(id_cols = node) %>% 
+  rename(out_deg = out_degree, in_deg = in_degree,
+         "Out Events" = out_fights,
+         "In Events" = in_fights,
+         "% In Active" = in_act_perc, "% Out Active" = out_act_perc,
+         "Out Degree" = out_degree,
+         "In Degree" = in_degree,
+         "I&SI to C-MMHP change" = isi_less_cmmhp,
+         "Animal" = node) %>% 
+  kbl() %>% 
+  kable_styling()
+```
 
-<!-- ```{r total-events_8, message=FALSE} -->
-<!-- print_total_events(current_cohort) -->
-<!-- ``` -->
 
-<!-- ### Total Events less Number of Windows containing events ordered by I&SI -->
 
-<!-- ```{r total-events-less-active-windows-c8, message=FALSE} -->
-<!-- print_total_less_windows(current_cohort) -->
-<!-- ``` -->
+## Cohort 8 {-}
 
+```{r set_cohort8}
+current_cohort <- 8
+```
 
-<!-- ### Inferred ranking, ordered by total interactions -->
 
-<!-- ```{r all-4-models-c8, warning=FALSE} -->
-<!-- rankings_by_total(current_cohort) -->
-<!-- ``` -->
+### Total Events ordered by I&SI ranking
 
-<!-- <!-- Similarly, here are the corresponding plots with the animals ranked by --> 
-<!-- <!-- I&SI score instead. --> 
+```{r total-events_8, message=FALSE}
+print_total_events(current_cohort)
+```
 
-<!-- ### Inferred ranking ordered by I&SI score -->
+### Total Active Events ordered by I&SI
 
-<!-- ```{r ranked-by-isi-c8} -->
-<!-- rankings_by_isi(current_cohort) -->
-<!-- ``` -->
+```{r total-events-less-active-windows8, message=FALSE}
+active_events <- total_events_active(current_cohort)
+active_events <- active_events[expert_rank_10[[current_cohort]],
+                               expert_rank_10[[current_cohort]]]
 
+colnames(active_events) <- expert_rank_10[[current_cohort]]
+rownames(active_events) <- expert_rank_10[[current_cohort]]
+print(active_events)
+```
 
-<!-- ### Compare parameter estimates with/without eta_3 -->
 
+### Correlation Matrices
 
-<!-- ```{r plot-rankings-both-models-no-eta3-c8, message=FALSE} -->
-<!-- ests_without_eta_3(current_cohort) -->
-<!-- ``` -->
 
+```{r corr-plots8, message=FALSE}
+corr_matrices(current_cohort)
+```
 
-<!-- ### Compare parameter estimates with/without eta_1 -->
 
+### Inferred ranking ordered by I&SI score
 
-<!-- ```{r plot-rankings-both-models-no-eta-1-c8, message=FALSE} -->
-<!-- ests_without_eta_1(current_cohort) -->
-<!-- ``` -->
+```{r ranked-by-isi8}
+rankings_by_isi(current_cohort)
+```
 
-<!-- ## C 9 -->
 
-<!-- ```{r set_cohort-9} -->
-<!-- current_cohort <- 9 -->
-<!-- ``` -->
+### Inferred ranking order by C-MMHP median ranking
 
+```{r ranked-by-cmmhp8}
+rankings_by_cmmhp(current_cohort)
+```
 
-<!-- ### Total Events ordered by I&SI ranking -->
+### Parameter Estimates
 
-<!-- ```{r total-events_9, message=FALSE} -->
-<!-- print_total_events(current_cohort) -->
-<!-- ``` -->
+```{r param-ests8, message=FALSE}
+param_ests(current_cohort)
+```
 
-<!-- ### Total Events less Number of Windows containing events ordered by I&SI -->
+### Summary Table
 
-<!-- ```{r total-events-less-active-windows-c9, message=FALSE} -->
-<!-- print_total_less_windows(current_cohort) -->
-<!-- ``` -->
+```{r summ_tabls8, message=FALSE}
+c8_summ <- fights_table(current_cohort)
 
+c8_summ %>% 
+  pivot_wider(id_cols = node) %>% 
+  rename(out_deg = out_degree, in_deg = in_degree,
+         "Out Events" = out_fights,
+         "In Events" = in_fights,
+         "% In Active" = in_act_perc, "% Out Active" = out_act_perc,
+         "Out Degree" = out_degree,
+         "In Degree" = in_degree,
+         "I&SI to C-MMHP change" = isi_less_cmmhp,
+         "Animal" = node) %>% 
+  kbl() %>% 
+  kable_styling()
+```
 
-<!-- ### Inferred ranking, ordered by total interactions -->
 
-<!-- ```{r all-4-models-c9, warning=FALSE} -->
-<!-- rankings_by_total(current_cohort) -->
-<!-- ``` -->
 
-<!-- <!-- Similarly, here are the corresponding plots with the animals ranked by --> 
-<!-- <!-- I&SI score instead. --> 
+## Cohort 9 {-}
 
-<!-- ### Inferred ranking ordered by I&SI score -->
+```{r set_cohort9}
+current_cohort <- 9
+```
 
-<!-- ```{r ranked-by-isi-c9} -->
-<!-- rankings_by_isi(current_cohort) -->
-<!-- ``` -->
 
+### Total Events ordered by I&SI ranking
 
-<!-- ### Compare parameter estimates with/without eta_3 -->
+```{r total-events_9, message=FALSE}
+print_total_events(current_cohort)
+```
 
+### Total Active Events ordered by I&SI
 
-<!-- ```{r plot-rankings-both-models-no-eta3-c9, message=FALSE} -->
-<!-- ests_without_eta_3(current_cohort) -->
-<!-- ``` -->
+```{r total-events-less-active-windows9, message=FALSE}
+active_events <- total_events_active(current_cohort)
+active_events <- active_events[expert_rank_10[[current_cohort]],
+                               expert_rank_10[[current_cohort]]]
 
+colnames(active_events) <- expert_rank_10[[current_cohort]]
+rownames(active_events) <- expert_rank_10[[current_cohort]]
+print(active_events)
+```
 
-<!-- ### Compare parameter estimates with/without eta_1 -->
 
+### Correlation Matrices
 
-<!-- ```{r plot-rankings-both-models-no-eta-1-c9, message=FALSE} -->
-<!-- ests_without_eta_1(current_cohort) -->
-<!-- ``` -->
 
-<!-- ## C 10 -->
+```{r corr-plots9, message=FALSE}
+corr_matrices(current_cohort)
+```
 
-<!-- ```{r set_cohort-10} -->
-<!-- current_cohort <- 10 -->
-<!-- ``` -->
 
+### Inferred ranking ordered by I&SI score
 
-<!-- ### Total Events ordered by I&SI ranking -->
+```{r ranked-by-isi9}
+rankings_by_isi(current_cohort)
+```
 
-<!-- ```{r total-events_10, message=FALSE} -->
-<!-- print_total_events(current_cohort) -->
-<!-- ``` -->
 
-<!-- ### Total Events less Number of Windows containing events ordered by I&SI -->
+### Inferred ranking order by C-MMHP median ranking
 
-<!-- ```{r total-events-less-active-windows-c10, message=FALSE} -->
-<!-- print_total_less_windows(current_cohort) -->
-<!-- ``` -->
+```{r ranked-by-cmmhp9}
+rankings_by_cmmhp(current_cohort)
+```
 
+### Parameter Estimates
 
-<!-- ### Inferred ranking, ordered by total interactions -->
+```{r param-ests9, message=FALSE}
+param_ests(current_cohort)
+```
 
-<!-- ```{r all-4-models-c10, warning=FALSE} -->
-<!-- rankings_by_total(current_cohort) -->
-<!-- ``` -->
+### Summary Table
 
-<!-- <!-- Similarly, here are the corresponding plots with the animals ranked by --> 
-<!-- <!-- I&SI score instead. --> 
+```{r summ_tabls9, message=FALSE}
+c9_summ <-fights_table(current_cohort)
 
-<!-- ### Inferred ranking ordered by I&SI score -->
+c9_summ %>% 
+  pivot_wider(id_cols = node) %>% 
+  rename(out_deg = out_degree, in_deg = in_degree,
+         "Out Events" = out_fights,
+         "In Events" = in_fights,
+         "% In Active" = in_act_perc, "% Out Active" = out_act_perc,
+         "Out Degree" = out_degree,
+         "In Degree" = in_degree,
+         "I&SI to C-MMHP change" = isi_less_cmmhp,
+         "Animal" = node) %>% 
+  kbl() %>% 
+  kable_styling()
+```
 
-<!-- ```{r ranked-by-isi-c10} -->
-<!-- rankings_by_isi(current_cohort) -->
-<!-- ``` -->
 
 
-<!-- ### Compare parameter estimates with/without eta_3 -->
+## Cohort 10 {-}
 
+```{r set_cohort10}
+current_cohort <- 10
+```
 
-<!-- ```{r plot-rankings-both-models-no-eta3-c10, message=FALSE} -->
-<!-- ests_without_eta_3(current_cohort) -->
-<!-- ``` -->
 
+### Total Events ordered by I&SI ranking
 
-<!-- ### Compare parameter estimates with/without eta_1 -->
+```{r total-events_10, message=FALSE}
+print_total_events(current_cohort)
+```
 
+### Total Active Events ordered by I&SI
 
-<!-- ```{r plot-rankings-both-models-no-eta-1-c10, message=FALSE} -->
-<!-- ests_without_eta_1(current_cohort) -->
-<!-- ``` -->
+```{r total-events-less-active-windows10, message=FALSE}
+active_events <- total_events_active(current_cohort)
+active_events <- active_events[expert_rank_10[[current_cohort]],
+                               expert_rank_10[[current_cohort]]]
 
+colnames(active_events) <- expert_rank_10[[current_cohort]]
+rownames(active_events) <- expert_rank_10[[current_cohort]]
+print(active_events)
+```
 
+
+### Correlation Matrices
+
+
+```{r corr-plots10, message=FALSE}
+corr_matrices(current_cohort)
+```
+
+
+### Inferred ranking ordered by I&SI score
+
+```{r ranked-by-isi10}
+rankings_by_isi(current_cohort)
+```
+
+
+### Inferred ranking order by C-MMHP median ranking
+
+```{r ranked-by-cmmhp10}
+rankings_by_cmmhp(current_cohort)
+```
+
+### Parameter Estimates
+
+```{r param-ests10, message=FALSE}
+param_ests(current_cohort)
+```
+
+### Summary Table
+
+```{r summ_tabls10, message=FALSE}
+c10_summ <- fights_table(current_cohort)
+
+c10_summ %>% 
+  pivot_wider(id_cols = node) %>% 
+  rename(out_deg = out_degree, in_deg = in_degree,
+         "Out Events" = out_fights,
+         "In Events" = in_fights,
+         "% In Active" = in_act_perc, "% Out Active" = out_act_perc,
+         "Out Degree" = out_degree,
+         "In Degree" = in_degree,
+         "I&SI to C-MMHP change" = isi_less_cmmhp,
+         "Animal" = node) %>% 
+  kbl() %>% 
+  kable_styling()
+```
+
+
+## All Correlation Plots {-}
+
+```{r all-corr-plots}
+for(current_cohort in 1:10) {
+  cat(paste("Cohort", current_cohort, "\n", sep = " "))
+  cat("======== \n")
+  corr_matrices(current_cohort)
+}
+```
+
+
+## Summary Data {-}
+
+### Degree Parameters
+
+```{r get-all-cmmhp-degrees, message=FALSE}
+cmmhp_gamma <- tibble()
+cmmhp_zeta <- tibble()
+out_perc <- tibble()
+in_perc <- tibble()
+
+
+### there is something up with the cohorts here, not correct!
+
+for(current_cohort in 1:10) {
+  ### get perc for each one here
+  clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
+  out_fights <- tibble(name = paste0("gamma[",1:12,"]"),
+                       perc_out = rowSums(clean_data$N_count)/
+                         sum(clean_data$N_count)) %>% 
+    mutate(perc_out = round(perc_out, 2),
+           cohort = paste0("Cohort_", current_cohort))
+  in_fights <- tibble(name = paste0("zeta[",1:12,"]"),
+                       perc_in = colSums(clean_data$N_count)/
+                         sum(clean_data$N_count)) %>% 
+    mutate(perc_in = round(perc_in, 2),
+           cohort = paste0("Cohort_", current_cohort))
+  ###
+  load(paste(data_path,
+             cohort_names[current_cohort],
+             "/cohort_mmhp_stan_result_",
+             cohort_names[current_cohort],
+             ".RData",
+             sep = ""
+  ))
+  # plot_cols <- col_df %>%
+  #   filter(method %in% c(
+  #     "C-HP",
+  #     "C-DCHP",
+  #     "C-MMHP"
+  #   )) %>%
+  #   pull(cols)
+  all_data <- sim_cohort_mmhp %>%
+    select(starts_with("gamma") ) %>% 
+    pivot_longer(everything()) %>%
+    mutate(Model = "C-MMHP", cohort = paste0("Cohort_", current_cohort)) 
+  out_perc <- out_perc %>% 
+    bind_rows(out_fights)
+  in_perc <- in_perc %>% 
+    bind_rows(in_fights)
+  cmmhp_gamma <- cmmhp_gamma %>% 
+    bind_rows(all_data)
+  all_data <- sim_cohort_mmhp %>%
+    select(starts_with("zeta") ) %>% 
+    pivot_longer(everything()) %>%
+    mutate(Model = "C-MMHP", cohort = paste0("Cohort_", current_cohort)) 
+  cmmhp_zeta <- cmmhp_zeta %>% 
+    bind_rows(all_data)
+}
+
+cmmhp_gamma$name <- stringr::str_extract(cmmhp_gamma$name, 
+                                         pattern = "[:digit:]+")
+cmmhp_zeta$name <- stringr::str_extract(cmmhp_zeta$name, 
+                                         pattern = "[:digit:]+")
+
+out_perc$name <- stringr::str_extract(out_perc$name, 
+                                         pattern = "[:digit:]+")
+in_perc$name <- stringr::str_extract(in_perc$name, 
+                                         pattern = "[:digit:]+")
+
+out_perc$name <- factor(out_perc$name,
+                           levels = as.character(1:12))
+in_perc$name <- factor(in_perc$name,
+                           levels = as.character(1:12))
+
+out_perc$Model <- "C-MMHP"
+in_perc$Model <- "C-MMHP"
+
+max_out <- cmmhp_gamma %>% 
+  group_by(name, cohort) %>% 
+  summarise(max_est = max(value))
+
+max_in <- cmmhp_zeta %>% 
+  group_by(name, cohort) %>% 
+  summarise(max_est = max(value))
+
+out_perc <- out_perc %>% 
+  left_join(max_out, by = c("name", "cohort"))
+
+in_perc <- in_perc %>% 
+  left_join(max_out, by = c("name", "cohort"))
+
+cmmhp_gamma$name <- factor(cmmhp_gamma$name,
+                           levels = as.character(1:12))
+cmmhp_zeta$name <- factor(cmmhp_zeta$name,
+                           levels = as.character(1:12))
+# plot_cols
+cmmhp_gamma$cohort <- factor(cmmhp_gamma$cohort, 
+                             levels = paste0("Cohort_", 1:10))
+cmmhp_zeta$cohort <- factor(cmmhp_zeta$cohort, 
+                             levels = paste0("Cohort_", 1:10))
+
+cmmhp_gamma %>% 
+  ggplot(aes(name, value, fill = Model)) +
+  geom_boxplot() +
+  scale_fill_manual(values = "#FDE725FF") +
+  facet_wrap(~cohort, scales = "free", ncol = 2) +
+  geom_text(data = out_perc, aes(name, max_est + 0.25, label = perc_out),
+            size = 2) +
+  # theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  labs(y = "Out Degree", x = element_blank())
+
+cmmhp_zeta %>% 
+  ggplot(aes(name, value, fill = Model)) +
+  geom_boxplot() +
+  scale_fill_manual(values = "#FDE725FF") +
+  facet_wrap(~cohort, scales = "free", ncol = 2) +
+  geom_text(data = in_perc, aes(name, max_est + 0.25, label = perc_in),
+            size = 2) +
+  # theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  labs(y = "In Degree", x = element_blank())
+
+```
+
+### Other Global Parameters
+
+```{r plot-cohort-level-params}
+cohort_pars <- tibble()
+for(current_cohort in 1:10) {
+  load(paste(data_path,
+             cohort_names[current_cohort],
+             "/cohort_mmhp_stan_result_",
+             cohort_names[current_cohort],
+             ".RData",
+             sep = ""
+  ))
+  all_data <- sim_cohort_mmhp %>%
+    select(starts_with("eta") | starts_with("w_lam") |
+             starts_with("beta")) %>%
+    select(! ends_with("delta")) %>% 
+    pivot_longer(everything()) %>%
+    mutate(Model = "C-MMHP", cohort = paste0("C_", current_cohort))
+  cohort_pars <- cohort_pars %>% 
+    bind_rows(all_data)
+}
+
+cohort_pars$cohort <- factor(cohort_pars$cohort, 
+                             levels = paste0("C_",1:10))
+
+cohort_pars %>% 
+  ggplot(aes(cohort, value, fill = Model)) +
+  geom_boxplot() +
+  scale_fill_manual(values = "#FDE725FF") +
+  facet_wrap(~name, scales = "free") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+```
+
+
+### Cohort Summaries
+
+```{r overall-fight-info}
+cohort_summ <- tibble()
+
+for(current_cohort in 1:10) {
+  clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
+  total_events <- clean_data$N_count
+  active_events <- total_events_active(current_cohort)
+  total_fights <- sum(clean_data$N_count)
+  coh_tbl <- tibble(cohort = current_cohort,
+                    number_fights = total_fights,
+                    act_perc = sum(active_events)/sum(total_fights))
+  cohort_summ <- cohort_summ %>% 
+    bind_rows(coh_tbl)
+}
+
+cohort_summ %>% 
+  rename("Cohort" = cohort,
+         "Total Fights" = number_fights,
+         "% Active Fights" = act_perc) %>% 
+  kbl() %>% 
+  kable_styling()
+
+```

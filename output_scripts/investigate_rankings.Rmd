@@ -4,9 +4,9 @@ author: "Owen G. Ward"
 date: '`r Sys.Date()`'
 output:
   html_document:
-    # toc: true
-    # toc_depth: 2
-    # toc_float: true
+    toc: true
+    toc_depth: 2
+    toc_float: true
     number_sections: FALSE
     code_folding: hide
 ---
@@ -16,17 +16,12 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(
   echo = TRUE, fig.height = 5, fig.width = 7,
-  warning = FALSE, cache = TRUE
+  warning = FALSE, cache = TRUE, eval_paper = FALSE
 )
 
-slides_plots <- FALSE
-extra_plots <- FALSE
+paper_plots <- FALSE
+# extra_plots <- FALSE
 
-
-revision_plots <- TRUE
-original_plots <- FALSE
-### original plots for plots which are no longer needed, 
-### revision plots are what required
 
 current_cohort <- 5
 
@@ -99,7 +94,7 @@ out <- captureOutput(for (curr_cohort in fit_cohorts) {
 })
 ```
 
-```{r define_functions, eval=revision_plots, include=FALSE}
+```{r define_functions, include=FALSE}
 model1_fn <- list(alpha.fun = function(x, y, eta1, eta2, eta3) {
   return(eta1 * x * y * exp(-eta2 * abs(x - y)) / (1 +
     exp(-eta3 * (x - y))))
@@ -119,918 +114,341 @@ model3_fn <- list(
 ```
 
 
-# Interevents vs rankings
+# Other Paper plots
 
-```{r interevents, message=FALSE}
-for(current_cohort in 1:10) {
-  cat(paste("Cohort ", current_cohort, "\n", sep = ""))
-  clean_data <- cleanData(full_data[[cohort_names[current_cohort]]])
-  stan_input_lst <- prepareDataStan(current_cohort)
-  
-  pair_events <- apply(stan_input_lst$Nm, 1, sum) 
-  
-  pair_matrix <- matrix(0, nrow = 12, ncol = 12)
-  for(i in seq_along(pair_events)) {
-    i_ind <- stan_input_lst$I_fit[i]
-    j_ind <- stan_input_lst$J_fit[i]
-    pair_matrix[i_ind, j_ind] <- pair_events[i]
-  }
-  # pair_matrix <- clean_data$N_count[expert_rank_10[[current_cohort]],
-  #                                   expert_rank_10[[current_cohort]]]
-  pair_matrix <- pair_matrix[expert_rank_10[[current_cohort]],
-                    expert_rank_10[[current_cohort]]]
-  colnames(pair_matrix) <- expert_rank_10[[current_cohort]]
-  rownames(pair_matrix) <- expert_rank_10[[current_cohort]]
-  print(pair_matrix)
-  cat("=====\n")
-  
-}
+```{r fig-3b, eval=paper_plots}
+current_cohort <- 5
+
+m1_pr <- readRDS(paste(data_path, cohort_names[current_cohort],
+  "/chp_pr_matrix_", cohort_names[current_cohort],
+  ".RDS",
+  sep = ""
+))
+
+m2_pr <- readRDS(paste(data_path, cohort_names[current_cohort],
+  "/dchp_pr_matrix_", cohort_names[current_cohort],
+  ".RDS",
+  sep = ""
+))
+
+m3_pr <- readRDS(paste(data_path, cohort_names[current_cohort],
+  "/cmmhp_pr_matrix_", cohort_names[current_cohort],
+  ".RDS",
+  sep = ""
+))
+
+indep_pr <- readRDS(paste(data_path, cohort_names[current_cohort],
+  "/immhp_pr_matrix_", cohort_names[current_cohort],
+  ".RDS",
+  sep = ""
+))
+
+matrix_lst_plot <- list(
+  m1_pr[
+    rev(expert_rank_10[[current_cohort]]),
+    expert_rank_10[[current_cohort]]
+  ],
+  m2_pr[
+    rev(expert_rank_10[[current_cohort]]),
+    expert_rank_10[[current_cohort]]
+  ]
+  ,
+  m3_pr[
+    rev(expert_rank_10[[current_cohort]]),
+    expert_rank_10[[current_cohort]]
+  ],
+  indep_pr[
+    rev(expert_rank_10[[current_cohort]]),
+    expert_rank_10[[current_cohort]]
+  ]
+)
+# cat("Cohort ",current_cohort,"\n",sep="")
+myMultiMatrixPlot(
+  X = matrix_lst_plot, no_matrix = 4, n_row = 2,
+  xLabels = expert_rank_10[[current_cohort]],
+  yLabels = rev(expert_rank_10[[current_cohort]]),
+  min = -80, max = 80, axis_cex = 2, title_cex = 1.8,
+  colorPalette = "RdBu", if.emp = FALSE,
+  # legend.mar=c(0.5,.5,0.5,0.5),
+  title_lst = list("C-HP", "C-DCHP", "C-MMHP", "I-MMHP"),
+  # title_lst = list("I-MMHP"),
+  col_axis = c(-80, -40, 0, 40, 80),
+  fake_matrix = FALSE,
+  matrix.mar = c(2.5, 2.5, 2.5, 1)
+)
+mtext(text = "(b)",
+      side = 3,
+      line = 0.5,
+      outer = TRUE,
+      cex = 2.5,
+      font = 2)
+
+```
+
+
+```{r fig-7a, eval=paper_plots}
+load("../output/revisions/lapl_check/prior_check/plot_N_predict_revision.RData")
+current_cohort <- 5 # cohort 1 looks worse than rest
+
+temp_plot_df <- predict_day_mae_df_lst[[current_cohort]]
+temp_plot_df$method <- factor(temp_plot_df$method,
+  levels = c("mmhp", "dsnl", "m1", "m2", "m3"),
+  labels = c("I-MMHP", "DSNL", "C-HP", "C-DCHP", "C-MMHP")
+)
+temp_plot_df$day <- factor(temp_plot_df$day)
+# png(paste(plot_path,"real_predict_N_one_cohort.png",sep=""),
+# width=600,height=300)
+
+plot_cols_pred <- col_df %>%
+  filter(method %in% levels(temp_plot_df$method)) %>%
+  arrange(factor(method, levels = c(
+    "I-MMHP", "DSNL",
+    "C-HP", "C-DCHP", "C-MMHP"
+  ))) %>%
+  pull(cols)
+
+p3 <- temp_plot_df %>%
+  rowwise() %>%
+  # mutate(norm = min(norm,60)) %>%
+  # rename(Method = method) %>%
+  ggplot(aes(x = method, y = mae, fill = method)) +
+  geom_boxplot(alpha = 0.7) +
+  scale_fill_manual(values = plot_cols_pred) +
+  ggtitle("(a)") +
+  theme_bw() +
+  theme(
+    plot.title = element_text(size = 22, hjust = 0.5, face = "bold"),
+    text = element_text(size = 20),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    legend.position = "right"
+  ) +
+  facet_grid(cols = vars(day)) +
+  xlab("Prediction horizon (day)") +
+  ylab("MAE") +
+  ylim(0, 5) + # aren't infinite but >150 and <200
+  NULL
+p3 + labs(fill = "Method", title = "Single Cohort")
+
+
 ```
 
 
 
-<!-- # Ranking and Events -->
-
-<!-- We first modify the priors from the C-MMHP model which leads to -->
-<!-- much improved MCMC performance. -->
-
-<!-- We want to look at the relationship between the inferred variability -->
-<!-- of the ranking and the number of interactions a given animal is involved in. -->
-
-<!-- We plot the inferred ranks arranged by decreasing number -->
-<!-- of total interactions for all 4 of the comparison models, as in Fig6a. -->
-
-<!-- ```{r plot-rank-total-interactions, eval=FALSE} -->
-<!--  for(current_cohort in 1:10) { -->
-<!--    clean_data <- cleanData(full_data[[cohort_names[current_cohort]]]) -->
-<!--    load(paste(data_path, -->
-<!--               cohort_names[current_cohort], -->
-<!--               "/cohort_mmhp_stan_result_", -->
-<!--               cohort_names[current_cohort], -->
-<!--               ".RData", -->
-<!--               sep = "" -->
-<!--               )) -->
-<!--    total_inter <- rowSums(clean_data$N_count) + colSums(clean_data$N_count) -->
-<!--    f_ranks <- paste("f[", order(total_inter, decreasing = TRUE), -->
-<!--                     "]", sep = "") -->
-<!--    f_draws <- sim_cohort_mmhp %>% select(starts_with("f")) %>% -->
-<!--    pivot_longer(everything()) -->
-<!--    f_draws$name <- factor(f_draws$name, levels = f_ranks) -->
-<!--    plot_f <- f_draws %>% -->
-<!--    ggplot(aes(name, value)) + -->
-<!--    geom_boxplot() + -->
-<!--    labs(title = paste("Cohort ", current_cohort, sep = ""), -->
-<!--         subtitle = "Ordered by total interactions") -->
-<!--    print(plot_f) -->
-<!--  } -->
-<!-- ``` -->
-
-
-<!-- ```{r all-4-models, warning=FALSE} -->
-<!-- for(current_cohort in 1:10) { -->
-<!--   clean_data <- cleanData(full_data[[cohort_names[current_cohort]]]) -->
-<!--   load(paste(data_path, -->
-<!--              cohort_names[current_cohort], -->
-<!--              "/cohort_mmhp_stan_result_", -->
-<!--              cohort_names[current_cohort], -->
-<!--              ".RData", -->
-<!--              sep = "" -->
-<!--              )) -->
-<!--   load(paste(data_path, cohort_names[current_cohort], -->
-<!--     "/agg_rank_stan_result_", cohort_names[current_cohort], -->
-<!--     ".RData", -->
-<!--     sep = "" -->
-<!--   )) -->
-<!--   load(paste(data_path, cohort_names[current_cohort], -->
-<!--     "/cohort_hp_stan_result_", cohort_names[current_cohort], -->
-<!--     ".RData", -->
-<!--     sep = "" -->
-<!--   )) -->
-<!--   load(paste(data_path, cohort_names[current_cohort], -->
-<!--     "/cohort_dchp_stan_result_", cohort_names[current_cohort], -->
-<!--     ".RData", -->
-<!--     sep = "" -->
-<!--   )) -->
-<!--   total_inter <- rowSums(clean_data$N_count) + colSums(clean_data$N_count) -->
-
-
-<!--   no_method <- 4 -->
-<!--   plot_latent_df <- data.frame( -->
-<!--     Methods = rep(1:no_method, each = 1000 * mice_number), -->
-<!--     Mice = rep(rep(1:mice_number, each = 1000), no_method), -->
-<!--     force = rep(0, 1000 * mice_number * no_method) -->
-<!--   ) -->
-<!--   ## agg -->
-<!--   x_draws <- sim_agg_rank %>% select(starts_with("x")) -->
-<!--   plot_latent_df$force[(1:(1000 * mice_number))] <- -->
-<!--     as.vector(as.matrix(x_draws)) -->
-
-<!--   ## M1 -->
-<!--   f_draws <- sim_cohort_hp %>% select(starts_with("f")) -->
-<!--   plot_latent_df$force[(1:(1000 * mice_number)) + -->
-<!--                          1000 * mice_number] <- -->
-<!--     as.vector(as.matrix(f_draws)) -->
-
-<!--   ## M2 -->
-<!--   f_draws <- sim_cohort_dchp %>% select(starts_with("f")) -->
-<!--   plot_latent_df$force[(1:(1000 * mice_number)) + -->
-<!--                          2000 * mice_number] <- -->
-<!--     as.vector(as.matrix(f_draws)) -->
-
-<!--   ## M3 -->
-<!--   f_draws <- sim_cohort_mmhp %>% select(starts_with("f")) -->
-<!--   plot_latent_df$force[(1:(1000 * mice_number)) + -->
-<!--                          3000 * mice_number] <- -->
-<!--     as.vector(as.matrix(f_draws)) -->
-
-<!--   plot_latent_df$Mice <- factor(plot_latent_df$Mice, -->
-<!--     levels = order(total_inter, decreasing = TRUE) -->
-<!--   ) -->
-<!--   plot_latent_df$Method <- factor(plot_latent_df$Method, -->
-<!--     labels = c("AggRanking", "C-HP", "C-DCHP", "C-MMHP") -->
-<!--   ) -->
-<!--   plot_cols <- col_df %>% -->
-<!--   filter(method %in% c( -->
-<!--     "AggRank", "C-HP", -->
-<!--     "C-DCHP", "C-MMHP" -->
-<!--   )) %>% -->
-<!--   pull(cols) -->
-
-
-<!--   p1 <- ggplot(plot_latent_df, aes(x = Mice, y = force, fill = Method)) + -->
-<!--     geom_boxplot(alpha = 0.7) + -->
-<!--     scale_fill_manual(values = plot_cols) + -->
-<!--     ggtitle("(a)") + -->
-<!--     theme_bw() + -->
-<!--     theme( -->
-<!--       plot.title = element_text(size = 22, hjust = 0.5, face = "bold"), -->
-<!--       text = element_text(size = 20), -->
-<!--       axis.text.x = element_text(size = 10), -->
-<!--       legend.position = "none" -->
-<!--     ) + -->
-<!--     facet_grid(cols = vars(Method)) + -->
-<!--     xlab("Mice (ranked by total interactions)") + -->
-<!--     ylab("Latent rank") + -->
-<!--     labs(title = paste("Cohort ", current_cohort, sep = "")) -->
-<!--   print(p1) -->
-<!-- } -->
-
-<!-- ``` -->
-
-<!-- Similarly, here are the corresponding plots with the animals ranked by -->
-<!-- I&SI score instead. -->
-
-<!-- ```{r isi-ranks, warning=FALSE, eval=FALSE} -->
-<!-- for(current_cohort in 1:10) { -->
-<!--   clean_data <- cleanData(full_data[[cohort_names[current_cohort]]]) -->
-<!--   load(paste(data_path, -->
-<!--              cohort_names[current_cohort], -->
-<!--              "/cohort_mmhp_stan_result_", -->
-<!--              cohort_names[current_cohort], -->
-<!--              ".RData", -->
-<!--              sep = "" -->
-<!--              )) -->
-<!--   total_inter <- rowSums(clean_data$N_count) + colSums(clean_data$N_count) -->
-<!--   f_ranks <- paste("f[", expert_rank_10[[current_cohort]], -->
-<!--                    "]", sep = "") -->
-<!--   f_draws <- sim_cohort_mmhp %>% select(starts_with("f")) %>% -->
-<!--   pivot_longer(everything()) -->
-<!--   f_draws$name <- factor(f_draws$name, levels = f_ranks) -->
-<!--   plot_f <- f_draws %>% -->
-<!--   ggplot(aes(name, value)) + -->
-<!--   geom_boxplot() + -->
-<!--   labs(title = paste("Cohort ", current_cohort, sep = ""), -->
-<!--        subtitle = "Ordered by I&SI score") -->
-<!--   print(plot_f) -->
-<!-- } -->
-
-<!-- ``` -->
-
-<!-- ```{r ranked-by-isi} -->
-<!-- for(current_cohort in 1:10) { -->
-<!--   clean_data <- cleanData(full_data[[cohort_names[current_cohort]]]) -->
-<!--   load(paste(data_path, -->
-<!--              cohort_names[current_cohort], -->
-<!--              "/cohort_mmhp_stan_result_", -->
-<!--              cohort_names[current_cohort], -->
-<!--              ".RData", -->
-<!--              sep = "" -->
-<!--              )) -->
-<!--   load(paste(data_path, cohort_names[current_cohort], -->
-<!--     "/agg_rank_stan_result_", cohort_names[current_cohort], -->
-<!--     ".RData", -->
-<!--     sep = "" -->
-<!--   )) -->
-<!--   load(paste(data_path, cohort_names[current_cohort], -->
-<!--     "/cohort_hp_stan_result_", cohort_names[current_cohort], -->
-<!--     ".RData", -->
-<!--     sep = "" -->
-<!--   )) -->
-<!--   load(paste(data_path, cohort_names[current_cohort], -->
-<!--     "/cohort_dchp_stan_result_", cohort_names[current_cohort], -->
-<!--     ".RData", -->
-<!--     sep = "" -->
-<!--   )) -->
-<!--   total_inter <- rowSums(clean_data$N_count) + colSums(clean_data$N_count) -->
-
-
-<!--   no_method <- 4 -->
-<!--   plot_latent_df <- data.frame( -->
-<!--     Methods = rep(1:no_method, each = 1000 * mice_number), -->
-<!--     Mice = rep(rep(1:mice_number, each = 1000), no_method), -->
-<!--     force = rep(0, 1000 * mice_number * no_method) -->
-<!--   ) -->
-<!--   ## agg -->
-<!--   x_draws <- sim_agg_rank %>% select(starts_with("x")) -->
-<!--   plot_latent_df$force[(1:(1000 * mice_number))] <- -->
-<!--     as.vector(as.matrix(x_draws)) -->
-
-<!--   ## M1 -->
-<!--   f_draws <- sim_cohort_hp %>% select(starts_with("f")) -->
-<!--   plot_latent_df$force[(1:(1000 * mice_number)) + -->
-<!--                          1000 * mice_number] <- -->
-<!--     as.vector(as.matrix(f_draws)) -->
-
-<!--   ## M2 -->
-<!--   f_draws <- sim_cohort_dchp %>% select(starts_with("f")) -->
-<!--   plot_latent_df$force[(1:(1000 * mice_number)) + -->
-<!--                          2000 * mice_number] <- -->
-<!--     as.vector(as.matrix(f_draws)) -->
-
-<!--   ## M3 -->
-<!--   f_draws <- sim_cohort_mmhp %>% select(starts_with("f")) -->
-<!--   plot_latent_df$force[(1:(1000 * mice_number)) + -->
-<!--                          3000 * mice_number] <- -->
-<!--     as.vector(as.matrix(f_draws)) -->
-
-<!--   plot_latent_df$Mice <- factor(plot_latent_df$Mice, -->
-<!--     levels = expert_rank_10[[current_cohort]] -->
-<!--   ) -->
-<!--   plot_latent_df$Method <- factor(plot_latent_df$Method, -->
-<!--     labels = c("AggRanking", "C-HP", "C-DCHP", "C-MMHP") -->
-<!--   ) -->
-<!--   plot_cols <- col_df %>% -->
-<!--   filter(method %in% c( -->
-<!--     "AggRank", "C-HP", -->
-<!--     "C-DCHP", "C-MMHP" -->
-<!--   )) %>% -->
-<!--   pull(cols) -->
-
-
-<!--   p1 <- ggplot(plot_latent_df, aes(x = Mice, y = force, fill = Method)) + -->
-<!--     geom_boxplot(alpha = 0.7) + -->
-<!--     scale_fill_manual(values = plot_cols) + -->
-<!--     ggtitle("(a)") + -->
-<!--     theme_bw() + -->
-<!--     theme( -->
-<!--       plot.title = element_text(size = 22, hjust = 0.5, face = "bold"), -->
-<!--       text = element_text(size = 20), -->
-<!--       axis.text.x = element_text(size = 10), -->
-<!--       legend.position = "none" -->
-<!--     ) + -->
-<!--     facet_grid(cols = vars(Method)) + -->
-<!--     xlab("Mice (ranked by I&SI)") + -->
-<!--     ylab("Latent rank") + -->
-<!--     labs(title = paste("Cohort ", current_cohort, sep = "")) -->
-<!--   print(p1) -->
-<!-- } -->
-
-
-<!-- ``` -->
-
-<!-- Cohort 3 win loss -->
-
-<!-- ```{r c3-win-loss} -->
-<!-- current_cohort <- 3 -->
-<!-- clean_data <- cleanData(full_data[[cohort_names[current_cohort]]]) -->
-
-<!-- clean_data$N_count -->
-
-<!-- load(paste(data_path, -->
-<!--              cohort_names[current_cohort], -->
-<!--              "/cohort_mmhp_stan_result_", -->
-<!--              cohort_names[current_cohort], -->
-<!--              ".RData", -->
-<!--              sep = "" -->
-<!--              )) -->
-
-<!-- gamma_draws <- sim_cohort_mmhp %>% -->
-<!--   select(starts_with("gamma")) %>% -->
-<!--   pivot_longer(everything()) -->
-
-<!-- gamma_draws$name <- factor(gamma_draws$name, -->
-<!--                            levels = paste("gamma[", 1:12, "]", sep = "")) -->
-
-<!-- gamma_draws %>% -->
-<!--   ggplot(aes(name, value)) + -->
-<!--   geom_boxplot() -->
-
-
-<!-- zeta_draws <- sim_cohort_mmhp %>% -->
-<!--   select(starts_with("zeta")) %>% -->
-<!--   pivot_longer(everything()) -->
-
-<!-- zeta_draws$name <- factor(zeta_draws$name, -->
-<!--                            levels = paste("zeta[", 1:12, "]", sep = "")) -->
-
-<!-- zeta_draws %>% -->
-<!--   ggplot(aes(name, value)) + -->
-<!--   geom_boxplot() -->
-
-<!-- f_draws <- sim_cohort_mmhp %>% -->
-<!--   select(starts_with("f")) %>% -->
-<!--   pivot_longer(everything()) %>% -->
-<!--   group_by(name) %>% -->
-<!--   summarise(med = median(value)) %>% -->
-<!--   arrange(-med) -->
-
-<!-- f_draws %>% pull(name) -->
-
-<!-- cmmhp_ranks <- c(10, 12, 7, 6, 3, 8, 2, 4, 1, 9, 11, 5) -->
-<!-- clean_data$N_count[cmmhp_ranks, cmmhp_ranks] -->
-
-<!-- c3_count <- clean_data$N_count -->
-<!-- names(c3_count) <- 1:12 -->
-<!-- rownames(c3_count) <- 1:12 -->
-<!-- colnames(c3_count) <- 1:12 -->
-<!-- isi98(c3_count) -->
-<!-- isi98(c3_count[cmmhp_ranks, cmmhp_ranks]) -->
-<!-- ``` -->
-
-
-<!-- ## Plot Omega Lambda and f draws -->
-
-<!-- ```{r plot-omega-lambda, message=FALSE} -->
-<!-- for(current_cohort in 1:10) { -->
-<!--   clean_data <- cleanData(full_data[[cohort_names[current_cohort]]]) -->
-<!--   load(paste(data_path, -->
-<!--              cohort_names[current_cohort], -->
-<!--              "/cohort_mmhp_stan_result_", -->
-<!--              cohort_names[current_cohort], -->
-<!--              ".RData", -->
-<!--              sep = "" -->
-<!--              )) -->
-<!--   fit_draws <- as_draws_array(sim_cohort_mmhp) -->
-<!--   plot1 <- mcmc_hist(fit_draws, pars = "w_lambda") + -->
-<!--     labs(paste("Cohort ", current_cohort, sep = "")) -->
-<!--   print(plot1) -->
-<!-- } -->
-<!-- ``` -->
-
-
-<!-- # Compare rankings with/without eta_3 -->
-
-
-<!-- ```{r plot-rankings-both-models-no-eta3, message=FALSE} -->
-<!-- # data_path -->
-<!-- other_data_path <- "../output/revisions/lapl_check/ident_check/" -->
-
-<!-- for(current_cohort in 1:10) { -->
-<!--   load(paste(data_path, -->
-<!--              cohort_names[current_cohort], -->
-<!--              "/cohort_mmhp_stan_result_", -->
-<!--              cohort_names[current_cohort], -->
-<!--              ".RData", -->
-<!--              sep = "" -->
-<!--              )) -->
-<!--   sim1 <- sim_cohort_mmhp -->
-<!--   load(paste(other_data_path, -->
-<!--              cohort_names[current_cohort], -->
-<!--              "/cohort_mmhp_stan_result_", -->
-<!--              cohort_names[current_cohort], -->
-<!--              ".RData", -->
-<!--              sep = "" -->
-<!--              )) -->
-<!--   sim2 <- sim_cohort_mmhp -->
-
-<!--   all_data <- sim1 %>% -->
-<!--     select(starts_with("f")) %>%  -->
-<!--     pivot_longer(everything()) %>%  -->
-<!--     mutate(model = "with eta3") %>%  -->
-<!--     bind_rows(sim2 %>% select(starts_with("f")) %>%  -->
-<!--                 pivot_longer(everything()) %>%  -->
-<!--                 mutate(model = "without")) -->
-
-<!--   f_ranks <- paste("f[", expert_rank_10[[current_cohort]], -->
-<!--                    "]", sep = "")  -->
-<!--   all_data$name <- factor(all_data$name, levels = f_ranks) -->
-
-
-<!--   all_data$model <- factor(all_data$model) -->
-<!--   comp_plot <- ggplot(all_data, aes(name, value, fill = model)) + -->
-<!--     geom_boxplot() + -->
-<!--     labs(title = paste("Cohort ", current_cohort, sep = ""), -->
-<!--          subtitle = "Removing eta3, ordered by ISI", -->
-<!--          y = "Latent Rankings") -->
-<!--   print(comp_plot) -->
-
-<!--   all_data %>% group_by(name, model) %>%  -->
-<!--     summarise(model_mean = mean(value),  -->
-<!--               model_sd = sd(value)) -->
-
-<!--   all_data <- sim1 %>% -->
-<!--     select(starts_with("eta") | starts_with("w_lam") | starts_with("beta")) %>%  -->
-<!--     pivot_longer(everything()) %>%  -->
-<!--     mutate(model = "with eta1") %>%  -->
-<!--     bind_rows(sim2 %>%  -->
-<!--                 select(starts_with("eta") |  -->
-<!--                          starts_with("w_lam") | -->
-<!--                          starts_with("beta")) %>%  -->
-<!--                 pivot_longer(everything()) %>%  -->
-<!--                 mutate(model = "without")) -->
-<!--   all_data$model <- factor(all_data$model) -->
-<!--   comp_plot <- ggplot(all_data, aes(name, value, fill = model)) + -->
-<!--     geom_boxplot() + -->
-<!--     labs(title = paste("Cohort ", current_cohort, sep = ""), -->
-<!--          subtitle = "Comparison removing eta3", y = "Eta params") + -->
-<!--     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) -->
-<!--   print(comp_plot) -->
-<!--   ### -->
-<!--   ## same for zeta, -->
-<!--   all_data <- sim1 %>% -->
-<!--     select(starts_with("zeta") ) %>%  -->
-<!--     pivot_longer(everything()) %>%  -->
-<!--     mutate(model = "with eta1") %>%  -->
-<!--     bind_rows(sim2 %>% select(starts_with("zeta")) %>%  -->
-<!--                 pivot_longer(everything()) %>%  -->
-<!--                 mutate(model = "without")) -->
-<!--   all_data$model <- factor(all_data$model) -->
-<!--   comp_plot <- ggplot(all_data, aes(name, value, fill = model)) + -->
-<!--     geom_boxplot() + -->
-<!--     labs(title = paste("Cohort ", current_cohort, sep = ""), -->
-<!--          subtitle = "Comparison removing eta3", y = "Zeta params") + -->
-<!--     theme(axis.text.x = element_blank()) + -->
-<!--     facet_wrap(~name, scales = "free") -->
-<!--   print(comp_plot) -->
-
-
-
-<!--   ### -->
-<!--   all_data <- sim1 %>% -->
-<!--     select(starts_with("gamma")) %>%  -->
-<!--     pivot_longer(everything()) %>%  -->
-<!--     mutate(model = "with eta3") %>%  -->
-<!--     bind_rows(sim2 %>% select(starts_with("gamma")) %>%  -->
-<!--                 pivot_longer(everything()) %>%  -->
-<!--                 mutate(model = "without")) -->
-<!--   all_data$model <- factor(all_data$model) -->
-<!--   comp_plot <- ggplot(all_data, aes(name, value, fill = model)) + -->
-<!--     geom_boxplot() + -->
-<!--     labs(title = paste("Cohort ", current_cohort, sep = ""), -->
-<!--          subtitle = "Comparison removing eta3", y = "Out Degree") + -->
-<!--     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) -->
-<!--   print(comp_plot) -->
-
-
-<!-- } -->
-
-<!-- ``` -->
-
-
-<!-- # Compare rankings with/without eta_1 -->
-
-
-<!-- ```{r plot-rankings-both-models-no-eta-1, message=FALSE} -->
-<!-- # data_path -->
-<!-- other_data_path <- "../output/revisions/lapl_check/ident_check_no_eta1/" -->
-
-<!-- for(current_cohort in 1:10) { -->
-<!--   load(paste(data_path, -->
-<!--              cohort_names[current_cohort], -->
-<!--              "/cohort_mmhp_stan_result_", -->
-<!--              cohort_names[current_cohort], -->
-<!--              ".RData", -->
-<!--              sep = "" -->
-<!--              )) -->
-<!--   sim1 <- sim_cohort_mmhp -->
-<!--   load(paste(other_data_path, -->
-<!--              cohort_names[current_cohort], -->
-<!--              "/cohort_mmhp_stan_result_", -->
-<!--              cohort_names[current_cohort], -->
-<!--              ".RData", -->
-<!--              sep = "" -->
-<!--              )) -->
-<!--   sim2 <- sim_cohort_mmhp -->
-
-<!--   all_data <- sim1 %>% -->
-<!--     select(starts_with("f")) %>%  -->
-<!--     pivot_longer(everything()) %>%  -->
-<!--     mutate(model = "with eta1") %>%  -->
-<!--     bind_rows(sim2 %>% select(starts_with("f")) %>%  -->
-<!--                 pivot_longer(everything()) %>%  -->
-<!--                 mutate(model = "without")) -->
-
-<!--   f_ranks <- paste("f[", expert_rank_10[[current_cohort]], -->
-<!--                    "]", sep = "")  -->
-<!--   all_data$name <- factor(all_data$name, levels = f_ranks) -->
-
-<!--   all_data$model <- factor(all_data$model) -->
-<!--   comp_plot <- ggplot(all_data, aes(name, value, fill = model)) + -->
-<!--     geom_boxplot() + -->
-<!--     labs(title = paste("Cohort ", current_cohort, sep = ""), -->
-<!--          subtitle = "Comparison removing eta1, ranked by ISI", -->
-<!--          y = "Latent Ranks") -->
-<!--   print(comp_plot) -->
-
-<!--   all_data %>% group_by(name, model) %>%  -->
-<!--     summarise(model_mean = mean(value),  -->
-<!--               model_sd = sd(value)) -->
-
-<!--   ## same for beta_etc, -->
-<!--   all_data <- sim1 %>% -->
-<!--     select(starts_with("eta") | starts_with("w_lam") | starts_with("beta")) %>%  -->
-<!--     pivot_longer(everything()) %>%  -->
-<!--     mutate(model = "with eta1") %>%  -->
-<!--     bind_rows(sim2 %>%  -->
-<!--                 select(starts_with("eta") |  -->
-<!--                          starts_with("w_lam") | -->
-<!--                          starts_with("beta")) %>%  -->
-<!--                 pivot_longer(everything()) %>%  -->
-<!--                 mutate(model = "without")) -->
-<!--   all_data$model <- factor(all_data$model) -->
-<!--   comp_plot <- ggplot(all_data, aes(name, value, fill = model)) + -->
-<!--     geom_boxplot() + -->
-<!--     labs(title = paste("Cohort ", current_cohort, sep = ""), -->
-<!--          subtitle = "Comparison removing eta1", y = "Eta params") + -->
-<!--     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) -->
-<!--   print(comp_plot) -->
-<!--   ### -->
-<!--   ## same for zeta, -->
-<!--   all_data <- sim1 %>% -->
-<!--     select(starts_with("zeta") ) %>%  -->
-<!--     pivot_longer(everything()) %>%  -->
-<!--     mutate(model = "with eta1") %>%  -->
-<!--     bind_rows(sim2 %>% select(starts_with("zeta")) %>%  -->
-<!--                 pivot_longer(everything()) %>%  -->
-<!--                 mutate(model = "without")) -->
-<!--   all_data$model <- factor(all_data$model) -->
-<!--   comp_plot <- ggplot(all_data, aes(name, value, fill = model)) + -->
-<!--     geom_boxplot() + -->
-<!--     labs(title = paste("Cohort ", current_cohort, sep = ""), -->
-<!--          subtitle = "Comparison removing eta1", y = "Zeta params") + -->
-<!--     theme(axis.text.x = element_blank()) + -->
-<!--     facet_wrap(~name, scales = "free") -->
-<!--   print(comp_plot) -->
-
-
-<!--   ### -->
-<!--   all_data <- sim1 %>% -->
-<!--     select(starts_with("gamma")) %>%  -->
-<!--     pivot_longer(everything()) %>%  -->
-<!--     mutate(model = "with eta1") %>%  -->
-<!--     bind_rows(sim2 %>% select(starts_with("gamma")) %>%  -->
-<!--                 pivot_longer(everything()) %>%  -->
-<!--                 mutate(model = "without")) -->
-<!--   all_data$model <- factor(all_data$model) -->
-<!--   comp_plot <- ggplot(all_data, aes(name, value, fill = model)) + -->
-<!--     geom_boxplot() + -->
-<!--     labs(title = paste("Cohort ", current_cohort, sep = ""), -->
-<!--          subtitle = "Comparison removing eta1", y = "Out Degree") + -->
-<!--     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) -->
-<!--   print(comp_plot) -->
-
-
-<!-- } -->
-
-<!-- ``` -->
-
-
-<!-- # Other Paper plots -->
-
-<!-- ```{r fig-3b} -->
-<!-- current_cohort <- 5 -->
-
-<!-- m1_pr <- readRDS(paste(data_path, cohort_names[current_cohort], -->
-<!--   "/chp_pr_matrix_", cohort_names[current_cohort], -->
-<!--   ".RDS", -->
-<!--   sep = "" -->
-<!-- )) -->
-
-<!-- m2_pr <- readRDS(paste(data_path, cohort_names[current_cohort], -->
-<!--   "/dchp_pr_matrix_", cohort_names[current_cohort], -->
-<!--   ".RDS", -->
-<!--   sep = "" -->
-<!-- )) -->
-
-<!-- m3_pr <- readRDS(paste(data_path, cohort_names[current_cohort], -->
-<!--   "/cmmhp_pr_matrix_", cohort_names[current_cohort], -->
-<!--   ".RDS", -->
-<!--   sep = "" -->
-<!-- )) -->
-
-<!-- indep_pr <- readRDS(paste(data_path, cohort_names[current_cohort], -->
-<!--   "/immhp_pr_matrix_", cohort_names[current_cohort], -->
-<!--   ".RDS", -->
-<!--   sep = "" -->
-<!-- )) -->
-
-<!-- matrix_lst_plot <- list( -->
-<!--   m1_pr[ -->
-<!--     rev(expert_rank_10[[current_cohort]]), -->
-<!--     expert_rank_10[[current_cohort]] -->
-<!--   ], -->
-<!--   m2_pr[ -->
-<!--     rev(expert_rank_10[[current_cohort]]), -->
-<!--     expert_rank_10[[current_cohort]] -->
-<!--   ] -->
-<!--   , -->
-<!--   m3_pr[ -->
-<!--     rev(expert_rank_10[[current_cohort]]), -->
-<!--     expert_rank_10[[current_cohort]] -->
-<!--   ], -->
-<!--   indep_pr[ -->
-<!--     rev(expert_rank_10[[current_cohort]]), -->
-<!--     expert_rank_10[[current_cohort]] -->
-<!--   ] -->
-<!-- ) -->
-<!-- # cat("Cohort ",current_cohort,"\n",sep="") -->
-<!-- myMultiMatrixPlot( -->
-<!--   X = matrix_lst_plot, no_matrix = 4, n_row = 2, -->
-<!--   xLabels = expert_rank_10[[current_cohort]], -->
-<!--   yLabels = rev(expert_rank_10[[current_cohort]]), -->
-<!--   min = -80, max = 80, axis_cex = 2, title_cex = 1.8, -->
-<!--   colorPalette = "RdBu", if.emp = FALSE, -->
-<!--   # legend.mar=c(0.5,.5,0.5,0.5), -->
-<!--   title_lst = list("C-HP", "C-DCHP", "C-MMHP", "I-MMHP"), -->
-<!--   # title_lst = list("I-MMHP"), -->
-<!--   col_axis = c(-80, -40, 0, 40, 80), -->
-<!--   fake_matrix = FALSE, -->
-<!--   matrix.mar = c(2.5, 2.5, 2.5, 1) -->
-<!-- ) -->
-<!-- mtext(text = "(b)", -->
-<!--       side = 3, -->
-<!--       line = 0.5, -->
-<!--       outer = TRUE, -->
-<!--       cex = 2.5, -->
-<!--       font = 2) -->
-
-<!-- ``` -->
-
-
-<!-- ```{r fig-7a} -->
-<!-- load("../output/revisions/lapl_check/prior_check/plot_N_predict_revision.RData") -->
-<!-- current_cohort <- 5 # cohort 1 looks worse than rest -->
-
-<!-- temp_plot_df <- predict_day_mae_df_lst[[current_cohort]] -->
-<!-- temp_plot_df$method <- factor(temp_plot_df$method, -->
-<!--   levels = c("mmhp", "dsnl", "m1", "m2", "m3"), -->
-<!--   labels = c("I-MMHP", "DSNL", "C-HP", "C-DCHP", "C-MMHP") -->
-<!-- ) -->
-<!-- temp_plot_df$day <- factor(temp_plot_df$day) -->
-<!-- # png(paste(plot_path,"real_predict_N_one_cohort.png",sep=""), -->
-<!-- # width=600,height=300) -->
-
-<!-- plot_cols_pred <- col_df %>% -->
-<!--   filter(method %in% levels(temp_plot_df$method)) %>% -->
-<!--   arrange(factor(method, levels = c( -->
-<!--     "I-MMHP", "DSNL", -->
-<!--     "C-HP", "C-DCHP", "C-MMHP" -->
-<!--   ))) %>% -->
-<!--   pull(cols) -->
-
-<!-- p3 <- temp_plot_df %>% -->
-<!--   rowwise() %>% -->
-<!--   # mutate(norm = min(norm,60)) %>% -->
-<!--   # rename(Method = method) %>% -->
-<!--   ggplot(aes(x = method, y = mae, fill = method)) + -->
-<!--   geom_boxplot(alpha = 0.7) + -->
-<!--   scale_fill_manual(values = plot_cols_pred) + -->
-<!--   ggtitle("(a)") + -->
-<!--   theme_bw() + -->
-<!--   theme( -->
-<!--     plot.title = element_text(size = 22, hjust = 0.5, face = "bold"), -->
-<!--     text = element_text(size = 20), -->
-<!--     axis.text.x = element_blank(), -->
-<!--     axis.ticks.x = element_blank(), -->
-<!--     legend.position = "right" -->
-<!--   ) + -->
-<!--   facet_grid(cols = vars(day)) + -->
-<!--   xlab("Prediction horizon (day)") + -->
-<!--   ylab("MAE") + -->
-<!--   ylim(0, 5) + # aren't infinite but >150 and <200 -->
-<!--   NULL -->
-<!-- p3 + labs(fill = "Method", title = "Single Cohort") -->
-
-
-<!-- ``` -->
-
-
-
-<!-- ```{r fig-7b} -->
-<!-- load("../output/revisions/lapl_check/prior_check/plot_N_predict_revision.RData") -->
-
-<!-- all_cohort_box <- all_cohort_mae_df -->
-
-<!-- all_cohort_box$method <- factor(all_cohort_box$method, -->
-<!--   levels = c("mmhp", "dsnl", "m1", "m2", "m3"), -->
-<!--   labels = c( -->
-<!--     "I-MMHP", "DSNL", -->
-<!--     "C-HP", "C-DCHP", -->
-<!--     "C-MMHP" -->
-<!--   ) -->
-<!-- ) -->
-<!-- all_cohort_box$day <- factor(all_cohort_box$day) -->
-
-
-<!-- plot_cols_pred <- col_df %>% -->
-<!--   filter(method %in% levels(all_cohort_box$method)) %>% -->
-<!--   arrange(factor(method, levels = c( -->
-<!--     "I-MMHP", "DSNL", -->
-<!--     "C-HP", "C-DCHP", "C-MMHP" -->
-<!--   ))) %>% -->
-<!--   pull(cols) -->
-
-<!-- all_cohort_box %>% -->
-<!--   ggplot(aes(x = method, y = norm, fill = method)) + -->
-<!--   # facet_grid(cols = vars(day)) + -->
-<!--   geom_boxplot(alpha = 0.7) + -->
-<!--   scale_fill_manual(values = plot_cols_pred) + -->
-<!--   ggtitle("(a)") + -->
-<!--   theme_bw() + -->
-<!--   theme( -->
-<!--     plot.title = element_text( -->
-<!--       size = 22, -->
-<!--       hjust = 0.5, face = "bold" -->
-<!--     ), -->
-<!--     text = element_text(size = 20), -->
-<!--     axis.text.x = element_blank(), -->
-<!--     axis.ticks.x = element_blank(), -->
-<!--     legend.position = "right" -->
-<!--   ) + -->
-<!--   facet_grid(cols = vars(day)) + -->
-<!--   # guides(color=guide_legend(title="Method")) + -->
-<!--   xlab("Prediction horizon (day)") + -->
-<!--   ylab("MAE") + -->
-<!--   labs(fill = "Method") + -->
-<!--   # ylim(0, 80) + -->
-<!--   NULL -->
-
-
-<!-- ``` -->
-
-
-<!-- ```{r fig-7b-pred-rank-spearman-all-cohorts} -->
-<!-- load("../output/revisions/lapl_check/prior_check/plot_rank_predict.RData") -->
-
-<!-- all_cohort_rank_df$method <- factor(all_cohort_rank_df$method, -->
-<!--   levels = c("mmhp", "dsnl", "m1", "m2", "m3"), -->
-<!--   labels = c( -->
-<!--     "I-MMHP", "DSNL", "C-HP", -->
-<!--     "C-DCHP", "C-MMHP" -->
-<!--   ) -->
-<!-- ) -->
-
-<!-- p7 <- ggplot( -->
-<!--   all_cohort_rank_df, -->
-<!--   aes(x = method, y = spearman, fill = method) -->
-<!-- ) + -->
-<!--   # geom_line(size=1.2, alpha=0.8, position=position_dodge(0.2)) + -->
-<!--   geom_boxplot(alpha = 0.7) + -->
-<!--   scale_fill_manual(values = plot_cols_pred) + -->
-<!--   ggtitle("(b)") + -->
-<!--   theme_bw() + -->
-<!--   theme( -->
-<!--     plot.title = element_text(size = 22, hjust = 0.5, face = "bold"), -->
-<!--     text = element_text(size = 20), -->
-<!--     axis.text.x = element_blank(), -->
-<!--     axis.ticks.x = element_blank(), -->
-<!--     legend.position = "right" -->
-<!--   ) + -->
-<!--   facet_grid(cols = vars(day)) + -->
-<!--   xlab("Prediction horizon (day)") + -->
-<!--   ylab("Spearman rank corr.") + -->
-<!--   # coord_cartesian(ylim=c(0,1)) + -->
-<!--   labs(fill = "Method") -->
-
-<!-- p7 -->
-<!-- ``` -->
-
-
-<!-- ```{r construct data for plot, results='hide',message=FALSE,cache=TRUE} -->
-<!-- library(PlayerRatings) -->
-
-<!-- current_cohort <- 7 -->
-<!-- # 4 best so far, or 7 -->
-
-<!-- load(paste(data_path, cohort_names[current_cohort], -->
-<!--   "/predict_simulation_", cohort_names[current_cohort], -->
-<!--   ".RData", -->
-<!--   sep = "" -->
-<!-- )) -->
-<!-- clean_data <- cleanData(full_data[[cohort_names[current_cohort]]], -->
-<!--   cut_off = 1 -->
-<!-- ) -->
-
-<!-- df <- full_data[[cohort_names[current_cohort]]] -->
-<!-- df <- df[df$Actor != "Start" & df$Actor != "End", ] -->
-<!-- df1 <- expandrows(df) -->
-<!-- df1 <- df1[order(df1$Timestamp), ] # ensure in date order -->
-<!-- df1$event <- 1:nrow(df1) -->
-<!-- glick.df <- df1[, c("event", "Actor", "Recipient", "score"), with = FALSE] -->
-<!-- # need event, actor, recipient, score -->
-<!-- gl <- my_glicko(glick.df, history = TRUE, cval = 2) -->
-
-<!-- # ------------------- period -->
-<!-- training_end <- nrow(df[df$day <= 18, ]) -->
-<!-- testing_end <- nrow(df) - 1 # 1077 #929 for cohort 5 -->
-<!-- newx <- c(training_end:testing_end) -->
-
-<!-- # ----------------- set pars for plot -->
-<!-- my_col <- c("black", "grey", "orange", "red") -->
-<!-- col_vec <- colorRampPalette(my_col)(mice_number) -->
-<!-- ltypes_vec <- rep(1, mice_number) # c(1,2,3,1,2,3,1,2,3,1,2,3) -->
-<!-- history_width <- 3 -->
-<!-- sim_width <- 0.3 -->
-<!-- shade_vec <- makeTransparent(col_vec, 0.2) -->
-<!-- less_shade_vec <- makeTransparent(col_vec, 0.7) -->
-
-<!-- # ---------------- simulation mean and sd -->
-<!-- sim_gl_array <- array(NA, dim = c(12, testing_end - training_end + 1, 1000)) -->
-<!-- for (s in 1:1000) { -->
-<!--   print(s) -->
-<!--   temp_gl <- glickoScoreSimulationWithWindowsReturnAll( -->
-<!--     predict.sim = m3_predict_sim[5:8, s], # 7 for c 2 and 10 -->
-<!--     history.df = glick.df[1:training_end, ] -->
-<!--   ) -->
-<!--   history_matrix <- temp_gl$history[, , 1] -->
-
-<!--   if (testing_end > ncol(temp_gl$history[, , 1])) { -->
-<!--     history_matrix <- cbind( -->
-<!--       history_matrix, -->
-<!--       t(matrix(rep( -->
-<!--         history_matrix[, ncol(history_matrix)], -->
-<!--         testing_end - ncol(temp_gl$history[, , 1]) -->
-<!--       ), -->
-<!--       nrow = testing_end - ncol(temp_gl$history[, , 1]), -->
-<!--       byrow = TRUE -->
-<!--       )) -->
-<!--     ) -->
-<!--   } else { -->
-<!--     # try( -->
-<!--     history_matrix <- history_matrix[, 1:testing_end]  -->
-<!--     # temp_gl$history[,1:testing_end] -->
-<!--     # ) -->
-<!--   } -->
-<!--   sim_gl_array[, , s] <- history_matrix[, training_end:testing_end] -->
-<!-- } -->
-<!-- ``` -->
-
-
-
-<!-- ```{r fig-10a-glicko-rating} -->
-<!-- par(mar = c(3, 5, 3, 1)) -->
-<!-- testing_end <- testing_end - 1 -->
-<!-- plot(1, -->
-<!--   type = "n", xlab = "", -->
-<!--   ylab = "Glicko ranking", xlim = c(0, dim(gl$history)[2]), -->
-<!--   ylim = c(min(gl$history[, , 1]), max(gl$history[, , 1])), -->
-<!--   cex.axis = 2, cex.lab = 2 -->
-<!-- ) -->
-<!-- for (m in c(1:mice_number)) { -->
-<!--   # history -->
-<!--   lines(gl$history[m, 1:training_end, 1], -->
-<!--     cex = 0.6, col = col_vec[m], lwd = history_width, lty = ltypes_vec[m] -->
-<!--   ) -->
-<!--   lines(c(rep(NA, training_end), -->
-<!--           gl$history[m, (training_end + 1):testing_end, 1]), -->
-<!--     cex = 0.6, col = shade_vec[m], lwd = history_width, lty = ltypes_vec[m] -->
-<!--   ) -->
-
-<!--   # simulation -->
-<!--   cur_end <- testing_end -->
-<!--   mean_vec <- apply(sim_gl_array[m, , ], 1, function(x) mean(na.omit(x))) -->
-<!--   sd_vec <- apply(sim_gl_array[m, , ], 1, function(x) sd(na.omit(x))) -->
-<!--   polygon(c(newx, rev(newx)), -->
-<!--           c(mean_vec - sd_vec, rev(mean_vec + sd_vec)), -->
-<!--           col = shade_vec[m], border = NA) -->
-<!--   # polygon(c(newx), c(mean_vec-sd_vec),col = shade_vec[m], border = NA) -->
-<!--   lines(c(rep(NA, training_end), mean_vec), -->
-<!--     cex = 0.6, col = col_vec[m], lwd = 1, lty = 2 -->
-<!--   ) -->
-<!-- } -->
-
-<!-- # annotate the days -->
-<!-- for (d in c(19:21)) { -->
-<!--   abline(v = nrow(df[df$day <= (d - 1), ]), lty = 2, lwd = 0.4) -->
-<!--   text(x = nrow(df[df$day <= (d - 1), ]), y = 2600, d) -->
-<!-- } -->
-<!-- mtext(text = "(a)", side = 3, line = -2.3, -->
-<!--       outer = TRUE, cex = 2.8, at = 0.5, font = 2) -->
-<!-- ``` -->
-
-
-<!-- ```{r remove some objects, include=FALSE} -->
-<!-- rm(m3_predict_sim) -->
-<!-- rm(m2_predict_sim) -->
-<!-- rm(m1_predict_sim) -->
-<!-- rm(mmhp_predict_sim) -->
-<!-- rm(fit_agg_rank) -->
-<!-- rm(fit_cohort_hp) -->
-<!-- rm(fit_cohort_dchp) -->
-<!-- rm(fit_cohort_mmhp) -->
-
-<!-- # also removing stan fits as they can cause issues in the next chunk -->
-<!-- ``` -->
+```{r fig-7b, eval=paper_plots}
+load("../output/revisions/lapl_check/prior_check/plot_N_predict_revision.RData")
+
+all_cohort_box <- all_cohort_mae_df
+
+all_cohort_box$method <- factor(all_cohort_box$method,
+  levels = c("mmhp", "dsnl", "m1", "m2", "m3"),
+  labels = c(
+    "I-MMHP", "DSNL",
+    "C-HP", "C-DCHP",
+    "C-MMHP"
+  )
+)
+all_cohort_box$day <- factor(all_cohort_box$day)
+
+
+plot_cols_pred <- col_df %>%
+  filter(method %in% levels(all_cohort_box$method)) %>%
+  arrange(factor(method, levels = c(
+    "I-MMHP", "DSNL",
+    "C-HP", "C-DCHP", "C-MMHP"
+  ))) %>%
+  pull(cols)
+
+all_cohort_box %>%
+  ggplot(aes(x = method, y = norm, fill = method)) +
+  # facet_grid(cols = vars(day)) +
+  geom_boxplot(alpha = 0.7) +
+  scale_fill_manual(values = plot_cols_pred) +
+  ggtitle("(a)") +
+  theme_bw() +
+  theme(
+    plot.title = element_text(
+      size = 22,
+      hjust = 0.5, face = "bold"
+    ),
+    text = element_text(size = 20),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    legend.position = "right"
+  ) +
+  facet_grid(cols = vars(day)) +
+  # guides(color=guide_legend(title="Method")) +
+  xlab("Prediction horizon (day)") +
+  ylab("MAE") +
+  labs(fill = "Method") +
+  # ylim(0, 80) +
+  NULL
+
+
+```
+
+
+```{r fig-7b-pred-rank-spearman-all-cohorts, eval=paper_plots}
+load("../output/revisions/lapl_check/prior_check/plot_rank_predict.RData")
+
+all_cohort_rank_df$method <- factor(all_cohort_rank_df$method,
+  levels = c("mmhp", "dsnl", "m1", "m2", "m3"),
+  labels = c(
+    "I-MMHP", "DSNL", "C-HP",
+    "C-DCHP", "C-MMHP"
+  )
+)
+
+p7 <- ggplot(
+  all_cohort_rank_df,
+  aes(x = method, y = spearman, fill = method)
+) +
+  # geom_line(size=1.2, alpha=0.8, position=position_dodge(0.2)) +
+  geom_boxplot(alpha = 0.7) +
+  scale_fill_manual(values = plot_cols_pred) +
+  ggtitle("(b)") +
+  theme_bw() +
+  theme(
+    plot.title = element_text(size = 22, hjust = 0.5, face = "bold"),
+    text = element_text(size = 20),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    legend.position = "right"
+  ) +
+  facet_grid(cols = vars(day)) +
+  xlab("Prediction horizon (day)") +
+  ylab("Spearman rank corr.") +
+  # coord_cartesian(ylim=c(0,1)) +
+  labs(fill = "Method")
+
+p7
+```
+
+
+```{r construct data for plot, results='hide',message=FALSE,cache=TRUE, eval=paper_plots}
+library(PlayerRatings)
+
+current_cohort <- 7
+# 4 best so far, or 7
+
+load(paste(data_path, cohort_names[current_cohort],
+  "/predict_simulation_", cohort_names[current_cohort],
+  ".RData",
+  sep = ""
+))
+clean_data <- cleanData(full_data[[cohort_names[current_cohort]]],
+  cut_off = 1
+)
+
+df <- full_data[[cohort_names[current_cohort]]]
+df <- df[df$Actor != "Start" & df$Actor != "End", ]
+df1 <- expandrows(df)
+df1 <- df1[order(df1$Timestamp), ] # ensure in date order
+df1$event <- 1:nrow(df1)
+glick.df <- df1[, c("event", "Actor", "Recipient", "score"), with = FALSE]
+# need event, actor, recipient, score
+gl <- my_glicko(glick.df, history = TRUE, cval = 2)
+
+# ------------------- period
+training_end <- nrow(df[df$day <= 18, ])
+testing_end <- nrow(df) - 1 # 1077 #929 for cohort 5
+newx <- c(training_end:testing_end)
+
+# ----------------- set pars for plot
+my_col <- c("black", "grey", "orange", "red")
+col_vec <- colorRampPalette(my_col)(mice_number)
+ltypes_vec <- rep(1, mice_number) # c(1,2,3,1,2,3,1,2,3,1,2,3)
+history_width <- 3
+sim_width <- 0.3
+shade_vec <- makeTransparent(col_vec, 0.2)
+less_shade_vec <- makeTransparent(col_vec, 0.7)
+
+# ---------------- simulation mean and sd
+sim_gl_array <- array(NA, dim = c(12, testing_end - training_end + 1, 1000))
+for (s in 1:1000) {
+  print(s)
+  temp_gl <- glickoScoreSimulationWithWindowsReturnAll(
+    predict.sim = m3_predict_sim[5:8, s], # 7 for c 2 and 10
+    history.df = glick.df[1:training_end, ]
+  )
+  history_matrix <- temp_gl$history[, , 1]
+
+  if (testing_end > ncol(temp_gl$history[, , 1])) {
+    history_matrix <- cbind(
+      history_matrix,
+      t(matrix(rep(
+        history_matrix[, ncol(history_matrix)],
+        testing_end - ncol(temp_gl$history[, , 1])
+      ),
+      nrow = testing_end - ncol(temp_gl$history[, , 1]),
+      byrow = TRUE
+      ))
+    )
+  } else {
+    # try(
+    history_matrix <- history_matrix[, 1:testing_end]
+    # temp_gl$history[,1:testing_end]
+    # )
+  }
+  sim_gl_array[, , s] <- history_matrix[, training_end:testing_end]
+}
+```
+
+
+```{r fig-10a-glicko-rating, eval=paper_plots}
+par(mar = c(3, 5, 3, 1))
+testing_end <- testing_end - 1
+plot(1,
+  type = "n", xlab = "",
+  ylab = "Glicko ranking", xlim = c(0, dim(gl$history)[2]),
+  ylim = c(min(gl$history[, , 1]), max(gl$history[, , 1])),
+  cex.axis = 2, cex.lab = 2
+)
+for (m in c(1:mice_number)) {
+  # history
+  lines(gl$history[m, 1:training_end, 1],
+    cex = 0.6, col = col_vec[m], lwd = history_width, lty = ltypes_vec[m]
+  )
+  lines(c(rep(NA, training_end),
+          gl$history[m, (training_end + 1):testing_end, 1]),
+    cex = 0.6, col = shade_vec[m], lwd = history_width, lty = ltypes_vec[m]
+  )
+
+  # simulation
+  cur_end <- testing_end
+  mean_vec <- apply(sim_gl_array[m, , ], 1, function(x) mean(na.omit(x)))
+  sd_vec <- apply(sim_gl_array[m, , ], 1, function(x) sd(na.omit(x)))
+  polygon(c(newx, rev(newx)),
+          c(mean_vec - sd_vec, rev(mean_vec + sd_vec)),
+          col = shade_vec[m], border = NA)
+  # polygon(c(newx), c(mean_vec-sd_vec),col = shade_vec[m], border = NA)
+  lines(c(rep(NA, training_end), mean_vec),
+    cex = 0.6, col = col_vec[m], lwd = 1, lty = 2
+  )
+}
+
+# annotate the days
+for (d in c(19:21)) {
+  abline(v = nrow(df[df$day <= (d - 1), ]), lty = 2, lwd = 0.4)
+  text(x = nrow(df[df$day <= (d - 1), ]), y = 2600, d)
+}
+mtext(text = "(a)", side = 3, line = -2.3,
+      outer = TRUE, cex = 2.8, at = 0.5, font = 2)
+```
+
+
+```{r remove some objects, include=FALSE, eval=paper_plots}
+rm(m3_predict_sim)
+rm(m2_predict_sim)
+rm(m1_predict_sim)
+rm(mmhp_predict_sim)
+rm(fit_agg_rank)
+rm(fit_cohort_hp)
+rm(fit_cohort_dchp)
+rm(fit_cohort_mmhp)
+
+# also removing stan fits as they can cause issues in the next chunk
+```
 
 
 # Examine new simulation results
@@ -1049,9 +467,9 @@ cohort_est <- readRDS(here("output", "sim_ests.RDS"))
 
 mean_values <- cohort_est %>% select(variable, mean)
 
-f_vec <- mean_values %>% 
-  pivot_wider(names_from = variable, values_from = mean) %>% 
-  select(starts_with("f")) %>% 
+f_vec <- mean_values %>%
+  pivot_wider(names_from = variable, values_from = mean) %>%
+  select(starts_with("f")) %>%
   as.numeric()
 
 f_vec <- seq(from = 0.2, to = 0.9, length.out = num_nodes)
@@ -1069,40 +487,40 @@ model_colors <- col_df %>%
 for(curr_sim in seq_along(sim_files)) {
   load(paste0(sim_data_path,
               sim_files[curr_sim]))
-  
+
   f_m1 <- sim_model3_stan_sim1 %>% select(starts_with("f"))
   m1_ranks <- apply(f_m1, 2, median)
-  
-  f_m1_sims <- f_m1 %>% 
-    rename_with(~gsub("f[", "", .x, fixed = TRUE)) %>% 
-    rename_with(~gsub("]", "", .x, fixed = TRUE)) %>% 
+
+  f_m1_sims <- f_m1 %>%
+    rename_with(~gsub("f[", "", .x, fixed = TRUE)) %>%
+    rename_with(~gsub("]", "", .x, fixed = TRUE)) %>%
     pivot_longer(everything(),
                  names_to = "node",
                  values_to = "rank")
   f_m1_sims$model <- "C-HP"
-  
+
   f_m2 <- sim_model3_stan_sim2 %>% select(starts_with("f"))
   m2_ranks <- apply(f_m2, 2, median)
-  
-  f_m2_sims <- f_m2 %>% 
-    rename_with(~gsub("f[", "", .x, fixed = TRUE)) %>% 
-    rename_with(~gsub("]", "", .x, fixed = TRUE)) %>% 
+
+  f_m2_sims <- f_m2 %>%
+    rename_with(~gsub("f[", "", .x, fixed = TRUE)) %>%
+    rename_with(~gsub("]", "", .x, fixed = TRUE)) %>%
     pivot_longer(everything(),
                  names_to = "node",
                  values_to = "rank")
-  
+
   f_m2_sims$model <- "C-DCHP"
-  
+
   f_m3 <- sim_model3_stan_sim3 %>% select(starts_with("f"))
   m3_ranks <- apply(f_m3, 2, median)
-  
-  f_m3_sims <- f_m3 %>% 
-    rename_with(~gsub("f[", "", .x, fixed = TRUE)) %>% 
-    rename_with(~gsub("]", "", .x, fixed = TRUE)) %>% 
+
+  f_m3_sims <- f_m3 %>%
+    rename_with(~gsub("f[", "", .x, fixed = TRUE)) %>%
+    rename_with(~gsub("]", "", .x, fixed = TRUE)) %>%
     pivot_longer(everything(),
                  names_to = "node",
                  values_to = "rank")
-  
+
   f_m3_sims$model <- "C-MMHP"
 
   curr_mean_ranks <- tibble(model = c(rep("C-HP", num_nodes),
@@ -1114,12 +532,12 @@ for(curr_sim in seq_along(sim_files)) {
                        node = rep(1:num_nodes, 3),
                        true_rank = rep(f_vec, 3),
                        sim_id = curr_sim)
-  sim_ranks_mean <- sim_ranks_mean %>% 
+  sim_ranks_mean <- sim_ranks_mean %>%
     bind_rows(curr_mean_ranks)
-  
-  sim_ranks <- sim_ranks %>% 
+
+  sim_ranks <- sim_ranks %>%
     bind_rows(f_m1_sims, f_m2_sims, f_m3_sims)
-  
+
 }
 
 
@@ -1128,11 +546,11 @@ sim_ranks_mean$node <- factor(sim_ranks_mean$node, levels = 1:num_nodes)
 
 # sim_ranks$node
 
-sim_ranks_mean$model <- factor(sim_ranks_mean$model, 
+sim_ranks_mean$model <- factor(sim_ranks_mean$model,
                                levels = c( "C-HP", "C-DCHP", "C-MMHP"))
 
-mean_sims <- sim_ranks_mean %>% 
-  left_join(col_df, by = c("model" = "method")) 
+mean_sims <- sim_ranks_mean %>%
+  left_join(col_df, by = c("model" = "method"))
 
 mean_sims$model <- factor(mean_sims$model, levels = c("C-HP", "C-DCHP",
                                                       "C-MMHP"))
@@ -1145,18 +563,18 @@ true_ranks <- tibble(node = rep(1:num_nodes,3),
                                rep("C-MMHP", num_nodes)))
 true_ranks$node <- factor(true_ranks$node, levels = 1:num_nodes)
 
-true_ranks$model <- factor(true_ranks$model, 
+true_ranks$model <- factor(true_ranks$model,
                            levels = c("C-HP", "C-DCHP","C-MMHP"))
 
-mean_sims %>% 
-  # filter(model == "C-MMHP") %>% 
-  ggplot(aes(node, ranks, fill = model)) + 
+mean_sims %>%
+  # filter(model == "C-MMHP") %>%
+  ggplot(aes(node, ranks, fill = model)) +
   geom_boxplot(show.legend = FALSE) +
   scale_fill_manual(values = model_colors, guide = FALSE) +
   # geom_point(aes(node, true_rank, colour = "red")) +
   ylim(c(0,1)) +
   labs(title = "(a)",
-       subtitle = "Mean rank from each simulation", 
+       subtitle = "Mean rank from each simulation",
        y = "Posterior Mean Rank", x = "Node") +
   facet_wrap(~model) +
   geom_point(data = true_ranks,
@@ -1167,8 +585,8 @@ mean_sims %>%
         legend.position = "bottom",
         plot.title = element_text(hjust = 0.5, size = 26),
         text = element_text(size = 18),
-        legend.text = element_text(size = 18)) 
-   
+        legend.text = element_text(size = 18))
+
 ```
 
 What about the recovery of the other parameters?
@@ -1179,38 +597,38 @@ eta_ests <- tibble()
 for(curr_sim in seq_along(sim_files)) {
   load(paste0(sim_data_path,
               sim_files[curr_sim]))
-  
-  eta_m1 <- sim_model3_stan_sim1 %>% 
+
+  eta_m1 <- sim_model3_stan_sim1 %>%
     select(starts_with("eta") | starts_with("beta") |
-             starts_with("r_lam")) %>% 
-    pivot_longer(everything()) %>% 
-    group_by(name) %>% 
-    summarise(mean_est = median(value)) %>% 
-    mutate(model = "C-HP") %>% 
+             starts_with("r_lam")) %>%
+    pivot_longer(everything()) %>%
+    group_by(name) %>%
+    summarise(mean_est = median(value)) %>%
+    mutate(model = "C-HP") %>%
     filter(name != "beta_delta")
-  
+
   eta_m2 <- sim_model3_stan_sim2 %>%
     select(starts_with("eta") | starts_with("beta") |
-             starts_with("r_lam")) %>% 
-    pivot_longer(everything()) %>% 
-    group_by(name) %>% 
-    summarise(mean_est = median(value)) %>% 
-    mutate(model = "C-DCHP") %>% 
+             starts_with("r_lam")) %>%
+    pivot_longer(everything()) %>%
+    group_by(name) %>%
+    summarise(mean_est = median(value)) %>%
+    mutate(model = "C-DCHP") %>%
     filter(name != "beta_delta")
-  
+
   eta_m3 <- sim_model3_stan_sim3 %>%
     select(starts_with("eta") | starts_with("beta") |
-             starts_with("r_lam")) %>% 
-    pivot_longer(everything()) %>% 
-    group_by(name) %>% 
-    summarise(mean_est = median(value)) %>% 
-    mutate(model = "C-MMHP") %>% 
+             starts_with("r_lam")) %>%
+    pivot_longer(everything()) %>%
+    group_by(name) %>%
+    summarise(mean_est = median(value)) %>%
+    mutate(model = "C-MMHP") %>%
     filter(name != "beta_delta")
-  
+
   curr_sim_ests <- bind_rows(eta_m1,
                              eta_m2,
                              eta_m3)
-  eta_ests <- eta_ests %>% 
+  eta_ests <- eta_ests %>%
     bind_rows(curr_sim_ests)
 }
 
@@ -1227,7 +645,7 @@ tru_values <- tibble(name = c("eta_1", "eta_2", "eta_3",
                                   object_par$sim_w_lam,
                                   object_par$sim_beta))
 
-eta_ests %>% 
+eta_ests %>%
   ggplot(aes(name, mean_est)) +
   geom_boxplot(aes(fill = model)) +
   geom_hline(mapping = aes(yintercept = mean_est),
@@ -1245,24 +663,24 @@ gamma_ests <- tibble()
 for(curr_sim in seq_along(sim_files)) {
   load(paste0(sim_data_path,
               sim_files[curr_sim]))
-  
+
   gamm_m2 <- sim_model3_stan_sim2 %>%
-    select(starts_with("gamma") ) %>% 
-    pivot_longer(everything()) %>% 
-    group_by(name) %>% 
-    summarise(mean_est = median(value)) %>% 
-    mutate(model = "C-DCHP") 
-  
+    select(starts_with("gamma") ) %>%
+    pivot_longer(everything()) %>%
+    group_by(name) %>%
+    summarise(mean_est = median(value)) %>%
+    mutate(model = "C-DCHP")
+
   gamm_m3 <- sim_model3_stan_sim3 %>%
-    select(starts_with("gamma") ) %>% 
-    pivot_longer(everything()) %>% 
-    group_by(name) %>% 
-    summarise(mean_est = median(value)) %>% 
-    mutate(model = "C-MMHP") 
-  
+    select(starts_with("gamma") ) %>%
+    pivot_longer(everything()) %>%
+    group_by(name) %>%
+    summarise(mean_est = median(value)) %>%
+    mutate(model = "C-MMHP")
+
   curr_sim_ests <- bind_rows(gamm_m2,
                              gamm_m3)
-  gamma_ests <- gamma_ests %>% 
+  gamma_ests <- gamma_ests %>%
     bind_rows(curr_sim_ests)
 }
 
@@ -1274,7 +692,7 @@ gamma_ests$model <- factor(gamma_ests$model, levels = c("C-HP",
 tru_values <- tibble(name = paste0("gamma[", 1:num_nodes, "]"),
                      mean_est = object_par$gamma_var)
 
-gamma_ests %>% 
+gamma_ests %>%
   ggplot(aes(name, mean_est)) +
   geom_boxplot(aes(fill = model)) +
   geom_hline(mapping = aes(yintercept = mean_est),
@@ -1282,30 +700,30 @@ gamma_ests %>%
   facet_wrap(~name, scales = "free")
 ```
 
-```{r gamma-estimates}
+```{r zeta-estimates}
 zeta_ests <- tibble()
 
 for(curr_sim in seq_along(sim_files)) {
   load(paste0(sim_data_path,
               sim_files[curr_sim]))
-  
+
   zeta_m2 <- sim_model3_stan_sim2 %>%
-    select(starts_with("zeta") ) %>% 
-    pivot_longer(everything()) %>% 
-    group_by(name) %>% 
-    summarise(mean_est = median(value)) %>% 
-    mutate(model = "C-DCHP") 
-  
+    select(starts_with("zeta") ) %>%
+    pivot_longer(everything()) %>%
+    group_by(name) %>%
+    summarise(mean_est = median(value)) %>%
+    mutate(model = "C-DCHP")
+
   zeta_m3 <- sim_model3_stan_sim3 %>%
-    select(starts_with("zeta") ) %>% 
-    pivot_longer(everything()) %>% 
-    group_by(name) %>% 
-    summarise(mean_est = median(value)) %>% 
-    mutate(model = "C-MMHP") 
-  
+    select(starts_with("zeta") ) %>%
+    pivot_longer(everything()) %>%
+    group_by(name) %>%
+    summarise(mean_est = median(value)) %>%
+    mutate(model = "C-MMHP")
+
   curr_sim_ests <- bind_rows(zeta_m2,
                              zeta_m3)
-  zeta_ests <- zeta_ests %>% 
+  zeta_ests <- zeta_ests %>%
     bind_rows(curr_sim_ests)
 }
 
@@ -1317,7 +735,7 @@ zeta_ests$model <- factor(zeta_ests$model, levels = c("C-HP",
 tru_values <- tibble(name = paste0("zeta[", 1:num_nodes, "]"),
                      mean_est = object_par$zeta_var)
 
-zeta_ests %>% 
+zeta_ests %>%
   ggplot(aes(name, mean_est)) +
   geom_boxplot(aes(fill = model)) +
   geom_hline(mapping = aes(yintercept = mean_est),

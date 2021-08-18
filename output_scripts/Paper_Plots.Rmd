@@ -30,7 +30,7 @@ original_plots <- FALSE
 current_cohort <- 5
 
 # don't write to this path
-data_path <- "../output/revisions/lapl_check/prior_check/"
+data_path <- "../output/revisions/aug_run/"
 
 func_dir <- "../lib/"
 
@@ -914,6 +914,7 @@ model_colors <- col_df %>%
   )) %>%
   pull(cols)
 
+## change this to just list all files with a pattern
 sims <- 1:50
 sims <- sims[c(-37,-45,-46, -50)]
 
@@ -4374,7 +4375,7 @@ p7
 ## Figure 10a
 
 
-```{r construct data for plot, results='hide',message=FALSE,cache=TRUE}
+```{r construct data for plot, results='hide',message=FALSE}
 library(PlayerRatings)
 
 current_cohort <- 7
@@ -4598,12 +4599,12 @@ fit_dsnl_active <- dsnl_poisson$sample(
 active_fit <- fit_dsnl_active$draws()
 sim_dsnl_active <- posterior::as_draws_df(active_fit)
 
-
-print(fit_dsnl_active, pars = c("x"))
-sim_dsnl_active <- rstan::extract(fit_dsnl_active)
+# 
+# print(fit_dsnl_active, pars = c("x"))
+# sim_dsnl_active <- rstan::extract(fit_dsnl_active)
 
 ## social dsnl
-fit_dsnl_inactive <- stan("../lib/dsnl_poisson.stan",
+fit_dsnl_inactive <- dsnl_poisson$sample(
   data = list(
     day = 21,
     Gt = social_state_day,
@@ -4612,7 +4613,7 @@ fit_dsnl_inactive <- stan("../lib/dsnl_poisson.stan",
   ),
   iter = 1000, chains = 4, control = list(adapt_delta = 0.99)
 )
-print(fit_dsnl_inactive, pars = c("x"))
+# print(fit_dsnl_inactive, pars = c("x"))
 sim_dsnl_inactive <- rstan::extract(fit_dsnl_inactive)
 
 save(sim_dsnl_active, fit_dsnl_active, utility_state_day,
