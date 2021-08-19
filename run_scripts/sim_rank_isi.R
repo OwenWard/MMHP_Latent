@@ -3,7 +3,7 @@
 source("/moto/stats/users/ogw2103/Code/MMHP_Latent/run_scripts/cluster_setup.R")
 
 
-data_path <- "output/revisions/lapl_check/sim_rank/"
+data_path <- "output/revisions/aug_run/sim_rank/"
 print(data_path)
 
 jobid <- Sys.getenv("SLURM_ARRAY_TASK_ID")
@@ -16,6 +16,7 @@ library(tidyverse)
 library(cmdstanr)
 library(compete)
 library(PlayerRatings)
+library(R.utils)
 
 options(mc.cores = parallel::detectCores())
 
@@ -62,15 +63,15 @@ object_fn <- list(
   }
 )
 
-object_par <- list(sim_lambda_1 = 0.6,
-                   gamma_var = seq(from = 0.01, to = 0.2,
+object_par <- list(gamma_var = seq(from = 0.01, to = 0.2,
                                    length.out = num_nodes),
                    zeta_var = rep(0.05, num_nodes),
-                   sim_eta_1 = 2.5, # from 3.5
+                   sim_eta_1 = 3, # from 3.5
                    sim_eta_2 = 2,#1.5, # from 2.6
-                   sim_eta_3 = 5, # 
+                   sim_eta_3 = 2.5, # 
                    sim_beta = 1.5, # from 2
-                   f_vec_1 = seq(from = 0.05, to = 0.95,
+                   sim_w_lam = 1.5,
+                   f_vec_1 = seq(from = 0.1, to = 0.9,
                                  length.out = num_nodes))
 
 object_matrix <- list(
@@ -78,9 +79,9 @@ object_matrix <- list(
     object_par$gamma_var,
     object_par$zeta_var, "+"
   ),
-  lambda1_matrix = matrix(object_par$sim_lambda_1,
-    nrow = length(object_par$f_vec_1),
-    ncol = length(object_par$f_vec_1)
+  lambda1_matrix = object_par$sim_w_lam * outer(
+    object_par$gamma_var,
+    object_par$zeta_var, "+"
   ),
   alpha_matrix = formMatrix(
     function(x, y) {
@@ -116,21 +117,21 @@ object_matrix <- list(
 )
 
 
-# #### Adjust for degree corrected sim
-
-gamma_var <- seq(from = 0.01, to = 0.15, length.out = num_nodes)
-zeta_var <- rep(c(0.075, 0.02, 0.03, 0.05, 0.08), num_nodes/5)
-w_lambda <- 0.4
-lambda_matrix <- outer(gamma_var, zeta_var, "+")
-# lambda_matrix
-
-object_matrix <- object_matrix
-object_matrix$lambda0_matrix <- lambda_matrix
-
-max_lam <- max(lambda_matrix)
-object_matrix$lambda1_matrix <- matrix(max_lam*(1 + w_lambda),
-                                          nrow = length(object_par$f_vec_1),
-                                          ncol = length(object_par$f_vec_1))
+# # #### Adjust for degree corrected sim
+# 
+# gamma_var <- seq(from = 0.01, to = 0.15, length.out = num_nodes)
+# zeta_var <- rep(c(0.075, 0.02, 0.03, 0.05, 0.08), num_nodes/5)
+# w_lambda <- 0.4
+# lambda_matrix <- outer(gamma_var, zeta_var, "+")
+# # lambda_matrix
+# 
+# object_matrix <- object_matrix
+# object_matrix$lambda0_matrix <- lambda_matrix
+# 
+# max_lam <- max(lambda_matrix)
+# object_matrix$lambda1_matrix <- matrix(max_lam*(1 + w_lambda),
+#                                           nrow = length(object_par$f_vec_1),
+#                                           ncol = length(object_par$f_vec_1))
 
 
 sim_model3_data <- simulateLatentMMHP(
@@ -181,7 +182,7 @@ model1_stan_fit <- model1$sample(
 
 stansims_m1 <- model1_stan_fit$summary("f")
 
-m1_rank <- order(stansims_m1$mean)
+m1_rank <- order(stansims_m1$median)
 
 #### model 2 ####
 
@@ -197,7 +198,7 @@ model2_stan_fit <- model2$sample(
 
 stansims_m2 <- model2_stan_fit$summary("f")
 
-m2_rank <- order(stansims_m2$mean)
+m2_rank <- order(stansims_m2$median)
 
 
 #### model 3 ####
@@ -221,13 +222,13 @@ data_list <- list(
 
 
 
-count_data <- get_wl_matrix(df = cbind(
-  clean_sim_data$start,
-  clean_sim_data$end
-))
-isi.out <- compete::isi98(m = count_data, random = TRUE)
-top_rank <- as.numeric(isi.out$best_order[1])
-data_list$alpha_id <- top_rank
+# count_data <- get_wl_matrix(df = cbind(
+#   clean_sim_data$start,
+#   clean_sim_data$end
+# ))
+# isi.out <- compete::isi98(m = count_data, random = TRUE)
+# top_rank <- as.numeric(isi.out$best_order[1])
+# data_list$alpha_id <- top_rank
 
 
 model3_stan_fit <- model3$sample(
