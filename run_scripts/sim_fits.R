@@ -33,7 +33,7 @@ source('lib/drawIntensity.R')
 n_sim <- 1
 num_nodes <- 10
 cut_off <- 3
-obs_time <- 150
+obs_time <- 100
 
 # cohort_ests <- readRDS("output/sim_ests.RDS")
 
@@ -93,7 +93,7 @@ object_fn <- list(alpha.fun = function(x,y,eta1,eta2){
 
 object_par <- list(gamma_var = seq(from = 0.01, to = 0.2,
                                    length.out = num_nodes),
-                   zeta_var = runif(num_nodes, max = 0.2),
+                   zeta_var = rep(c(0, 0.02), num_nodes/2),
                    sim_eta_1 = 3, # from 3.5
                    sim_eta_2 = 2, # from 2.6
                    sim_eta_3 = 2.5, 
