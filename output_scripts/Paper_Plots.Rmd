@@ -15,7 +15,7 @@ output:
 knitr::opts_chunk$set(
   echo = TRUE, fig.path = "paper_figure/revision/",
   dev = "png", fig.height = 5, fig.width = 7,
-  warning = FALSE, cache = FALSE
+  warning = FALSE, cache = TRUE
 )
 
 slides_plots <- FALSE
@@ -896,7 +896,7 @@ ranking values included for each.
 Will need to update this with full final simulations but fully set up now.
 
 ```{r fig-4a, eval = revision_plots, message=FALSE, warning=FALSE}
-sim_data_path <- here("output", "revisions", "lapl_check", "sim_lapl", "/")
+sim_data_path <- here("output", "revisions", "aug_run", "sims", "/")
 
 num_nodes <- 10
 
@@ -915,17 +915,15 @@ model_colors <- col_df %>%
   pull(cols)
 
 ## change this to just list all files with a pattern
-sims <- 1:50
-sims <- sims[c(-37,-45,-46, -50)]
+sims <- list.files(sim_data_path, pattern = "sim_model3_fit123")
+
 
 for(curr_sim in sims) {
   load(paste0(sim_data_path,
-              "sim_model3_fit123_",
-              curr_sim,
-              ".RData"))
+              curr_sim))
   
   f_m1 <- sim_model3_stan_sim1 %>% select(starts_with("f"))
-  m1_ranks <- apply(f_m1, 2, mean)
+  m1_ranks <- apply(f_m1, 2, median)
   
   f_m1_sims <- f_m1 %>% 
     rename_with(~gsub("f[", "", .x, fixed = TRUE)) %>% 
@@ -936,7 +934,7 @@ for(curr_sim in sims) {
   f_m1_sims$model <- "C-HP"
   
   f_m2 <- sim_model3_stan_sim2 %>% select(starts_with("f"))
-  m2_ranks <- apply(f_m2, 2, mean)
+  m2_ranks <- apply(f_m2, 2, median)
   
   f_m2_sims <- f_m2 %>% 
     rename_with(~gsub("f[", "", .x, fixed = TRUE)) %>% 
@@ -948,7 +946,7 @@ for(curr_sim in sims) {
   f_m2_sims$model <- "C-DCHP"
   
   f_m3 <- sim_model3_stan_sim3 %>% select(starts_with("f"))
-  m3_ranks <- apply(f_m3, 2, mean)
+  m3_ranks <- apply(f_m3, 2, median)
   
   f_m3_sims <- f_m3 %>% 
     rename_with(~gsub("f[", "", .x, fixed = TRUE)) %>% 
@@ -1023,7 +1021,7 @@ mean_sims %>%
         legend.text = element_text(size = 18)) 
    
 
-## this is just the mean from each simulation, not the posterior draws
+## this is just the median from each simulation, not the posterior draws
 ```
 
 ## Figure 4b: Recover Latent States
@@ -4611,18 +4609,27 @@ fit_dsnl_inactive <- dsnl_poisson$sample(
     c = 1,
     sigma = 1
   ),
-  iter = 1000, chains = 4, control = list(adapt_delta = 0.99)
+  iter_warmup = 500,
+  iter_sampling = 500,
+  chains = 4,
+  adapt_delta = 0.95
 )
 # print(fit_dsnl_inactive, pars = c("x"))
-sim_dsnl_inactive <- rstan::extract(fit_dsnl_inactive)
+inactive_fit <- fit_dsnl_inactive$draws()
+sim_dsnl_inactive <- posterior::as_draws_df(inactive_fit)
 
-save(sim_dsnl_active, fit_dsnl_active, utility_state_day,
-  sim_dsnl_inactive, fit_dsnl_inactive, social_state_day,
-  file = paste(data_path, cohort_names[current_cohort],
-    "/dsnl_state_separation_stan_result_",
-    cohort_names[current_cohort],
-    ".RData",
-    sep = ""
+save(sim_dsnl_active,
+     fit_dsnl_active,
+     utility_state_day,
+     sim_dsnl_inactive,
+     fit_dsnl_inactive,
+     social_state_day,
+     file = paste(data_path,
+                  cohort_names[current_cohort],
+                  "/dsnl_state_separation_stan_result_",
+                  cohort_names[current_cohort],
+                  ".RData",
+                  sep = ""
   )
 )
 rm(interpolation_array_list)
@@ -4631,9 +4638,8 @@ rm(termination_state_list)
 rm(initial_state_list)
 ```
 
-Need to update this to read in cmdstan results.
 
-```{r process data for plot 10b, cache=TRUE}
+```{r process data for plot 10b, cache=FALSE}
 library(PlayerRatings)
 current_cohort <- 5
 # current_cohort <- 1
@@ -4732,6 +4738,7 @@ data.tbl$task.type <- factor(data.tbl$task.type)
 
 
 ```{r fig-10b-rank-correlation}
+print(current_cohort)
 par(mar = c(3, 5, 3, 1))
 cx <- 1.75 # cex for axis label text;
 # default is 1. bigger numbers make the text bigger, smaller, smaller.

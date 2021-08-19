@@ -1612,7 +1612,6 @@ cmmhp_zeta <- tibble()
 out_perc <- tibble()
 in_perc <- tibble()
 
-
 ### there is something up with the cohorts here, not correct!
 
 for(current_cohort in 1:10) {
@@ -1636,13 +1635,6 @@ for(current_cohort in 1:10) {
              ".RData",
              sep = ""
   ))
-  # plot_cols <- col_df %>%
-  #   filter(method %in% c(
-  #     "C-HP",
-  #     "C-DCHP",
-  #     "C-MMHP"
-  #   )) %>%
-  #   pull(cols)
   all_data <- sim_cohort_mmhp %>%
     select(starts_with("gamma") ) %>% 
     pivot_longer(everything()) %>%
@@ -1660,6 +1652,8 @@ for(current_cohort in 1:10) {
   cmmhp_zeta <- cmmhp_zeta %>% 
     bind_rows(all_data)
 }
+
+###
 
 cmmhp_gamma$name <- stringr::str_extract(cmmhp_gamma$name, 
                                          pattern = "[:digit:]+")
@@ -1691,7 +1685,7 @@ out_perc <- out_perc %>%
   left_join(max_out, by = c("name", "cohort"))
 
 in_perc <- in_perc %>% 
-  left_join(max_out, by = c("name", "cohort"))
+  left_join(max_in, by = c("name", "cohort"))
 
 cmmhp_gamma$name <- factor(cmmhp_gamma$name,
                            levels = as.character(1:12))
@@ -1702,26 +1696,34 @@ cmmhp_gamma$cohort <- factor(cmmhp_gamma$cohort,
                              levels = paste0("Cohort_", 1:10))
 cmmhp_zeta$cohort <- factor(cmmhp_zeta$cohort, 
                              levels = paste0("Cohort_", 1:10))
+in_perc$cohort <- factor(in_perc$cohort, 
+                        levels = paste0("Cohort_", 1:10))
+out_perc$cohort <- factor(out_perc$cohort,
+                         levels = paste0("Cohort_", 1:10))
 
 cmmhp_gamma %>% 
   ggplot(aes(name, value, fill = Model)) +
   geom_boxplot() +
   scale_fill_manual(values = "#FDE725FF") +
-  facet_wrap(~cohort, scales = "free", ncol = 2) +
-  geom_text(data = out_perc, aes(name, max_est + 0.25, label = perc_out),
+  geom_text(data = out_perc, aes(name, 2 * max_est + 1.5, label = perc_out),
             size = 2) +
+  # scale_y_continuous(breaks = 3) +
+  facet_wrap(~cohort, scales = "free", ncol = 2) +
   # theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  labs(y = "Out Degree", x = element_blank())
+  labs(y = "Out Degree", x = element_blank(),
+       subtitle = "Labels denote % total fights instigated")
 
 cmmhp_zeta %>% 
   ggplot(aes(name, value, fill = Model)) +
   geom_boxplot() +
   scale_fill_manual(values = "#FDE725FF") +
-  facet_wrap(~cohort, scales = "free", ncol = 2) +
-  geom_text(data = in_perc, aes(name, max_est + 0.25, label = perc_in),
+  # scale_y_continuous(breaks = 3) +
+  geom_text(data = in_perc, aes(name, 2 * max_est + 1.5, label = perc_in),
             size = 2) +
+  facet_wrap(~cohort, scales = "free", ncol = 2) +
   # theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  labs(y = "In Degree", x = element_blank())
+  labs(y = "In Degree", x = element_blank(),
+       subtitle = "Labels denote % total fights received")
 
 ```
 
@@ -1762,7 +1764,7 @@ cohort_pars %>%
 
 ### Cohort Summaries
 
-```{r overall-fight-info}
+```{r overall-fight-info, message=FALSE, warning=FALSE}
 cohort_summ <- tibble()
 
 for(current_cohort in 1:10) {
@@ -1784,4 +1786,139 @@ cohort_summ %>%
   kbl() %>% 
   kable_styling()
 
+```
+### Relationship between active fights and difference in Spearman correlation
+
+```{r plot_percent_active_vs_spear_corr}
+# cohort_summ
+
+spear_corr_all <- tibble()
+
+for(current_cohort in 1:10) {
+  load(paste(data_path,
+             cohort_names[current_cohort],
+             "/cohort_mmhp_stan_result_",
+             cohort_names[current_cohort],
+             ".RData",
+             sep = ""
+  ))
+  
+  m3_ranks <- sim_cohort_mmhp %>% 
+    select(starts_with("f")) %>% 
+    pivot_longer(everything()) %>% 
+    group_by(name) %>% 
+    summarise("C-MMHP" = median(value))
+  
+  load(paste(data_path,
+             cohort_names[current_cohort],
+             "/cohort_hp_stan_result_",
+             cohort_names[current_cohort],
+             ".RData",
+             sep = ""
+  ))
+  
+  m1_ranks <- sim_cohort_hp %>% 
+    select(starts_with("f")) %>% 
+    pivot_longer(everything()) %>% 
+    group_by(name) %>% 
+    summarise("C-HP" = median(value))
+  
+  load(paste(data_path,
+             cohort_names[current_cohort],
+             "/cohort_dchp_stan_result_",
+             cohort_names[current_cohort],
+             ".RData",
+             sep = ""
+  ))
+  
+  m2_ranks <- sim_cohort_dchp %>% 
+    select(starts_with("f")) %>% 
+    pivot_longer(everything()) %>% 
+    group_by(name) %>% 
+    summarise("C-DCHP" = median(value))
+  
+  ranks <- m1_ranks %>% 
+    left_join(m2_ranks, by = "name") %>% 
+    left_join(m3_ranks, by = "name")
+  ## same think for spearman rank correlation
+  m1_num <- m1_ranks %>% 
+    rename(value = "C-HP") %>% 
+    arrange(desc(value)) %>% 
+    mutate(chp = 1:12) %>% 
+    mutate(node = stringr::str_extract(name,
+                                       pattern = "[:digit:]+")) %>%
+    mutate(node = as.integer(node)) %>% 
+    select(node, chp)
+  
+  m2_num <- m2_ranks %>% 
+    rename(value = "C-DCHP") %>% 
+    arrange(desc(value)) %>% 
+    mutate(cdchp = 1:12) %>% 
+    mutate(node = stringr::str_extract(name,
+                                       pattern = "[:digit:]+")) %>%
+    mutate(node = as.integer(node)) %>% 
+    select(node, cdchp)
+  
+  m3_num <- m3_ranks %>% 
+    rename(value = "C-MMHP") %>% 
+    arrange(desc(value)) %>% 
+    mutate(cmmhp = 1:12) %>% 
+    mutate(node = stringr::str_extract(name,
+                                       pattern = "[:digit:]+")) %>%
+    mutate(node = as.integer(node)) %>% 
+    select(node, cmmhp)
+
+  isi_ranks <- tibble(node = expert_rank_10[[current_cohort]],
+                      isi = 1:12)
+  ###
+  rank_df <- m1_num %>% 
+    left_join(m2_num, by = "node") %>% 
+    left_join(m3_num, by = "node") %>% 
+    left_join(isi_ranks, by = "node")
+
+  spear_cor <- cor(rank_df[,2:5], method = "spearman")
+  # spear_corr_list[[current_cohort]] <- spear_cor
+  
+  curr_spear <- as_tibble(spear_cor) %>% 
+    mutate(first = c("chp", "cdchp", "cmmhp", "isi")) %>%
+    pivot_longer(cols = chp:isi) 
+  
+  spear_ind <- as_tibble(upper.tri(spear_cor)) %>% 
+    pivot_longer(everything())
+  
+  curr_spear <- curr_spear %>% 
+    bind_cols(spear_ind %>% 
+                             rename(new_name = name, ind = value)) %>% 
+    filter(ind == TRUE) %>% 
+    select(first, name, value) %>% 
+    rename(second = name) %>% 
+    mutate(cohort = current_cohort)
+  
+  # %>% 
+  # # filter(first != name) %>% 
+  # # this removes ones which are actually identical
+  # distinct(first, name, value, .keep_all = TRUE) %>% 
+  # rename(second = name) %>% 
+  # mutate(cohort = current_cohort)
+  
+  spear_corr_all <- spear_corr_all %>% 
+    bind_rows(curr_spear)
+}
+
+
+spear_corr_all %>%
+  left_join(cohort_summ, by = "cohort") %>% 
+  filter(first == "chp") %>% 
+  filter(second %in% c("cdchp", "cmmhp")) %>% 
+  pivot_wider(id_cols = cohort, names_from = second, 
+              values_from = c(value, act_perc)) %>% 
+  select(cohort:act_perc_cdchp) %>% 
+  rename(act_perc = act_perc_cdchp) %>% 
+  mutate(corr_diff = value_cdchp - value_cmmhp) %>% 
+  select(cohort, corr_diff, act_perc) %>% 
+  ggplot(aes(corr_diff, act_perc)) +
+  geom_point() +
+  labs(y = "Percent fights Active", x = "Correlation Differernce",
+       subtitle = "Correlation difference between C-HP/C-DCHP and C-HP/C-MMHP")
+# then join this with cohort summ and do the plot
 ```
