@@ -241,7 +241,7 @@ model3_stan_fit <- model3$sample(
 
 stansims <- model3_stan_fit$summary("f")
 
-m3_rank <- order(stansims$mean)
+m3_rank <- order(stansims$median)
 
 
 ### then get i&si ranking for this
@@ -270,7 +270,7 @@ agg_rank_fit <- agg_rank_model$sample(
 
 agg_sims <- agg_rank_fit$summary("x")
 
-agg_rank <- order(agg_sims$mean)
+agg_rank <- order(agg_sims$median)
 
 ### glicko ranking also ####
 glicko_data <- tibble(
