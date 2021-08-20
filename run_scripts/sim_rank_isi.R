@@ -66,9 +66,9 @@ object_fn <- list(
 object_par <- list(gamma_var = seq(from = 0.01, to = 0.2,
                                    length.out = num_nodes),
                    zeta_var = rep(0.05, num_nodes),
-                   sim_eta_1 = 3, # from 3.5
+                   sim_eta_1 = 2.5, # from 3.5
                    sim_eta_2 = 2,#1.5, # from 2.6
-                   sim_eta_3 = 2.5, # 
+                   sim_eta_3 = 5, # 
                    sim_beta = 1.5, # from 2
                    sim_w_lam = 1.5,
                    f_vec_1 = seq(from = 0.1, to = 0.9,
