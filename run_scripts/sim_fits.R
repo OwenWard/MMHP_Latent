@@ -93,10 +93,10 @@ object_fn <- list(alpha.fun = function(x,y,eta1,eta2){
 
 object_par <- list(gamma_var = seq(from = 0.01, to = 0.2,
                                    length.out = num_nodes),
-                   zeta_var = rep(0.05, num_nodes),
-                   sim_eta_1 = 3, # from 3.5
+                   zeta_var = rep(0.1, num_nodes),
+                   sim_eta_1 = 1, # from 3.5
                    sim_eta_2 = 2, # from 2.6
-                   sim_eta_3 = 2.5, 
+                   sim_eta_3 = 1.25, 
                    sim_beta = 1.5, # from 2
                    sim_w_lam = 1.5,
                    # f_vec_1 = f_est)
