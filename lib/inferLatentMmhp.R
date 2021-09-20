@@ -25,8 +25,12 @@ myViterbi <- function(events, param, termination = NULL, if.print = FALSE){
   
   ## --- Calculation for log probability of Markov transition logP_ij(t)
   for(n in 1:(N+1)){
-    probs_1_matrix[n,1] <- log(param$q2/(param$q1+param$q2)+param$q1/(param$q1+param$q2)*exp(-(param$q1+param$q2)*interevent[n])) # 1->1
-    probs_2_matrix[n,2] <- log(param$q1/(param$q1+param$q2)+param$q2/(param$q1+param$q2)*exp(-(param$q1+param$q2)*interevent[n])) # 2->2
+    probs_1_matrix[n,1] <- log(param$q2/(param$q1+param$q2) + 
+                                 param$q1/(param$q1+param$q2)*
+                                 exp(-(param$q1+param$q2)*interevent[n])) # 1->1
+    probs_2_matrix[n,2] <- log(param$q1/(param$q1+param$q2) + 
+                                 param$q2/(param$q1+param$q2)*
+                                 exp(-(param$q1+param$q2)*interevent[n])) # 2->2
     probs_1_matrix[n,2] <- log(1-exp(probs_2_matrix[n,2])) # 2->1
     probs_2_matrix[n,1] <- log(1-exp(probs_1_matrix[n,1])) # 1->2
   }

@@ -14,7 +14,7 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
-data_path <- "../output/"
+data_path <- "../output/revisions/lapl_check/"
 
 func_dir <- "../lib/"
 
@@ -250,10 +250,48 @@ for(current_cohort in 1:10) {
              "/cohort_mmhp_stan_result_",cohort_names[current_cohort],
              ".RData",sep=''))
   
-  mean_latent_rank <- apply(sim_cohort_mmhp$f,2,mean)
+  mean_latent_rank <- apply(sim_cohort_mmhp %>% 
+                              select(starts_with("f")),2,mean)
   
-  out_degree <- apply(sim_cohort_mmhp$gamma,2,mean)
-  in_degree <- apply(sim_cohort_mmhp$zeta,2,mean)
+  out_degree <- apply(sim_cohort_mmhp %>% 
+                        select(starts_with("gamma")),2,mean)
+  in_degree <- apply(sim_cohort_mmhp %>% 
+                       select(starts_with("zeta")),2,mean)
+  
+  degs <- tibble(expert = expert_rank_10[[current_cohort]],
+                  latent = mean_latent_rank,#[expert],
+                 out_deg = out_degree,#[expert],
+                 in_deg = in_degree)#[expert])
+  
+  p <- ggplot(degs,aes(latent,out_deg)) + geom_point() + 
+    #scale_y_continuous(breaks = c(12:1), trans = "reverse") + 
+    ggtitle(paste("Out Degree vs Latent Cohort ", current_cohort,sep="")) + 
+    ylab("Out Degree (Gamma)") + xlab("Latent Rank")
+  #print(p)
+  q <- ggplot(degs,aes(latent,in_deg)) + geom_point() +
+    ggtitle(paste("In Degree vs Latent Cohort ",current_cohort,sep="")) +
+    ylab("In Degree (Zeta)") + xlab("Latent Rank")
+  #print(q)
+  grid.arrange(p,q, nrow = 1)
+}
+
+```
+
+
+```{r repeat-dchp}
+for(current_cohort in 1:10) {
+  #cat("Cohort ", current_cohort,"\n",sep="")
+  load(paste(data_path,cohort_names[current_cohort],
+             "/cohort_dchp_stan_result_",cohort_names[current_cohort],
+             ".RData",sep=''))
+  
+  mean_latent_rank <- apply(sim_cohort_dchp %>% 
+                              select(starts_with("f")),2,mean)
+  
+  out_degree <- apply(sim_cohort_dchp %>% 
+                        select(starts_with("gamma")),2,mean)
+  in_degree <- apply(sim_cohort_dchp %>% 
+                       select(starts_with("zeta")),2,mean)
   
   degs <- tibble(expert = expert_rank_10[[current_cohort]],
                   latent = mean_latent_rank,#[expert],

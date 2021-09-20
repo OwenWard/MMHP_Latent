@@ -87,11 +87,18 @@ cleanData <- function(raw_data, cut_off = 3, N = 12){
       max_interevent[i] <- 0
     }
   }
-  return(list(N_count = N_count, time_matrix = time_matrix, max_interevent = max_interevent,
-              I_fit = I_fit, J_fit = J_fit, day_hour = day_hour[1:M], 
+  return(list(N_count = N_count,
+              time_matrix = time_matrix,
+              max_interevent = max_interevent,
+              I_fit = I_fit,
+              J_fit = J_fit,
+              day_hour = day_hour[1:M], 
               indicator_each_pair = indicator_each_pair, M = M,
-              start = start[1:M], end = end[1:M],
-              day = day[1:M], new_observation = new_observation[1:M], time_stamp = time_stamp[1:M],
+              start = start[1:M],
+              end = end[1:M],
+              day = day[1:M],
+              new_observation = new_observation[1:M],
+              time_stamp = time_stamp[1:M],
               observation_change = observation_change/60))
 }
 

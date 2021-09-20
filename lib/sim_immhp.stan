@@ -1,60 +1,55 @@
 data{
+  // int<lower=1> max_Nm; //maximum of number of events for each pair each window => max(unlist(lapply(return_df$event.times,length))))
+  // int<lower=1> N_til; // number of pairs with interactions
+  // int<lower=0,upper=max_Nm> Nm[N_til,no_observations]; //number of events for each pair => count_matrix
+  // vector[max_Nm+1] time_matrix[N_til,no_observations]; // include termination time in the last entry
+  // real<lower=0> max_interevent[N_til];
   int<lower=1> max_Nm; //maximum of number of events for each pair
   int<lower=1> N_til;//number of pairs who have more than "cut_off" interactions
   int<lower=1> N;
   int<lower=1,upper=N> I_fit[N_til];
   int<lower=1,upper=N> J_fit[N_til];
   int<lower=0,upper=max_Nm> Nm[N_til]; //number of events for each pair
-  //int<lower=0,upper=N> alpha_id;
   vector[max_Nm] event_matrix[N_til];
   vector[max_Nm] interevent_time_matrix[N_til];
 }
+
 parameters{
-  //real<lower=0> lambda0; //baseline rate for each pair
-  real<lower=0> r_lambda1;
-  vector<lower=0,upper=1>[N] f;
-  vector<lower=0>[N] gamma;
-  vector<lower=0>[N] zeta;
-  real<lower=0> eta_1;
-  real<lower=0> eta_2;
-  real<lower=0> eta_3;
-  real<lower=0> beta_delta;
+  vector<lower=0>[N_til] lambda0; //baseline rate for each pair
+  vector<lower=0>[N_til] w_lambda;
+  vector<lower=0, upper=1>[N_til] w_q1; //CTMC transition rate
+  vector<lower=0, upper=1>[N_til] w_q2; //
+  vector<lower=0>[N_til] alpha;
+  vector<lower=0>[N_til] beta_delta;
   vector<lower=0,upper=1>[N_til] delta_1; // P(initial state = 1)
 }
 transformed parameters{
-  vector<lower=0>[N_til] lambda0;
   vector<lower=0>[N_til] lambda1;
+  vector<lower=0>[N_til] q1;
+  vector<lower=0>[N_til] q2;
+  vector[N_til] beta;
+  
   row_vector[2] log_delta[N_til];
-  vector[N_til] q1; // P(initial state = 1)
-  vector[N_til] q2; // P(initial state = 1)
-  vector[N_til] alpha; // P(initial state = 1)
-  real alpha_max;
-  real beta;
-
-  // lambda1 = lambda0*(1+r_lambda1);
-  // log_delta[1] = log(0.5);
-  // log_delta[2] = log(0.5);
-
+  
+  lambda1 = (lambda0).*(1+w_lambda); 
+  q2 = (lambda0).*w_q2;
+  q1 = (lambda0).*w_q1;
+  
   for(i in 1:N_til){
-    lambda0[i] = gamma[I_fit[i]]+zeta[J_fit[i]];
-    lambda1[i] = lambda0[i]*(1+r_lambda1);
-    alpha[i] = exp(-eta_2*fabs(f[I_fit[i]]-f[J_fit[i]])) * 
-      f[I_fit[i]]*f[J_fit[i]]*eta_1;
-    q1[i] = exp(-eta_3*f[I_fit[i]]);
-    q2[i] = exp(-eta_3*f[J_fit[i]]);
+    //delta_1[i] = q2[i]/(q1[i]+q2[i]);
     log_delta[i][1] = log(delta_1[i]);
     log_delta[i][2] = log(1-delta_1[i]);
-    
+    beta[i] = alpha[i]*(1+beta_delta[i]);
   }
-  alpha_max = max(alpha);
-  beta = alpha_max*(1+beta_delta);
 }
 model{
+  real integ; // Placeholder variable for calculating integrals
   row_vector[2] forward[max_Nm]; // Forward variables from forward-backward algorithm
-  row_vector[2] probs_1[max_Nm]; // Probability vector for transition to state 1 (active state)
-  row_vector[2] probs_2[max_Nm]; // Probability vector for transition to state 2 (inactive state)
-  row_vector[2] int_1[max_Nm]; // Integration of lambda when state transit to 1 (active state)
-  row_vector[2] int_2[max_Nm]; // Integration of lambda when state transit to 2 (inactive state)
+  row_vector[2] forward_termination; // Forward variables at termination time
+  row_vector[2] probs_1[max_Nm+1]; // Probability vector for transition to state 1 (active state)
+  row_vector[2] probs_2[max_Nm+1]; // Probability vector for transition to state 2 (inactive state)
+  row_vector[2] int_1[max_Nm+1]; // Integration of lambda when state transit to 1 (active state)
+  row_vector[2] int_2[max_Nm+1]; // Integration of lambda when state transit to 2 (inactive state)
   real R[max_Nm]; // record variable for Hawkes process
   vector[max_Nm] interevent;
   real K0;
@@ -70,28 +65,24 @@ model{
   real temp_q1;
   real temp_q2;
   row_vector[2] temp_log_delta;
+  real temp_delta_1;
   
   //priors
-  //lambda0 ~ lognormal(0,2);
-  gamma ~ double_exponential(0, 0.1);//inv_gamma(3,0.5);
-  zeta ~ double_exponential(0, 0.1);//inv_gamma(3,0.5);
-  r_lambda1 ~ normal(0,1);
-  beta_delta ~ normal(0,1);
-  eta_1 ~ normal(0,1);
-  eta_2 ~ normal(0,1);
-  eta_3 ~ normal(0,1);//normal(5,1);
-  //f[alpha_id] ~ normal(1,0.1);
-  delta_1 ~ normal(0,1);
+  w_lambda ~ lognormal(0,2);
+  alpha ~ lognormal(0,1);
+  beta_delta ~ gamma(1,1);
+  //delta_1 ~ beta(2,2);
+  w_q1 ~ beta(2,2);
+  w_q2 ~ beta(2,2);
   
-  
-  for(i in 1:N_til){ //for each pair
+   for(i in 1:N_til){ //for each pair
     if(I_fit[i]!=J_fit[i]){
       interevent = interevent_time_matrix[i];
 
       temp_lambda0 = lambda0[i];
       temp_lambda1 = lambda1[i];
       temp_alpha = alpha[i];
-      temp_beta = beta;
+      temp_beta = beta[i];
       temp_q1 = q1[i];
       temp_q2 = q2[i];
       temp_log_delta = log_delta[i];
