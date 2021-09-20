@@ -2,7 +2,7 @@
 Latent Space Hawkes Processes for Ranking Interaction Data
 
 
-A repo describing the final code to run and analyse the entire latent space Hawkes process procedure.
+A repo describing the final code to run and analyse the entire latent space Hawkes process procedure for [Network Hawkes Process Models for Exploring Latent Hierarchy in Social Animal Interactions](https://arxiv.org/abs/2012.09598)
 
 
 
