@@ -20,3 +20,4 @@ A repo describing the final code to run and analyse the entire latent space Hawk
 
 - Run `sim_fits.R` for each of the 50 simulation studies.
 - Run `sim_rank_isi.R` to do the corresponding rank simulations
+
