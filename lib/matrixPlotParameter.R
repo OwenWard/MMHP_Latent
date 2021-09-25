@@ -264,7 +264,7 @@ my.image.plot <- function(..., add = FALSE, xlab = NULL, ylab = NULL,
 # ----- Define a function for plotting multiple matrices ----- #
 myMultiMatrixPlot <- function(X, xLabels, yLabels, min, max, colorPalette, no_matrix, n_row,
                               if.emp = TRUE, emp.ROW, emp.COL, emp.color, title_lst, reverse.col = TRUE,
-                              title_cex = 2.8, axis_cex = 2.2, col_axis, fake_matrix = TRUE, out.title = NULL,
+                              title_cex = 2.8, axis_cex = 1.1, col_axis, fake_matrix = TRUE, out.title = NULL,
                               matrix.mar = NULL, legend.mar = NULL, title.line = NULL) {
   if (is.null(matrix.mar)) {
     if (is.null(out.title)) {

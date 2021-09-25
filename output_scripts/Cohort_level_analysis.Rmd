@@ -1,23 +1,28 @@
 ---
-title: "Cohort Level Analysis"
-author: "Owen G. Ward"
+title: "Supplement:Network Hawkes Process Models for Exploring Latent Hierarchy in Social Animal Interactions"
+author: 
 date: '`r Sys.Date()`'
 output:
-  html_document:
-    # toc: true
-    # toc_depth: 1
-    number_sections: true
-    # toc_float: true
-    code_folding: hide
+  # html_document:
+  #   # toc: true
+  #   # toc_depth: 1
+  #   number_sections: true
+  #   # toc_float: true
+  #   code_folding: hide
+  pdf_document
 ---
 
 
+Here we provide some summary analysis for each of the mice cohorts
+used in this paper. We include analyses for each cohort 
+separately, along with providing some further overall results.
 
 ```{r setup, echo=FALSE, message=FALSE}
 knitr::opts_chunk$set(
-  echo = TRUE, fig.height = 5, fig.width = 7,
+  echo = FALSE, fig.height = 5, fig.width = 7,
   warning = FALSE, cache = TRUE
 )
+# knitr::opts_chunk$set(echo = FALSE) ### for pdf output
 
 ## cache_options for individual output types here? maybe?
 cache_table <- FALSE
@@ -818,6 +823,51 @@ corr_matrices <- function(current_cohort) {
            title = "Spearman Rank Correlation",
            mar = c(0, 0, 1, 0), diag = FALSE)
 }
+
+cohort_mae <- function(current_cohort) {
+  load("../output/revisions/lapl_check/plot_N_predict_revision.RData")
+  temp_plot_df <- predict_day_mae_df_lst[[current_cohort]]
+  temp_plot_df$method <- factor(temp_plot_df$method,
+    levels = c("mmhp", "dsnl", "m1", "m2", "m3"),
+    labels = c("I-MMHP", "DSNL", "C-HP", "C-DCHP", "C-MMHP")
+  )
+  temp_plot_df$day <- factor(temp_plot_df$day)
+  # png(paste(plot_path,"real_predict_N_one_cohort.png",sep=""),
+  # width=600,height=300)
+  
+  plot_cols_pred <- col_df %>%
+    filter(method %in% levels(temp_plot_df$method)) %>%
+    arrange(factor(method, levels = c(
+      "I-MMHP", "DSNL",
+      "C-HP", "C-DCHP", "C-MMHP"
+    ))) %>%
+    pull(cols)
+  
+  p3 <- temp_plot_df %>%
+    rowwise() %>%
+    # mutate(norm = min(norm,60)) %>%
+    # rename(Method = method) %>%
+    ggplot(aes(x = method, y = mae, fill = method)) +
+    geom_boxplot(alpha = 0.7) +
+    scale_fill_manual(values = plot_cols_pred) +
+    ggtitle("(a)") +
+    theme_bw() +
+    theme(
+      plot.title = element_text(size = 22, hjust = 0.5, face = "bold"),
+      text = element_text(size = 20),
+      axis.text.x = element_blank(),
+      axis.ticks.x = element_blank(),
+      legend.position = "right"
+    ) +
+    facet_grid(cols = vars(day)) +
+    xlab("Prediction horizon (day)") +
+    ylab("MAE") +
+    ylim(0, 5) + # aren't infinite but >150 and <200
+    NULL
+  p3 + labs(fill = "Method", title = "Single Cohort",
+            subtitle = paste("Cohort", current_cohort, sep = " "))
+}
+
 ```
 
 
@@ -841,13 +891,13 @@ print_total_events(current_cohort)
 
 ### Total Active Events ordered by I&SI
 
-Here all events which are classified as inactive by the C-MMHP model
-originate from the top ranked animal. As such there is strong
-agreement between the win/loss matrix of all events and
-those ocurring in active periods, with the 
-restriction to only active events
-slightly decreasing the 
-influence of the top ranked animal.
+<!-- Here all events which are classified as inactive by the C-MMHP model -->
+<!-- originate from the top ranked animal. As such there is strong -->
+<!-- agreement between the win/loss matrix of all events and -->
+<!-- those ocurring in active periods, with the  -->
+<!-- restriction to only active events -->
+<!-- slightly decreasing the  -->
+<!-- influence of the top ranked animal. -->
 
 ```{r total-events-less-active-windows, message=FALSE}
 active_events <- total_events_active(current_cohort)
@@ -861,10 +911,10 @@ print(active_events)
 
 ### Correlation Matrices
 
-Examing the correlation matrices of both the median ranks for
-each of our cohort models and the Spearman rank correlations,
-we see that the C-HP most agrees with the I&SI ranking,
-with the C-DCHP and C-MMHP models showing progressively less agreement.
+<!-- Examining the correlation matrices of both the median ranks for -->
+<!-- each of our cohort models and the Spearman rank correlations, -->
+<!-- we see that the C-HP most agrees with the I&SI ranking, -->
+<!-- with the C-DCHP and C-MMHP models showing progressively less agreement. -->
 
 ```{r corr-plots, message=FALSE}
 corr_matrices(current_cohort)
@@ -873,9 +923,9 @@ corr_matrices(current_cohort)
 
 ### Inferred ranking ordered by I&SI score
 
-We next plot the inferred posterior rank estimates from 
-each of our cohort models and the comparison AggRank model,
-where we order the animals by the estimated I&SI ranking.
+<!-- We next plot the inferred posterior rank estimates from  -->
+<!-- each of our cohort models and the comparison AggRank model, -->
+<!-- where we order the animals by the estimated I&SI ranking. -->
 
 ```{r ranked-by-isi}
 rankings_by_isi(current_cohort)
@@ -884,9 +934,9 @@ rankings_by_isi(current_cohort)
 
 ### Inferred ranking order by C-MMHP median ranking
 
-Similarly, to show how this rank differs from that obtained by the C-MMHP
-model, we order the animals by the inferred ranking from that
-model.
+<!-- Similarly, to show how this rank differs from that obtained by the C-MMHP -->
+<!-- model, we order the animals by the inferred ranking from that -->
+<!-- model. -->
 
 ```{r ranked-by-cmmhp}
 rankings_by_cmmhp(current_cohort)
@@ -894,18 +944,16 @@ rankings_by_cmmhp(current_cohort)
 
 ### Parameter Estimates
 
-For each of our three proposed models, we show the parameter
-estimates for the non rank parameters, including the in and
-out degree estimates for the models which incorporate degree
-corrections.
+<!-- For each of our three proposed models, we show the parameter -->
+<!-- estimates for the non rank parameters, including the in and -->
+<!-- out degree estimates for the models which incorporate degree -->
+<!-- corrections. -->
 
 ```{r param-ests, message=FALSE}
 param_ests(current_cohort)
 ```
 
 ### Summary Table
-
-Finally, for each animal in this cohort, we summarise
 
 ```{r summ_tabls, message=FALSE}
 c1_summ <- fights_table(current_cohort)
@@ -927,7 +975,11 @@ c1_summ %>%
   kable_styling()
 ```
 
+<!-- ### Cohort MAE -->
 
+<!-- ```{r mae-cohort-1} -->
+<!-- cohort_mae(current_cohort) -->
+<!-- ``` -->
 
 ## Cohort 2 {-}
 
@@ -1918,7 +1970,7 @@ spear_corr_all %>%
   select(cohort, corr_diff, act_perc) %>% 
   ggplot(aes(corr_diff, act_perc)) +
   geom_point() +
-  labs(y = "Percent fights Active", x = "Correlation Differernce",
+  labs(y = "Percent fights Active", x = "Correlation Difference",
        subtitle = "Correlation difference between C-HP/C-DCHP and C-HP/C-MMHP")
 # then join this with cohort summ and do the plot
 ```

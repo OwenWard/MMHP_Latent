@@ -15,11 +15,12 @@ output:
 knitr::opts_chunk$set(
   echo = TRUE, fig.path = "paper_figure/revision/",
   dev = "png", fig.height = 5, fig.width = 7,
-  warning = FALSE, cache = TRUE
+  warning = FALSE, cache = FALSE
 )
 
 slides_plots <- FALSE
 extra_plots <- FALSE
+fig4 <- FALSE
 
 
 revision_plots <- TRUE
@@ -176,7 +177,6 @@ my.image.plot(seq(0, 1, 0.01), seq(0, 1, 0.01), z_plot,
 # current_cohort <- 5
 current_cohort <- 5
 
-data_path <- "../output/revisions/lapl_check/"
 
 load(paste(data_path, cohort_names[current_cohort],
   "/cohort_hp_stan_result_", cohort_names[current_cohort],
@@ -371,7 +371,7 @@ current_cohort <- 6
 ## Figure 3a: Baseline rates
 
 
-```{r fig-3a-baseline-rate, fig.width=5, fig.height=5, eval=revision_plots}
+```{r fig-3a-baseline-rate, fig.width=5, fig.height=5}
 current_cohort <- 5
 ## this looks better
 # current_cohort <- 6 # 3 is maybe ok, 6/7 is interesting
@@ -400,8 +400,13 @@ matrixPlotParameter(latent_social_matrix[
   expert_rank_10[[current_cohort]]
 ],
 xLabels = expert_rank_10[[current_cohort]],
-yLabels = rev(expert_rank_10[[current_cohort]]),
-title = "(a)" )
+yLabels = rev(expert_rank_10[[current_cohort]]))
+mtext(text="(a)",
+      side = 3,
+      line = 0.5,
+      outer = TRUE,
+      cex = 2.5,
+      font = 2)
 # mtext(text=c(1,2,11,6,7,9), side=1, line=-0.35, outer=TRUE, cex=1.3,
 #       at=1/17.8*seq(2,12,2)+0.09)
 # dev.off()
@@ -786,7 +791,6 @@ bind_cols(M1_ks_p, M2_ks_p) %>%
 ### this looks better
 ### now to add Pearson residual matrices here for C-HP and C-DCHP from fig 7
 current_cohort <- 5
-data_path <- "../output/revisions/lapl_check/"
 ## 2 and 8 maybe look better
 ## 3 probably looks the best
 
@@ -834,12 +838,12 @@ myMultiMatrixPlot(
   X = matrix_lst_plot, no_matrix = 2, n_row = 1,
   xLabels = expert_rank_10[[current_cohort]],
   yLabels = rev(expert_rank_10[[current_cohort]]),
-  min = -80, max = 80, axis_cex = 2, title_cex = 1.8,
+  min = -90, max = 90, axis_cex = 1.6, title_cex = 1.8,
   colorPalette = "RdBu", if.emp = FALSE,
   # legend.mar=c(0.5,.5,0.5,0.5),
   title_lst = list("C-HP", "C-DCHP", "C-MMHP"),
   # title_lst = list("I-MMHP"),
-  col_axis = c(-80, -40, 0, 40, 80), fake_matrix = TRUE,
+  col_axis = c(-90, -45, 0, 45, 90), fake_matrix = TRUE,
   matrix.mar = c(2.5, 2.5, 2.5, 1)
 )
 mtext(text="(b)",side=3,line=0.5,outer=TRUE,cex=2.5,font=2)
@@ -895,7 +899,7 @@ ranking values included for each.
 
 Will need to update this with full final simulations but fully set up now.
 
-```{r fig-4a, eval = revision_plots, message=FALSE, warning=FALSE}
+```{r fig-4a, eval = fig4, message=FALSE, warning=FALSE}
 sim_data_path <- here("output", "revisions", "aug_run", "sims", "/")
 
 num_nodes <- 10
@@ -1030,7 +1034,7 @@ mean_sims %>%
 Need to modify this after finally correctly formulating the 
 simulations.
 
-```{r prepare data for 4b,cache=TRUE, eval=TRUE}
+```{r prepare data for 4b,cache=TRUE, eval=fig4}
 plot.s <- 26 # 8 is pretty good
 plot.i <- 10
 plot.j <- 9
@@ -1251,7 +1255,7 @@ lambda.true <- mmhpTrueIntensityNumeric(
 ```
 
 
-```{r fig-4b-recover-latent-states,fig.width=8,fig.height=4, eval=TRUE}
+```{r fig-4b-recover-latent-states,fig.width=8,fig.height=4, eval=fig4}
 mmhp_lty <- 1
 
 y.ub <- c(5, 5, 5) # c(130,72,31)
@@ -1283,7 +1287,7 @@ true.object <- object_true
 
 
 
-```{r fig-4b, eval=TRUE}
+```{r fig-4b, eval=fig4}
 layout(matrix(c(1:6), 6, 1), heights = rep(c(7.5, 2.5), 3))
 par(
   mar = c(0.2, 0.3, 0, 0.1), oma = c(3, 3.5, 4, 2),
@@ -2852,14 +2856,14 @@ mtext(text = "Intensity", side = 2, line = 0.6, outer = TRUE, cex = 2.5)
 
 To be updated with the correct paths, etc
 
-```{r data for fig 5,cache=TRUE, eval=revision_plots}
+```{r data for fig 5,cache=TRUE, eval=FALSE}
 n_sim <- 50
 num_nodes <- 10
 
 object_par <- list(f_vec_1 = seq(from = 0.2, to = 0.9,
                                  length.out = num_nodes))
 
-sim_data_path <- here("output", "revisions", "lapl_check", "sim_lapl", "/")
+sim_data_path <- here("output", "revisions", "aug_run", "sims", "/")
 
 
 ## Initialize
@@ -3298,7 +3302,7 @@ Need to update this again for the final simulation parameter setting.
 ```{r fig-5b-spearman-sim, fig.height=5}
 sim_files <- list.files(here("output",
                              "revisions",
-                             "lapl_check",
+                             "aug_run",
                              "sim_rank/"), 
                         pattern = "rank_sim")
 
@@ -3309,7 +3313,7 @@ for (i in seq_along(sim_files)) {
   single_fit <- readRDS(here(
     "output",
     "revisions", 
-    "lapl_check",
+    "aug_run",
     "sim_rank",
     sim_files[i]
   ))
@@ -3376,10 +3380,10 @@ sim_data %>%
 # Figure 6: Latent Rank Cohort comparison
 
 
-## Figure 6a: Rank vs I&SI
+## Figure 6a: Rank vs I&SI Cohort 5
 
 
-```{r fig-6a-rank-vs-isi}
+```{r fig-6a-rank-vs-isi-cohort5}
 ### Rank Comparison for Single Cohort ####
 current_cohort <- 5
 # want to update this now
@@ -3467,10 +3471,98 @@ p1
 ```
 
 
-## Figure 6b: Spearman rank correlation
+## Figure 6b: Rank vs I&SI Cohort 3
 
-```{r fig-6b-overall-rank-correlation}
-load("../output/revisions/lapl_check/weighted_rank_data.RData")
+```{r fig-6b-rank-vs-isi-cohort3}
+### Rank Comparison for Single Cohort ####
+current_cohort <- 3
+# want to update this now
+# data_path 
+
+load(paste(data_path, cohort_names[current_cohort],
+  "/agg_rank_stan_result_", cohort_names[current_cohort],
+  ".RData",
+  sep = ""
+))
+load(paste(data_path, cohort_names[current_cohort],
+  "/cohort_hp_stan_result_", cohort_names[current_cohort],
+  ".RData",
+  sep = ""
+))
+load(paste(data_path, cohort_names[current_cohort],
+  "/cohort_dchp_stan_result_", cohort_names[current_cohort],
+  ".RData",
+  sep = ""
+))
+load(paste(data_path, cohort_names[current_cohort],
+  "/cohort_mmhp_stan_result_", cohort_names[current_cohort],
+  ".RData",
+  sep = ""
+))
+
+no_method <- 4
+plot_latent_df <- data.frame(
+  Methods = rep(1:no_method, each = 1000 * mice_number),
+  Mice = rep(rep(1:mice_number, each = 1000), no_method),
+  force = rep(0, 1000 * mice_number * no_method)
+)
+## agg
+x_draws <- sim_agg_rank %>% select(starts_with("x"))
+plot_latent_df$force[(1:(1000 * mice_number))] <-
+  as.vector(as.matrix(x_draws))
+
+## M1
+f_draws <- sim_cohort_hp %>% select(starts_with("f"))
+plot_latent_df$force[(1:(1000 * mice_number)) +
+                       1000 * mice_number] <- as.vector(as.matrix(f_draws))
+
+## M2
+f_draws <- sim_cohort_dchp %>% select(starts_with("f"))
+plot_latent_df$force[(1:(1000 * mice_number)) + 
+                       2000 * mice_number] <- as.vector(as.matrix(f_draws))
+
+## M3
+f_draws <- sim_cohort_mmhp %>% select(starts_with("f"))
+plot_latent_df$force[(1:(1000 * mice_number)) + 
+                       3000 * mice_number] <- as.vector(as.matrix(f_draws))
+
+plot_latent_df$Mice <- factor(plot_latent_df$Mice,
+  levels = expert_rank_10[[current_cohort]]
+)
+plot_latent_df$Method <- factor(plot_latent_df$Method,
+  labels = c("AggRanking", "C-HP", "C-DCHP", "C-MMHP")
+)
+
+# png(paste(plot_path,"real_rank_one_cohort.png",sep=""),width=600,height=300)
+plot_cols <- col_df %>%
+  filter(method %in% c(
+    "AggRank", "C-HP",
+    "C-DCHP", "C-MMHP"
+  )) %>%
+  pull(cols)
+
+
+p1 <- ggplot(plot_latent_df, aes(x = Mice, y = force, fill = Method)) +
+  geom_boxplot(alpha = 0.7) +
+  scale_fill_manual(values = plot_cols) +
+  ggtitle("(a)") +
+  theme_bw() +
+  theme(
+    plot.title = element_text(size = 22, hjust = 0.5, face = "bold"),
+    text = element_text(size = 20),
+    axis.text.x = element_text(size = 10),
+    legend.position = "none"
+  ) +
+  facet_grid(cols = vars(Method)) +
+  xlab("Mice (ranked by I&SI method)") +
+  ylab("Latent rank")
+p1
+# dev.off()
+current_cohort <- 5
+```
+
+```{r fig-6b-overall-rank-correlation, eval=FALSE}
+load("../output/revisions/aug_run/weighted_rank_data.RData")
 # png(paste(plot_path,"real_rank_all_cohort.png",sep=""),width=600,height=300)
 no_method <- 4
 plot_cor_df <- data.frame(
@@ -3992,7 +4084,6 @@ No longer including this figure in the paper
 
 ```{r fig-7-prMatrix-Cohort3, fig.width=7, fig.height=7}
 current_cohort <- 5
-data_path <- "../output/revisions/lapl_check/"
 ## 2 and 8 maybe look better
 ## 3 probably looks the best
 
@@ -4181,8 +4272,8 @@ struct_plot %>%
 
 ## Figure 8a: MAE of interaction predictions, single cohort
 
-```{r fig-8a-mae-norm-cohort5, fig.width=8,fig.height=4,eval=TRUE}
-load("../output/revisions/lapl_check/plot_N_predict_revision.RData")
+```{r fig-8a-mae-norm-cohort5,eval=TRUE}
+load("../output/revisions/aug_run/plot_N_predict_revision.RData")
 current_cohort <- 5 # cohort 1 looks worse than rest
 
 temp_plot_df <- predict_day_mae_df_lst[[current_cohort]]
@@ -4230,9 +4321,9 @@ p3 + labs(fill = "Method", title = "Single Cohort")
 ## Figure 8b: Same plot aggregated for all cohorts
 
 
-```{r fig-7a-pred-all-cohorts-box-mae,eval=TRUE, fig.width=8, fig.height=4}
+```{r fig-7a-pred-all-cohorts-box-mae,eval=TRUE}
 ### updated to revision
-load("../output/revisions/lapl_check/plot_N_predict_revision.RData")
+load("../output/revisions/aug_run/plot_N_predict_revision.RData")
 
 all_cohort_box <- all_cohort_mae_df
 
@@ -4291,7 +4382,7 @@ all_cohort_box %>%
 ```{r fig-9a-spearman-rank-cohort1, eval=FALSE}
 load(here("output",
           "revisions",
-          "lapl_check",
+          "aug_run",
           "plot_rank_predict.RData"))
 # current_cohort <- 5
 temp_plot_df <- predict_day_rank_df_lst[[current_cohort]]
@@ -4332,7 +4423,7 @@ p5 + labs(fill = "Method")
 ## Figure 9b: Predicted Spearman rank for all cohorts
 
 ```{r fig-7b-pred-rank-spearman-all-cohorts}
-load("../output/revisions/lapl_check/plot_rank_predict.RData")
+load("../output/revisions/aug_run/plot_rank_predict.RData")
 
 all_cohort_rank_df$method <- factor(all_cohort_rank_df$method,
   levels = c("mmhp", "dsnl", "m1", "m2", "m3"),
@@ -4344,8 +4435,8 @@ all_cohort_rank_df$method <- factor(all_cohort_rank_df$method,
 
 p7 <- ggplot(
   all_cohort_rank_df,
-  aes(x = method, y = spearman, fill = method)
-) +
+  aes(x = method, y = spearman,
+      fill = method)) +
   # geom_line(size=1.2, alpha=0.8, position=position_dodge(0.2)) +
   geom_boxplot(alpha = 0.7) +
   scale_fill_manual(values = plot_cols_pred) +
