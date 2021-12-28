@@ -176,7 +176,7 @@ my.image.plot(seq(0, 1, 0.01), seq(0, 1, 0.01), z_plot,
 # current_cohort <- 5
 current_cohort <- 5
 
-data_path <- "../output/revisions/lapl_check/"
+# data_path <- "../output/revisions/lapl_check/"
 
 load(paste(data_path, cohort_names[current_cohort],
   "/cohort_hp_stan_result_", cohort_names[current_cohort],
@@ -3298,7 +3298,7 @@ Need to update this again for the final simulation parameter setting.
 ```{r fig-5b-spearman-sim, fig.height=5}
 sim_files <- list.files(here("output",
                              "revisions",
-                             "lapl_check",
+                             "aug_run",
                              "sim_rank/"), 
                         pattern = "rank_sim")
 
@@ -3309,7 +3309,7 @@ for (i in seq_along(sim_files)) {
   single_fit <- readRDS(here(
     "output",
     "revisions", 
-    "lapl_check",
+    "aug_run",
     "sim_rank",
     sim_files[i]
   ))
@@ -4182,7 +4182,7 @@ struct_plot %>%
 ## Figure 8a: MAE of interaction predictions, single cohort
 
 ```{r fig-8a-mae-norm-cohort5, fig.width=8,fig.height=4,eval=TRUE}
-load("../output/revisions/lapl_check/plot_N_predict_revision.RData")
+load("../output/revisions/aug_run/plot_N_predict_revision.RData")
 current_cohort <- 5 # cohort 1 looks worse than rest
 
 temp_plot_df <- predict_day_mae_df_lst[[current_cohort]]
@@ -4232,7 +4232,7 @@ p3 + labs(fill = "Method", title = "Single Cohort")
 
 ```{r fig-7a-pred-all-cohorts-box-mae,eval=TRUE, fig.width=8, fig.height=4}
 ### updated to revision
-load("../output/revisions/lapl_check/plot_N_predict_revision.RData")
+load("../output/revisions/aug_run/plot_N_predict_revision.RData")
 
 all_cohort_box <- all_cohort_mae_df
 
