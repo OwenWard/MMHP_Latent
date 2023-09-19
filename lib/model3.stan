@@ -2,20 +2,20 @@ data{
   int<lower=1> N_til;//number of pairs => nrow(unique_pairs_df)
   int<lower=1> no_observations;//total number of observation windows -> 
   // max(return_df$observe.id)
-  int<lower=1,upper=12> I_fit[N_til];
-  int<lower=1,upper=12> J_fit[N_til];
+  array[N_til] int<lower=1,upper=12> I_fit;
+  array[N_til] int<lower=1,upper=12> J_fit;
   int<lower=1> max_Nm; 
   // maximum of number of events for each pair each window => 
   // max(unlist(lapply(return_df$event.times,length))))
-  int<lower=0,upper=max_Nm> Nm[N_til,no_observations]; 
+  array[N_til, no_observations] int<lower=0,upper=max_Nm> Nm; 
   //number of events for each pair => count_matrix
-  vector[max_Nm+1] interevent_time_matrix[N_til,no_observations]; 
+  array[N_til, no_observations] vector[max_Nm+1] interevent_time_matrix; 
   // include termination time difference in the last entry
-  vector[max_Nm] event_matrix[N_til,no_observations]; 
+  array[N_til, no_observations] vector[max_Nm] event_matrix; 
   // event times in each observation window
   //real<lower=0> delta_window[no_observations]; 
   //length of non-observation period 
-  real<lower=0> finishing_time[no_observations]; 
+  array[no_observations] real<lower=0> finishing_time; 
   //for each pair, each observation window, what is the finishing time
   //int<lower=0,upper=12> alpha_id;
   //vector<lower=0,upper=1>[N_til] delta_1;
@@ -42,14 +42,14 @@ transformed parameters{
   vector[N_til] q1; 
   vector[N_til] q2; 
   vector[N_til] alpha; 
-  row_vector[2] log_delta[N_til];
+  array[N_til] row_vector[2] log_delta;
   real alpha_max;
   real beta;
   
   for(i in 1:N_til){
     lambda0[i] = gamma[I_fit[i]]+zeta[J_fit[i]];  
     lambda1[i] = lambda0[i]*(1+w_lambda);
-    alpha[i] = exp(-eta_2*fabs(f[I_fit[i]]-f[J_fit[i]])) * 
+    alpha[i] = exp(-eta_2*abs(f[I_fit[i]]-f[J_fit[i]])) * 
     f[I_fit[i]]*f[J_fit[i]];//*eta_1;
     ///(1+exp(-eta_3*(f[I_fit[i]]-f[J_fit[i]])));
     //eta_1*f[I_fit[i]]*f[J_fit[i]];
@@ -68,13 +68,13 @@ transformed parameters{
 }
 model{
   real integ; // Placeholder variable for calculating integrals
-  row_vector[2] forward[max_Nm]; // Forward variables from forward-backward algorithm
+  array[max_Nm] row_vector[2] forward; // Forward variables from forward-backward algorithm
   row_vector[2] forward_termination; // Forward variables at termination time
-  row_vector[2] probs_1[max_Nm+1]; // Probability vector for transition to state 1 (active state)
-  row_vector[2] probs_2[max_Nm+1]; // Probability vector for transition to state 2 (inactive state)
-  row_vector[2] int_1[max_Nm+1]; // Integration of lambda when state transit to 1 (active state)
-  row_vector[2] int_2[max_Nm+1]; // Integration of lambda when state transit to 2 (inactive state)
-  real R[max_Nm+1]; // record variable for Hawkes process
+  array[max_Nm +1] row_vector[2] probs_1; // Probability vector for transition to state 1 (active state)
+  array[max_Nm + 1] row_vector[2] probs_2; // Probability vector for transition to state 2 (inactive state)
+  array[max_Nm + 1] row_vector[2] int_1; // Integration of lambda when state transit to 1 (active state)
+  array[max_Nm + 1] row_vector[2] int_2; // Integration of lambda when state transit to 2 (inactive state)
+  array[max_Nm + 1] real R; // record variable for Hawkes process
   vector[max_Nm+1] interevent;
   real K0;
   real K1;
